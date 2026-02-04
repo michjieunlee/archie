@@ -10,9 +10,9 @@ slack-sdk>=3.27.0
 # GitHub Integration
 PyGithub>=2.1.0
 
-# SAP GenAI SDK (③ AI Core)
-# TODO: Add SAP GenAI SDK package when available
-# gen-ai-hub-sdk>=0.1.0
+# SAP GenAI SDK
+# generative-ai-hub-sdk>=4.12.4
+sap-ai-sdk-gen>=6.1.2
 
 # Testing
 pytest>=7.4.0
