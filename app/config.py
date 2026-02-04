@@ -19,9 +19,14 @@ class Settings(BaseSettings):
     github_repo_name: str = ""
     github_default_branch: str = "main"
 
-    # AI / SAP GenAI SDK
+    # SAP GenAI SDK
+    sap_genai_api_url: str = ""
     sap_genai_api_key: str = ""
-    sap_genai_endpoint: str = ""
+    sap_genai_deployment_id: str = ""
+
+    # Processing Configuration
+    batch_size_masking: int = 20  # Messages per orchestration call
+    orchestration_timeout: int = 30  # Seconds
 
     class Config:
         env_file = ".env"
