@@ -1,18 +1,41 @@
-# Archie - Slack Chat to Living Knowledge Base
+# Archie - Conversations to Living Knowledge Base
 
-An agent that automatically extracts decision-making, troubleshooting, and know-how from Slack conversations and transforms them into a Knowledge Base (KB).
+An intelligent agent that automatically extracts decision-making, troubleshooting, and know-how from conversations and transforms them into a structured Knowledge Base (KB).
 
 ## Overview
 
 ```
-Slack Thread → PII Masking → KB Extraction → Matching → Generation → GitHub PR
+Multi-Input Sources → Batch Processing → AI Extraction → KB Generation → GitHub PR
 ```
 
 **Key Features:**
-- Detect KB-worthy conversations from Slack threads
-- AI-powered structured document draft generation
-- Automatic push to GitHub as PR
-- (Planned) Teams chat extension support
+- **Multi-Input Processing**: Slack API, file upload, or direct text paste
+- **Comprehensive Message Collection**: Scans ALL messages and threads in specified time periods
+- **Batch AI Processing**: Processes multiple conversations simultaneously for better context
+- **AI-powered structured document generation** with PII masking
+- **Automatic GitHub PR creation** with generated KB documents
+- **User-configurable workspace settings** for multi-tenant support
+
+## Input Methods
+
+### 1. **Slack API Integration** (Primary)
+```
+Channel + Time Range → Comprehensive Message Collection → KB Extraction
+```
+- Scans all messages in specified time period (default: 1 week)
+- Automatically expands threaded conversations
+- Handles both public and private channels
+- Rate limiting and pagination support
+
+### 2. **File Upload**
+- Upload conversation history files
+- Supports various formats (JSON, CSV, TXT)
+- Converts to standardized format for processing
+
+### 3. **Direct Text Input**
+- Paste conversation text directly into Joule
+- Manual input for quick KB extraction
+- Useful for external conversations or legacy data
 
 ## Project Structure
 
@@ -37,7 +60,7 @@ archie/
 │   │       ├── pr.py           # PR creation logic
 │   │       └── models.py       # GitHub data models
 │   │
-│   ├── ai_core/                # ③ Owner's area
+│   ├── ai_core/                # ② Owner's area
 │   │   ├── masking/            # PII masking
 │   │   │   └── pii_masker.py
 │   │   ├── extraction/         # KB candidate extraction
@@ -62,46 +85,19 @@ archie/
 │
 ├── tests/
 │   ├── integrations/           # ① Tests
-│   └── ai_core/                # ③ Tests
+│   └── ai_core/                # ② Tests
 │
 ├── requirements.txt
 ├── .env.example
 └── README.md
 ```
 
-## Role Assignment
+## Team Structure
+- **① Integration Owner**: Slack API, GitHub operations, Joule endpoints  
+- **② AI/Knowledge Owner**: SAP GenAI SDK, PII masking, KB operations  
+- **③ Joule Interface Owner**: User interface, progress tracking, result display
 
-### ① Slack · GitHub Integration & Flow Owner
-
-**Directories:** `app/integrations/`, `app/api/routes/slack.py`, `app/api/routes/github.py`
-
-**Responsibilities:**
-- Slack App setup and API integration
-- Thread permalink parsing and message collection
-- GitHub KB repo integration (branch, PR creation)
-- Input data standardization
-
-**Key Tasks:**
-1. Slack PoC workspace + Archie App setup
-2. `integrations/slack/client.py` - Implement conversations.replies API
-3. `integrations/github/pr.py` - Implement PR creation flow
-4. Prepare 2-3 demo Slack threads
-
-### ③ AI Core · Compliance · Knowledge Logic Owner
-
-**Directories:** `app/ai_core/`
-
-**Responsibilities:**
-- PII masking (SAP GenAI SDK Data Masking)
-- KB candidate extraction and value evaluation
-- New vs Update decision logic
-- Document generation/update prompts
-
-**Key Tasks:**
-1. `ai_core/masking/pii_masker.py` - SAP GenAI SDK integration
-2. `ai_core/prompts/` - Design and tune 3 prompts
-3. `ai_core/templates/` - Define KB document templates
-4. Implement explainability for "why AI made this decision"
+*See `docs/IMPLEMENTATION_PLANS.md` for detailed team responsibilities and implementation guidance.*
 
 ## Getting Started
 
@@ -137,14 +133,23 @@ cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
-### API Endpoints
+### API Documentation
+*See `docs/API_INTEGRATION.md` for complete API endpoint documentation and data models.*
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/api/slack/thread` | POST | Fetch Slack thread by permalink |
-| `/api/github/pr` | POST | Create KB PR |
-| `/api/knowledge/process` | POST | Full pipeline: thread → PR |
+### Configuration
+
+```bash
+# Multi-workspace configuration
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_SIGNING_SECRET=your-signing-secret
+GITHUB_TOKEN=ghp-your-token
+GITHUB_REPO_OWNER=your-org
+GITHUB_REPO_NAME=knowledge-base
+
+# AI Processing
+SAP_GENAI_API_KEY=your-api-key
+SAP_GENAI_ENDPOINT=https://your-endpoint.sap.com
+```
 
 ### Running Tests
 
@@ -152,33 +157,48 @@ uvicorn app.main:app --reload --port 8000
 pytest tests/ -v
 ```
 
-## Pipeline Flow
+## Updated Pipeline Flow
 
+### **Living KB Processing Architecture** (Primary)
 ```
-1. User submits Slack thread permalink
-   └── POST /api/knowledge/process
+1. Multi-Input Collection
+   ├── Slack API: Channel + Time Range → All Messages + Threads
+   ├── File Upload: Conversation History → Parsed Messages  
+   └── Text Input: Direct Paste → Structured Conversations
+   
+2. Existing KB Context (① Owner)
+   └── Fetch current KB repository → Parse existing documents → AI-searchable format
 
-2. Fetch thread messages (① Owner)
-   └── integrations/slack/client.py
+3. Data Standardization (① Owner)
+   └── Convert all inputs → List[StandardizedThread] + Existing KB Context
 
-3. Mask PII data (③ Owner)
-   └── ai_core/masking/pii_masker.py
+4. Living KB AI Processing (② Owner)
+   ├── PII Masking: Batch mask all conversations
+   ├── KB Extraction: Evaluate conversations for KB worthiness
+   ├── KB Matching: Semantic comparison against EXISTING KB documents
+   └── KB Operations: Decide create/update/append/replace for existing documents
 
-4. Extract KB candidate (③ Owner)
-   └── ai_core/extraction/kb_extractor.py
-   └── Prompt 1: Is this KB-worthy?
-
-5. Match against existing KB (③ Owner)
-   └── ai_core/matching/kb_matcher.py
-   └── Prompt 2: Create vs Update vs Ignore?
-
-6. Generate KB document (③ Owner)
-   └── ai_core/generation/kb_generator.py
-   └── Prompt 3: Generate markdown
-
-7. Create GitHub PR (① Owner)
-   └── integrations/github/pr.py
+5. GitHub Integration (① Owner)
+   └── Create PR with KB updates (new documents + modifications to existing)
 ```
+
+### **Single Thread Processing** (Legacy Support)
+```
+1. User submits Slack thread permalink → POST /api/knowledge/process
+2. Fetch thread messages (① Owner) → integrations/slack/client.py
+3. PII Masking (② Owner) → ai_core/masking/pii_masker.py
+4. KB Extraction (② Owner) → ai_core/extraction/kb_extractor.py
+5. KB Matching (② Owner) → ai_core/matching/kb_matcher.py  
+6. KB Generation (② Owner) → ai_core/generation/kb_generator.py
+7. GitHub PR Creation (① Owner) → integrations/github/pr.py
+```
+
+## Documentation
+
+- **Architecture**: `docs/ARCHITECTURE.md` - System architecture and data flow diagrams
+- **API Integration**: `docs/API_INTEGRATION.md` - Complete API documentation and data models
+- **Implementation Plans**: `docs/IMPLEMENTATION_PLANS.md` - Team responsibilities and development guidance
+- **KB Structure**: `docs/KB_REPOSITORY_STRUCTURE.md` - Knowledge base repository organization
 
 ## Future Roadmap
 
