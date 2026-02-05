@@ -113,7 +113,7 @@ class PIIMasker:
 
         # Create LLM model details
         llm = LLMModelDetails(
-            name="anthropic--claude-4.5-sonnet",
+            name="gpt-4o-mini",
             params={"max_tokens": 1000, "temperature": 0.0},
         )
 
