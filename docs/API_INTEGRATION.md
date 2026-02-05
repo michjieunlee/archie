@@ -356,7 +356,7 @@ Content-Type: application/json
 
 #### KB Generation
 ```http
-POST /api/ai/generate-batch
+POST /api/kb/generate
 Content-Type: application/json
 
 {
