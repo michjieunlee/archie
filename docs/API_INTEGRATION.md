@@ -207,7 +207,7 @@ Content-Type: application/json
 }
 ```
 
-#### 2. Get Processing Status
+#### 2. Get Processing Status and Results
 ```http
 GET /api/joule/status/{job_id}
 ```
@@ -218,7 +218,7 @@ GET /api/joule/status/{job_id}
     "job_id": "job_12345",
     "status": "processing" | "completed" | "failed",
     "progress": {
-        "stage": "kb_matching" | "ai_processing" | "pr_creation",
+        "stage": "extraction" | "matching" | "generation" | "pr_creation",
         "percentage": 65,
         "estimated_remaining": "2 minutes"
     },
@@ -228,19 +228,6 @@ GET /api/joule/status/{job_id}
         "kb_documents_updated": 2,
         "pr_url": "https://github.com/org/kb/pull/123"
     },
-    "errors": []
-}
-```
-
-#### 3. Get Extraction Results
-```http
-GET /api/joule/results/{job_id}
-```
-
-**Response:**
-```json
-{
-    "job_id": "job_12345",
     "extraction_summary": {
         "total_conversations": 15,
         "kb_worthy_conversations": 8,
@@ -263,7 +250,8 @@ GET /api/joule/results/{job_id}
         "files_changed": 8,
         "additions": 245,
         "deletions": 12
-    }
+    },
+    "errors": []
 }
 ```
 
@@ -318,15 +306,14 @@ Content-Type: application/json
 
 #### Batch KB Extraction
 ```http
-POST /api/ai/extract-batch
+POST /api/kb/extract
 Content-Type: application/json
 
 {
     "threads": [/* Array of StandardizedThread */],
     "options": {
         "min_confidence": 0.6,
-        "categories": ["troubleshooting", "process", "decision"],
-        "exclude_short_threads": true
+        "categories": ["troubleshooting", "process", "decision"]
     }
 }
 ```
@@ -345,7 +332,7 @@ Content-Type: application/json
 
 #### KB Matching
 ```http
-POST /api/ai/match-batch  
+POST /api/kb/match
 Content-Type: application/json
 
 {
@@ -356,7 +343,7 @@ Content-Type: application/json
 
 #### KB Generation
 ```http
-POST /api/ai/generate-batch
+POST /api/kb/generate
 Content-Type: application/json
 
 {
@@ -468,7 +455,7 @@ Content-Type: application/json
 
 ### Memory Management
 - **Large Channels**: Process in chunks of 100-200 messages
-- **Batch Size**: Recommend 10-20 threads per AI batch call
+- **Batch Size**: Recommend 3-5 threads per AI batch call
 - **Timeout**: Set 30s timeout for AI processing calls
 
 ## Error Codes
