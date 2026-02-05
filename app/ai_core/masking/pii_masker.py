@@ -93,6 +93,13 @@ class PIIMasker:
                                 method="constant", value="I_NUMBER"
                             ),
                         ),
+                        # Custom entity for local phone numbers (e.g., 123-4567)
+                        DPICustomEntity(
+                            regex=r"\b\d{3}-\d{4}\b",
+                            replacement_strategy=DPIMethodConstant(
+                                method="constant", value="LOCAL_PHONE"
+                            ),
+                        ),
                     ],
                 )
             ],
