@@ -11,6 +11,13 @@ Usage:
     python test_masking.py
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 import asyncio
 from datetime import datetime
 from typing import List
@@ -46,7 +53,7 @@ def create_sample_threads() -> List[StandardizedThread]:
                 id="msg2",
                 author_id="user_jane",
                 author_name="Jane Smith",
-                content="Thanks John! My number is +1-555-0123 if you need to call.",
+                content="Thanks John! My ID is i111111 and my number is +1-555-0123 if you need to call.",
                 timestamp=datetime.now(),
                 is_masked=False,
             ),
@@ -54,7 +61,7 @@ def create_sample_threads() -> List[StandardizedThread]:
                 id="msg3",
                 author_id="user_john",
                 author_name="John Doe",
-                content="Got it Jane. I'll send the docs to john.doe@company.com later.",
+                content="Got it Jane. My colleague D123456 will help. I'll send the docs to john.doe@company.com later.",
                 timestamp=datetime.now(),
                 is_masked=False,
             ),
@@ -76,7 +83,7 @@ def create_sample_threads() -> List[StandardizedThread]:
                 id="msg4",
                 author_id="user_bob",
                 author_name="Bob Wilson",
-                content="I'm having issues. Call me at 555-9876 or email bob.wilson@email.com",
+                content="I'm having issues with C987654. Call me at 555-9876 or email bob.wilson@email.com",
                 timestamp=datetime.now(),
                 is_masked=False,
             ),
@@ -84,7 +91,7 @@ def create_sample_threads() -> List[StandardizedThread]:
                 id="msg5",
                 author_id="user_alice",
                 author_name="Alice Brown",
-                content="Hi Bob, I'll help you. My contact is alice@company.com",
+                content="Hi Bob, I'll help you. My ID is I123456 and contact is alice@company.com",
                 timestamp=datetime.now(),
                 is_masked=False,
             ),
@@ -208,6 +215,25 @@ async def test_masking():
         status4 = "✅" if content_changed else "❌"
         print(f"{status4} Content was modified (masking applied): {content_changed}")
 
+        # Check 6: Custom I_NUMBER entities are masked
+        inumber_masked = True
+        original_inumbers = ["i111111", "D123456", "C987654", "I123456"]
+        for thread in masked_threads:
+            for msg in thread.messages:
+                for inumber in original_inumbers:
+                    if inumber in msg.content or inumber.lower() in msg.content:
+                        inumber_masked = False
+                        break
+                if not inumber_masked:
+                    break
+            if not inumber_masked:
+                break
+
+        status6 = "✅" if inumber_masked else "❌"
+        print(
+            f"{status6} Custom I_NUMBER entities (I/D/C IDs) were masked: {inumber_masked}"
+        )
+
         # Check 5: Same user gets same USER_X identifier
         user_consistency = True
         for thread in masked_threads:
@@ -237,6 +263,7 @@ async def test_masking():
                 structure_preserved,
                 content_changed,
                 user_consistency,
+                inumber_masked,
             ]
         )
 
@@ -293,7 +320,7 @@ async def test_single_thread():
                 id="msg1",
                 author_id="user1",
                 author_name="Test User",
-                content="My email is test@example.com and phone is 555-1234",
+                content="My ID is i111111, email is test@example.com and phone is 555-1234",
                 timestamp=datetime.now(),
                 is_masked=False,
             ),

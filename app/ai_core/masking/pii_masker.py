@@ -26,6 +26,8 @@ from gen_ai_hub.orchestration_v2.models.data_masking import (
     MaskingProviderConfig,
     MaskingMethod,
     DPIStandardEntity,
+    DPICustomEntity,
+    DPIMethodConstant,
     ProfileEntity,
 )
 
@@ -70,6 +72,7 @@ class PIIMasker:
         - EMAIL: Email addresses
         - PHONE: Phone numbers
         - ADDRESS: Physical addresses
+        - I_NUMBER: Custom entity for personal IDs (I/D/C followed by digits, e.g., i123456, D123456, C987654)
 
         Excluded: ORG, LOCATION (to preserve technical context)
         """
@@ -78,10 +81,18 @@ class PIIMasker:
                 MaskingProviderConfig(
                     method=MaskingMethod.ANONYMIZATION,
                     entities=[
+                        # Standard entities
                         DPIStandardEntity(type=ProfileEntity.PERSON),
                         DPIStandardEntity(type=ProfileEntity.EMAIL),
                         DPIStandardEntity(type=ProfileEntity.PHONE),
                         DPIStandardEntity(type=ProfileEntity.ADDRESS),
+                        # Custom entity for personal IDs starting with I/D/C
+                        DPICustomEntity(
+                            regex=r"\b[IDCidc]\d{6,6}\b",
+                            replacement_strategy=DPIMethodConstant(
+                                method="constant", value="I_NUMBER"
+                            ),
+                        ),
                     ],
                 )
             ],
@@ -138,6 +149,7 @@ class PIIMasker:
         - Email addresses (e.g., "john@example.com" -> "EMAIL_1")
         - Phone numbers (e.g., "+1-555-0100" -> "PHONE_1")
         - Addresses (e.g., "123 Main St" -> "ADDRESS_1")
+        - Personal IDs (e.g., "i538638" -> "PERSONAL_ID_1", "D123456" -> "PERSONAL_ID_2")
 
         Args:
             threads: List of StandardizedThread objects to mask
@@ -345,6 +357,6 @@ class PIIMasker:
             "total_characters": total_chars,
             "estimated_api_calls": len(threads),  # One call per thread
             "estimated_time_seconds": estimated_time,  # Parallel processing
-            "entities_masked": ["PERSON", "EMAIL", "PHONE", "ADDRESS"],
+            "entities_masked": ["PERSON", "EMAIL", "PHONE", "ADDRESS", "PERSONAL_ID"],
             "masking_method": "anonymization",
         }
