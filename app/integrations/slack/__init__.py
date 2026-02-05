@@ -1,5 +1,5 @@
 # Slack integration module
 from app.integrations.slack.client import SlackClient
-from app.integrations.slack.parser import parse_permalink
+from app.integrations.slack.models import SlackThread, SlackMessage
 
-__all__ = ["SlackClient", "parse_permalink"]
+__all__ = ["SlackClient", "SlackThread", "SlackMessage"]

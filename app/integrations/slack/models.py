@@ -24,8 +24,20 @@ class SlackThread(BaseModel):
 
     channel_id: str
     channel_name: str | None = None
-    thread_ts: str
-    permalink: str
     messages: list[SlackMessage]
-    reply_count: int
-    participant_count: int
+    metadata: dict = {}
+
+    @property
+    def threads_expanded(self) -> bool:
+        """Check if threads were expanded."""
+        return self.metadata.get("threads_expanded", False)
+
+    @property
+    def participant_count(self) -> int:
+        """Count unique participants."""
+        return len(set(msg.user_id for msg in self.messages))
+
+    @property
+    def message_count(self) -> int:
+        """Count total messages."""
+        return len(self.messages)
