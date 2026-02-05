@@ -318,7 +318,7 @@ Content-Type: application/json
 
 #### Batch KB Extraction
 ```http
-POST /api/ai/extract-batch
+POST /api/kb/extract
 Content-Type: application/json
 
 {
