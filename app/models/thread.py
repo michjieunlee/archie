@@ -56,33 +56,35 @@ class StandardizedThread(BaseModel):
 
 # Living KB Models
 
+
 class ExistingKBDocument(BaseModel):
     """Represents an existing KB document from GitHub repository."""
-    
+
     file_path: str  # e.g., "troubleshooting/database/connection-issues.md"
     title: str
     category: str
     tags: List[str]
     content: str  # Full markdown content
     metadata: Dict[str, Any]  # Created date, last updated, difficulty, etc.
-    
-    
+
+
 class KBOperationType(str, Enum):
     """Types of operations that can be performed on KB documents."""
-    
-    CREATE = "create"      # Create new document
-    UPDATE = "update"      # Update entire document
-    APPEND = "append"      # Add section to existing document
-    REPLACE = "replace"    # Replace specific section
-    REMOVE = "remove"      # Remove section/document
-    MERGE = "merge"        # Merge with another document
+
+    CREATE = "create"  # Create new document
+    UPDATE = "update"  # Update entire document
+    APPEND = "append"  # Add section to existing document
+    REPLACE = "replace"  # Replace specific section
+    REMOVE = "remove"  # Remove section/document
+    MERGE = "merge"  # Merge with another document
 
 
 # AI Processing Models for team integration
 
+
 class KBExtractionResult(BaseModel):
     """Result of KB extraction analysis (for AI Core team ②)."""
-    
+
     thread_id: str
     is_kb_worthy: bool
     confidence_score: float  # 0.0 to 1.0
@@ -96,7 +98,7 @@ class KBExtractionResult(BaseModel):
 
 class KBMatchResult(BaseModel):
     """Result of matching against existing KB documents."""
-    
+
     thread_id: str
     operation: KBOperationType
     confidence_score: float
@@ -108,7 +110,7 @@ class KBMatchResult(BaseModel):
 
 class KBOperationResult(BaseModel):
     """Complete result of KB processing with operation instructions."""
-    
+
     operation: KBOperationType
     file_path: str  # Target file path in KB repo
     title: str
@@ -116,20 +118,20 @@ class KBOperationResult(BaseModel):
     category: str
     tags: List[str]
     metadata: Dict[str, Any]
-    
+
     # AI context
     ai_confidence: float
     ai_reasoning: str
     source_threads: List[str]
-    
+
     # For update operations
     target_section: Optional[str] = None  # Section to update (for append/replace)
     original_content: Optional[str] = None  # Original content being modified
-    
-    
+
+
 class ExistingKBContext(BaseModel):
     """Context about existing KB repository for AI processing."""
-    
+
     documents: List[ExistingKBDocument]
     repository_stats: Dict[str, Any]  # Total docs, categories, last update, etc.
     categories: List[str]  # Available categories

@@ -1,0 +1,36 @@
+---
+title: "{title}"
+category: "decision"
+tags: [{tags}]
+difficulty: "intermediate"
+source_type: "{source_type}"
+source_threads: [{source_threads}]
+ai_confidence: {ai_confidence}
+ai_reasoning: "{ai_reasoning}"
+created_date: "{created_date}"
+last_updated: "{last_updated}"
+---
+
+# {title}
+
+## Context
+{decision_context}
+
+## Decision
+{decision_made}
+
+## Rationale
+{reasoning}
+
+## Alternatives Considered
+{alternatives}
+
+## Consequences
+### Positive
+{positive_consequences}
+
+### Negative
+{negative_consequences}
+
+## Implementation Notes
+{implementation_notes}
