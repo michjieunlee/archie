@@ -53,7 +53,7 @@ def create_sample_threads() -> List[StandardizedThread]:
                 id="msg2",
                 author_id="user_jane",
                 author_name="Jane Smith",
-                content="Thanks John! My ID is i111111 and my number is +1-555-0123 if you need to call.",
+                content="Thanks John! My ID is i111111 and my number is +1-555-0123 or local 555-1234 if you need to call.",
                 timestamp=datetime.now(),
                 is_masked=False,
             ),
@@ -234,6 +234,25 @@ async def test_masking():
             f"{status6} Custom I_NUMBER entities (I/D/C IDs) were masked: {inumber_masked}"
         )
 
+        # Check 7: Local phone numbers (123-4567 format) are masked
+        local_phone_masked = True
+        local_phones = ["555-1234", "555-9876"]
+        for thread in masked_threads:
+            for msg in thread.messages:
+                for phone in local_phones:
+                    if phone in msg.content:
+                        local_phone_masked = False
+                        break
+                if not local_phone_masked:
+                    break
+            if not local_phone_masked:
+                break
+
+        status7 = "✅" if local_phone_masked else "❌"
+        print(
+            f"{status7} Local phone numbers (123-4567 format) were masked: {local_phone_masked}"
+        )
+
         # Check 5: Same user gets same USER_X identifier
         user_consistency = True
         for thread in masked_threads:
@@ -264,6 +283,7 @@ async def test_masking():
                 content_changed,
                 user_consistency,
                 inumber_masked,
+                local_phone_masked,
             ]
         )
 
@@ -320,7 +340,7 @@ async def test_single_thread():
                 id="msg1",
                 author_id="user1",
                 author_name="Test User",
-                content="My ID is i111111, email is test@example.com and phone is 555-1234",
+                content="My ID is i111111, email is test@example.com, phone is +1-555-0100, and local phone is 123-4567",
                 timestamp=datetime.now(),
                 is_masked=False,
             ),
