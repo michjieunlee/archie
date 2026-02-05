@@ -19,6 +19,14 @@ class SourceType(str, Enum):
     TEAMS = "teams"  # Future extension
 
 
+class ThreadCategory(str, Enum):
+    """Knowledge base document categories."""
+
+    TROUBLESHOOTING = "troubleshooting"
+    PROCESS = "process"
+    DECISION = "decision"
+
+
 class StandardizedMessage(BaseModel):
     """Platform-agnostic message format."""
 
@@ -80,7 +88,7 @@ class KBExtractionResult(BaseModel):
     confidence_score: float  # 0.0 to 1.0
     reasoning: str  # AI explanation
     suggested_title: str
-    category: str  # e.g., "troubleshooting", "process", "decision"
+    category: ThreadCategory  # e.g., "troubleshooting", "process", "decision"
     tags: List[str]
     key_topics: List[str]
     estimated_value: str  # "high", "medium", "low"
