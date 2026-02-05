@@ -191,16 +191,16 @@ POST /api/input/text
 ### AI Processing APIs
 
 ```
-POST /api/ai/extract-batch
+POST /api/kb/extract
 ├── PIIMasker.mask_batch()
 ├── KBExtractor.extract_batch()
 └── Return List[KBExtractionResult]
 
-POST /api/ai/match-batch
+POST /api/kb/match
 ├── KBMatcher.match_batch()
 └── Return List[KBMatchResult]
 
-POST /api/ai/generate-batch
+POST /api/kb/generate
 ├── KBGenerator.generate_batch()
 └── Return List[KBGenerationResult]
 ```
@@ -256,7 +256,7 @@ Large Channel Processing:
 ```
 Batch Processing:
 ┌─────────────────┐
-│ 10-20 threads   │
+│ 3-5 threads     │
 │ per AI call     │
 └────────┬────────┘
          │
@@ -270,7 +270,7 @@ Batch Processing:
          ▼
 ┌─────────────────┐
 │ 30s timeout     │
-│ per AI call     │
+│ per AI batch    │
 └─────────────────┘
 ```
 
