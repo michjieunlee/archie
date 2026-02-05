@@ -71,12 +71,12 @@ class ExistingKBDocument(BaseModel):
 class KBOperationType(str, Enum):
     """Types of operations that can be performed on KB documents."""
 
-    CREATE = "create"  # Create new document
-    UPDATE = "update"  # Update entire document
-    APPEND = "append"  # Add section to existing document
-    REPLACE = "replace"  # Replace specific section
-    REMOVE = "remove"  # Remove section/document
-    MERGE = "merge"  # Merge with another document
+    CREATE = "create"      # Create new document
+    UPDATE = "update"      # Update entire document
+    APPEND = "append"      # Add section to existing document
+    REPLACE = "replace"    # Replace specific section
+    REMOVE = "remove"      # Remove section/document
+    MERGE = "merge"        # Merge with another document
 
 
 # AI Processing Models for team integration

@@ -9,7 +9,7 @@ knowledge-base/
 ├── README.md                          # Repository overview
 ├── troubleshooting/                   # Problem-solving guides
 │   └── example-database-issue.md     # Sample document
-├── processes/                         # Standard procedures  
+├── processes/                         # Standard procedures
 │   └── example-deployment-process.md # Sample document
 ├── decisions/                         # Technical decisions
 │   └── example-tool-choice.md        # Sample document
@@ -160,7 +160,7 @@ This repository contains the living knowledge base for {TEAM_NAME}, automaticall
 ## 📚 Contents
 
 - **[Troubleshooting](troubleshooting/)** - Problem-solving guides and solutions
-- **[Processes](processes/)** - Standard operating procedures  
+- **[Processes](processes/)** - Standard operating procedures
 - **[Decisions](decisions/)** - Architecture and technical decisions
 
 ## 🤖 About Archie

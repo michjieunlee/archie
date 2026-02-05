@@ -14,7 +14,7 @@ from typing import List, Optional, Dict, Any
 
 class SourceType(str, Enum):
     SLACK = "slack"
-    FILE = "file" 
+    FILE = "file"
     TEXT = "text"
 
 class StandardizedMessage(BaseModel):
@@ -63,7 +63,7 @@ class KBMatchResult(BaseModel):
     reasoning: str
     related_documents: List[str]    # IDs of related existing documents
     merge_candidates: List[str]     # Documents that could be merged
-    
+
 class KBGenerationResult(BaseModel):
     """Result of KB document generation."""
     title: str
@@ -87,7 +87,7 @@ Content-Type: application/json
 
 {
     "workspace_url": "https://yourworkspace.slack.com",
-    "channel_id": "C0AC762HXBQ", 
+    "channel_id": "C0AC762HXBQ",
     "time_range": {
         "start": "2024-01-01T00:00:00Z",
         "end": "2024-01-07T23:59:59Z"
@@ -110,7 +110,7 @@ Content-Type: application/json
 
 {
     "repo_owner": "your-org",
-    "repo_name": "knowledge-base", 
+    "repo_name": "knowledge-base",
     "branch": "main",
     "github_token": "ghp_your-token",
     "options": {
@@ -129,7 +129,7 @@ Content-Type: application/json
         {
             "file_path": "troubleshooting/database/connection-issues.md",
             "title": "Database Connection Issues",
-            "category": "troubleshooting", 
+            "category": "troubleshooting",
             "tags": ["database", "connection"],
             "content": "# Database Connection Issues\n\n## Overview\n...",
             "metadata": {
@@ -168,7 +168,7 @@ Content-Type: application/json
             "source_threads": ["slack-123", "slack-456"]
         },
         {
-            "type": "update", 
+            "type": "update",
             "file_path": "processes/deployment/ci-cd.md",
             "operation": "append",
             "section": "## New Deployment Steps",
@@ -364,7 +364,7 @@ threads: List[StandardizedThread] = request_data["threads"]
 # Step 1: PII Masking
 masked_threads = await pii_masker.mask_batch(threads)
 
-# Step 2: KB Extraction  
+# Step 2: KB Extraction
 extractions = await kb_extractor.extract_batch(masked_threads)
 
 # Step 3: KB Matching
@@ -416,7 +416,7 @@ Content-Type: application/json
 ### Mock AI Extraction Response
 ```json
 {
-    "thread_id": "slack-123456", 
+    "thread_id": "slack-123456",
     "is_kb_worthy": true,
     "confidence_score": 0.85,
     "reasoning": "Thread contains detailed troubleshooting steps for database connection issues, with clear problem description and verified solution.",
@@ -428,13 +428,13 @@ Content-Type: application/json
 }
 ```
 
-### Mock KB Generation Response  
+### Mock KB Generation Response
 ```json
 {
     "title": "Database Connection Timeout Resolution",
     "content": "# Database Connection Timeout Resolution\n\n## Problem\n...",
     "file_path": "troubleshooting/database/connection-timeouts.md",
-    "category": "troubleshooting", 
+    "category": "troubleshooting",
     "tags": ["database", "connection", "timeout"],
     "metadata": {
         "difficulty": "intermediate",
@@ -449,7 +449,7 @@ Content-Type: application/json
 
 ### Slack API Limits
 - **conversations.history**: 100+ requests/minute
-- **conversations.replies**: 100+ requests/minute  
+- **conversations.replies**: 100+ requests/minute
 - **Recommendation**: Process in batches of 50 threads max
 - **Implement**: Exponential backoff for 429 responses
 
