@@ -345,7 +345,7 @@ Content-Type: application/json
 
 #### KB Matching
 ```http
-POST /api/ai/match-batch  
+POST /api/kb/match
 Content-Type: application/json
 
 {
