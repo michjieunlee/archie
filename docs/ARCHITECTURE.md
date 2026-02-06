@@ -19,7 +19,7 @@ This document provides visual architecture diagrams and system design overview f
 │ │ • Thread Expand │ │────▶│ │      +          │ │────▶│ │ • New Documents │ │
 │ │ • Rate Limiting │ │    │ │ KB Context      │ │    │ │ • Modifications │ │
 │ └─────────────────┘ │    │ │      ↓          │ │    │ └─────────────────┘ │
-│                     │    │ │ StandardizedThread │   │                     │
+│                     │    │ │ StandardizedConversation │                   │
 │ ┌─────────────────┐ │    │ │ + ExistingKB    │ │    │ ┌─────────────────┐ │
 │ │ File Upload     │ │────▶│ └─────────────────┘ │    │ │ Joule Interface │ │
 │ │ • JSON Export   │ │    │                     │────▶│ │ • Status        │ │
@@ -141,7 +141,7 @@ This document provides visual architecture diagrams and system design overview f
 │ OWNER               │    │ OWNER               │    │                     │
 │                     │    │                     │    │                     │
 │ ┌─────────────────┐ │    │ ┌─────────────────┐ │    │ ┌─────────────────┐ │
-│ │ Slack API       │ │    │ │ PII Masking     │ │    │ │ StandardizedThread│ │
+│ │ Slack API       │ │    │ │ PII Masking     │ │    │ │ StandardizedConversation│ │
 │ │ • Client        │ │    │ │ • SAP GenAI SDK │ │    │ │ • SlackThread   │ │
 │ │ • Models        │ │    │ │ • USER_X Format │ │    │ │ • SlackMessage  │ │
 │ │ • Thread Expand │ │    │ └─────────────────┘ │    │ └─────────────────┘ │
