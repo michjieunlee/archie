@@ -70,13 +70,13 @@ This document provides visual architecture diagrams and system design overview f
 └──────┬───────┘                              │
        │                                      ▼
        ▼                              ┌──────────────┐
-┌──────────────┐                     │ SlackThread  │
+┌──────────────┐                     │ Conversation │
 │ Text Input   │────────────────────▶│ Converter    │
 │ Processing   │                     └──────┬───────┘
 └──────────────┘                            │
                                             ▼
                                     ┌──────────────┐
-                                    │ SlackThread  │
+                                    │ StandardizedConversation │
                                     │ with Rich    │
                                     │ Metadata     │
                                     └──────────────┘
@@ -86,7 +86,7 @@ This document provides visual architecture diagrams and system design overview f
 
 ```
 ┌─────────────────────┐
-│ SlackThread         │
+│ StandardizedConversation │
 │ (with expansion)    │
 └──────────┬──────────┘
            │
@@ -142,8 +142,8 @@ This document provides visual architecture diagrams and system design overview f
 │                     │    │                     │    │                     │
 │ ┌─────────────────┐ │    │ ┌─────────────────┐ │    │ ┌─────────────────┐ │
 │ │ Slack API       │ │    │ │ PII Masking     │ │    │ │ StandardizedConversation│ │
-│ │ • Client        │ │    │ │ • SAP GenAI SDK │ │    │ │ • SlackThread   │ │
-│ │ • Models        │ │    │ │ • USER_X Format │ │    │ │ • SlackMessage  │ │
+│ │ • Client        │ │    │ │ • SAP GenAI SDK │ │    │ │ • StandardizedMessage│ │
+│ │ • Models        │ │    │ │ • USER_X Format │ │    │ │                 │ │
 │ │ • Thread Expand │ │    │ └─────────────────┘ │    │ └─────────────────┘ │
 │ └─────────────────┘ │    │                     │    │                     │
 │                     │    │ ┌─────────────────┐ │    │ ┌─────────────────┐ │
@@ -174,27 +174,27 @@ This document provides visual architecture diagrams and system design overview f
 ### Input Layer APIs
 
 ```
-GET /api/slack/extract
-├── SlackClient.extract_conversations_with_threads()
-├── SlackClient.convert_to_standardized_thread()
-└── Return SlackThread with rich metadata
+GET /api/slack/fetch
+├── SlackClient.fetch_conversations_with_threads()
+├── SlackClient.convert_to_standardized_conversation()
+└── Return StandardizedConversation with rich metadata
 
 POST /api/input/file
 ├── File parsing logic
 ├── Format detection
-└── Convert to StandardizedThread
+└── Convert to StandardizedConversation
 
 POST /api/input/text
 ├── Text parsing logic
 ├── Structure detection
-└── Convert to StandardizedThread
+└── Convert to StandardizedConversation
 ```
 
 ### AI Processing APIs
 
 ```
 POST /api/kb/extract
-├── PIIMasker.mask_threads()
+├── PIIMasker.mask_conversations()
 ├── KBExtractor.extract_batch()
 └── Return List[KBExtractionResult]
 
@@ -258,7 +258,7 @@ Large Channel Processing:
 ```
 Batch Processing:
 ┌─────────────────┐
-│ 3-5 threads     │
+│ 3-5 conversations│
 │ per AI call     │
 └────────┬────────┘
          │
@@ -307,4 +307,3 @@ Batch Processing:
 │ Handling        │    │ Successful      │
 └─────────────────┘    │ Results         │
                        └─────────────────┘
-```

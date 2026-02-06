@@ -15,7 +15,7 @@ Concise implementation guidance for the complete living KB system.
 **Core Responsibilities**: Slack API, GitHub operations, Joule endpoints
 **Key Files**: `app/integrations/slack/client.py`, `app/integrations/slack/models.py`, `app/integrations/github/client.py`
 **Main Tasks**:
-- Slack thread expansion with SlackThread model
+- Slack thread expansion with StandardizedConversation model
 - GitHub KB reading + complex PR operations (create/update/append)
 - Multi-input processing (Slack/file/text)
 - Joule API endpoints for progress tracking
@@ -23,8 +23,8 @@ Concise implementation guidance for the complete living KB system.
 **Implementation Focus**:
 ```python
 # Slack Integration
-SlackClient.extract_conversations_with_threads() -> SlackThread
-SlackClient.convert_to_standardized_thread(slack_thread: SlackThread)
+SlackClient.fetch_conversations_with_threads() -> StandardizedConversation
+SlackClient.convert_to_standardized_conversation(slack_conversation: StandardizedConversation)
 
 # GitHub Integration
 GitHubClient.read_kb_repository() - fetch existing KB for context
@@ -53,7 +53,7 @@ KBMatcher.match_against_existing() - semantic comparison vs existing KB
 KBGenerator.generate_documents() - create/update operations with reasoning
 
 # Key Concept: Living KB Context
-Input: StandardizedThread + ExistingKBContext (from SlackThread)
+Input: StandardizedConversation + ExistingKBContext
 Output: KBOperationResult (with create/update/append instructions)
 ```
 
@@ -83,11 +83,11 @@ GET /api/slack/extract → POST /api/knowledge/process → Display results
 
 **Core Data Flow**:
 ```
-StandardizedThread + ExistingKBContext → AI Processing → KBOperationResult → GitHub PR
+StandardizedConversation + ExistingKBContext → AI Processing → KBOperationResult → GitHub PR
 ```
 
 **Key Models** (see `app/models/thread.py`):
-- `StandardizedThread` - Platform-agnostic conversation format
+- `StandardizedConversation` - Platform-agnostic conversation format
 - `ExistingKBContext` - Current state of KB repository
 - `KBOperationResult` - AI decisions for KB operations (create/update/append)
 
