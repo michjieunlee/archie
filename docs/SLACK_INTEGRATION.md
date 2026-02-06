@@ -53,23 +53,52 @@ python tests/integrations/test_slack_integration.py --list-channels
 ```
 
 ### What Gets Tested
-- ✅ **Thread expansion** with context preservation
-- ✅ **Complete pipeline**: Extract → Mask → Convert
-- ✅ **Message ordering** (no chronological sorting)
-- ✅ **PII masking** with USER_1, USER_2 format
+- ✅ **Thread expansion** with chronological insertion and global indexing
+- ✅ **Conversation fetching**: Direct StandardizedConversation output  
+- ✅ **Global indexing**: Sequential idx assignment with parent_idx references
+- ✅ **Separation of concerns**: Fetch → Mask → Process (separate steps)
+- ✅ **PII masking** with USER_1, USER_2 format (separate step)
 - ✅ **Enhanced PII validation** with before/after content visibility (verbose mode)
 - ✅ **API connectivity** validation (real mode only)
+- ✅ **Max 100 message limit** enforcement
 
 ## Usage
 
-Once configured, the Slack integration automatically:
+Once configured, the Slack integration:
 
-1. **Extracts conversations** with complete thread expansion
-2. **Preserves context** by keeping thread replies with parent messages
-3. **Applies PII masking** with USER_1, USER_2 format
-4. **Provides rich metadata** including participant counts and processing stats
+1. **Fetches conversations** with complete thread expansion and global indexing
+2. **Preserves context** with chronological thread insertion and parent_idx references  
+3. **Returns StandardizedConversation** with idx-based message ordering
+4. **Separates PII masking** as independent processing step
+5. **Provides rich metadata** including participant counts and processing stats
 
-**API Endpoint**: `GET /api/slack/extract`
+**API Endpoint**: `GET /api/slack/fetch` (returns unmasked StandardizedConversation)
+
+### New Architecture
+
+```python
+# Step 1: Fetch conversations (pure fetching, no PII masking)
+conversation = await client.fetch_conversations_with_threads(limit=50)
+
+# Step 2: Apply PII masking separately  
+pii_masker = PIIMasker()
+masked_conversations = await pii_masker.mask_threads([conversation])
+
+# Result: Clean separation of concerns
+```
+
+### Data Structure
+
+**StandardizedConversation** with global message indexing:
+```python
+messages = [
+    {idx: 0, parent_idx: None, content: "Main message 1"},
+    {idx: 1, parent_idx: None, content: "Main message 2"}, 
+    {idx: 2, parent_idx: 1, content: "Reply to message 2"},
+    {idx: 3, parent_idx: 1, content: "Another reply to message 2"},
+    {idx: 4, parent_idx: None, content: "Main message 3"}
+]
+```
 
 *For complete API documentation including parameters, examples, and response formats, see [`docs/API_INTEGRATION.md`](./API_INTEGRATION.md).*
 

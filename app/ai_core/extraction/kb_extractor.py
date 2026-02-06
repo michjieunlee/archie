@@ -14,7 +14,7 @@ from gen_ai_hub.proxy.langchain.openai import ChatOpenAI
 from gen_ai_hub.proxy.core.proxy_clients import get_proxy_client
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from app.models.thread import StandardizedThread
+from app.models.thread import StandardizedConversation
 from app.models.knowledge import (
     KnowledgeArticle,
     KBCategory,
@@ -37,7 +37,7 @@ config = get_settings()
 
 class KBExtractor:
     """
-    Extracts knowledge from Slack threads using a 3-step process.
+    Extracts knowledge from Slack conversations using a 3-step process.
     """
 
     def __init__(self):
@@ -61,53 +61,53 @@ class KBExtractor:
 
     async def extract_knowledge(
         self,
-        thread: StandardizedThread,
+        conversation: StandardizedConversation,
         context: Optional[Dict[str, Any]] = None,
     ) -> Optional[KnowledgeArticle]:
         """
-        Extract knowledge from a standardized thread using 3-step process.
+        Extract knowledge from a standardized conversation using 3-step process.
 
         Args:
-            thread: The standardized thread to extract knowledge from
+            conversation: The standardized conversation to extract knowledge from
             context: Optional additional context (e.g., related code, documentation)
 
         Returns:
             KnowledgeArticle if extraction successful, None otherwise
         """
         try:
-            logger.info(f"Starting KB extraction for thread {thread.id}")
+            logger.info(f"Starting KB extraction for conversation {conversation.id}")
 
-            # Validate thread has sufficient content
-            if not self._is_thread_extractable(thread):
-                logger.warning(f"Thread {thread.id} not suitable for extraction")
+            # Validate conversation has sufficient content
+            if not self._is_conversation_extractable(conversation):
+                logger.warning(f"Conversation {conversation.id} not suitable for extraction")
                 return None
 
             # Step 1: Classify category
-            category = await self._classify_category(thread)
+            category = await self._classify_category(conversation)
             if not category:
-                logger.warning(f"Could not classify category for thread {thread.id}")
+                logger.warning(f"Could not classify category for conversation {conversation.id}")
                 return None
 
-            logger.info(f"Classified thread {thread.id} as: {category}")
+            logger.info(f"Classified conversation {conversation.id} as: {category}")
 
             # Step 2: Extract with category-specific model
             extraction_output = await self._extract_with_model(
-                thread, category, context
+                conversation, category, context
             )
             if not extraction_output:
-                logger.warning(f"Extraction failed for thread {thread.id}")
+                logger.warning(f"Extraction failed for conversation {conversation.id}")
                 return None
 
             logger.info(f"Successfully extracted: {extraction_output.title}")
 
             # Step 3: Build complete KnowledgeArticle with metadata
             metadata = ExtractionMetadata(
-                source_type=thread.source.value,
-                source_id=thread.id,
-                channel_id=thread.channel_id,
-                channel_name=thread.channel_name or "unknown",
-                participants=[msg.author_id for msg in thread.messages],
-                message_count=len(thread.messages),
+                source_type=conversation.source.value,
+                source_id=conversation.id,
+                channel_id=conversation.channel_id,
+                channel_name=conversation.channel_name or "unknown",
+                participants=[msg.author_id for msg in conversation.messages],
+                message_count=len(conversation.messages),
             )
 
             knowledge_article = KnowledgeArticle(
@@ -127,22 +127,22 @@ class KBExtractor:
             return None
 
     async def _classify_category(
-        self, thread: StandardizedThread
+        self, conversation: StandardizedConversation
     ) -> Optional[KBCategory]:
         """
-        Step 1: Classify the thread into a category.
+        Step 1: Classify the conversation into a category.
 
         Args:
-            thread: The thread to classify
+            conversation: The conversation to classify
 
         Returns:
             KBCategory if successful, None otherwise
         """
         try:
-            thread_content = self._format_thread_for_extraction(thread)
+            conversation_content = self._format_conversation_for_extraction(conversation)
 
             prompt = CATEGORY_CLASSIFICATION_PROMPT.format(
-                thread_content=thread_content
+                thread_content=conversation_content
             )
 
             messages = [HumanMessage(content=prompt)]
@@ -167,7 +167,7 @@ class KBExtractor:
 
     async def _extract_with_model(
         self,
-        thread: StandardizedThread,
+        conversation: StandardizedConversation,
         category: KBCategory,
         context: Optional[Dict[str, Any]] = None,
     ) -> Optional[KnowledgeExtractionOutput]:
@@ -175,7 +175,7 @@ class KBExtractor:
         Step 2: Extract knowledge using the appropriate category-specific model.
 
         Args:
-            thread: The thread to extract from
+            conversation: The conversation to extract from
             category: The classified category
             context: Optional additional context
 
@@ -183,12 +183,12 @@ class KBExtractor:
             Category-specific extraction output if successful
         """
         try:
-            thread_content = self._format_thread_for_extraction(thread)
+            conversation_content = self._format_conversation_for_extraction(conversation)
             context_str = self._format_context(context) if context else ""
 
             user_prompt = EXTRACTION_USER_PROMPT_TEMPLATE.format(
                 category=category.value,
-                thread_content=thread_content,
+                thread_content=conversation_content,
                 additional_context=context_str,
             )
 
@@ -218,52 +218,52 @@ class KBExtractor:
             logger.error(f"Error extracting with model: {str(e)}", exc_info=True)
             return None
 
-    def _is_thread_extractable(self, thread: StandardizedThread) -> bool:
+    def _is_conversation_extractable(self, conversation: StandardizedConversation) -> bool:
         """
-        Check if thread has sufficient content for extraction.
+        Check if conversation has sufficient content for extraction.
 
         Args:
-            thread: The thread to validate
+            conversation: The conversation to validate
 
         Returns:
-            True if thread is suitable for extraction
+            True if conversation is suitable for extraction
         """
         # Must have messages
-        if not thread.messages or len(thread.messages) == 0:
-            logger.debug(f"Thread {thread.id} has no messages")
+        if not conversation.messages or len(conversation.messages) == 0:
+            logger.debug(f"Conversation {conversation.id} has no messages")
             return False
 
         # Calculate total content length
-        total_content = sum(len(msg.content) for msg in thread.messages)
+        total_content = sum(len(msg.content) for msg in conversation.messages)
 
         # Must have meaningful discussion (at least 100 chars)
         if total_content < 100:
             logger.debug(
-                f"Thread {thread.id} has insufficient content ({total_content} chars)"
+                f"Conversation {conversation.id} has insufficient content ({total_content} chars)"
             )
             return False
 
         # Must have at least 2 messages for a discussion
-        if len(thread.messages) < 2:
-            logger.debug(f"Thread {thread.id} has less than 2 messages")
+        if len(conversation.messages) < 2:
+            logger.debug(f"Conversation {conversation.id} has less than 2 messages")
             return False
 
         return True
 
-    def _format_thread_for_extraction(self, thread: StandardizedThread) -> str:
+    def _format_conversation_for_extraction(self, conversation: StandardizedConversation) -> str:
         """
-        Format thread messages for the extraction prompt.
+        Format conversation messages for the extraction prompt.
 
         Args:
-            thread: The standardized thread
+            conversation: The standardized conversation
 
         Returns:
-            Formatted thread content
+            Formatted conversation content
         """
-        channel_name = thread.channel_name or "unknown-channel"
-        formatted = f"### Thread from #{channel_name}\n\n"
+        channel_name = conversation.channel_name or "unknown-channel"
+        formatted = f"### Conversation from #{channel_name}\n\n"
 
-        for msg in thread.messages:
+        for msg in conversation.messages:
             # Format timestamp
             timestamp = msg.timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -299,14 +299,14 @@ class KBExtractor:
 
     async def batch_extract(
         self,
-        threads: List[StandardizedThread],
+        conversations: List[StandardizedConversation],
         context: Optional[Dict[str, Any]] = None,
     ) -> List[KnowledgeArticle]:
         """
-        Extract knowledge from multiple threads.
+        Extract knowledge from multiple conversations.
 
         Args:
-            threads: List of threads to process
+            conversations: List of conversations to process
             context: Optional shared context
 
         Returns:
@@ -314,12 +314,12 @@ class KBExtractor:
         """
         articles = []
 
-        for thread in threads:
-            article = await self.extract_knowledge(thread, context)
+        for conversation in conversations:
+            article = await self.extract_knowledge(conversation, context)
             if article:
                 articles.append(article)
 
         logger.info(
-            f"Batch extraction complete: {len(articles)}/{len(threads)} successful"
+            f"Batch extraction complete: {len(articles)}/{len(conversations)} successful"
         )
         return articles

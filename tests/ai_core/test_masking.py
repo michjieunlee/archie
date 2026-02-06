@@ -23,26 +23,28 @@ from datetime import datetime
 from typing import List
 
 from app.models.thread import (
-    StandardizedThread,
+    StandardizedConversation,
     StandardizedMessage,
     SourceType,
 )
 from app.ai_core.masking.pii_masker import PIIMasker, MaskingError
 
 
-def create_sample_threads() -> List[StandardizedThread]:
-    """Create sample threads with PII for testing."""
+def create_sample_conversations() -> List[StandardizedConversation]:
+    """Create sample conversations with PII for testing."""
 
-    # Thread 1: Email discussion with 3 participants
-    thread1 = StandardizedThread(
-        id="thread_001",
+    # conversation 1: Email discussion with 3 participants
+    conversation1 = StandardizedConversation(
+        id="conversation_001",
         source=SourceType.SLACK,
         source_url="https://example.slack.com/archives/C123/p123456",
         channel_id="C123",
         channel_name="general",
         messages=[
             StandardizedMessage(
+                idx=0,
                 id="msg1",
+                message_id="msg1",
                 author_id="user_john",
                 author_name="John Doe",
                 content="Hi team, please contact me at john.doe@company.com",
@@ -50,7 +52,9 @@ def create_sample_threads() -> List[StandardizedThread]:
                 is_masked=False,
             ),
             StandardizedMessage(
+                idx=1,
                 id="msg2",
+                message_id="msg2",
                 author_id="user_jane",
                 author_name="Jane Smith",
                 content="Thanks John! My ID is i111111 and my number is +1-555-0123 or local 555-1234 if you need to call.",
@@ -58,7 +62,9 @@ def create_sample_threads() -> List[StandardizedThread]:
                 is_masked=False,
             ),
             StandardizedMessage(
+                idx=2,
                 id="msg3",
+                message_id="msg3",
                 author_id="user_john",
                 author_name="John Doe",
                 content="Got it Jane. My colleague D123456 will help. I'll send the docs to john.doe@company.com later.",
@@ -71,16 +77,18 @@ def create_sample_threads() -> List[StandardizedThread]:
         last_activity_at=datetime.now(),
     )
 
-    # Thread 2: Support conversation with Slack IDs
-    thread2 = StandardizedThread(
-        id="thread_002",
+    # conversation 2: Support conversation
+    conversation2 = StandardizedConversation(
+        id="conversation_002",
         source=SourceType.SLACK,
         source_url="https://example.slack.com/archives/C456/p789012",
         channel_id="C456",
         channel_name="support",
         messages=[
             StandardizedMessage(
+                idx=0,
                 id="msg4",
+                message_id="msg4",
                 author_id="user_bob",
                 author_name="Bob Wilson",
                 content="I'm having issues with C987654. Call me at 555-9876 or email bob.wilson@email.com",
@@ -88,7 +96,9 @@ def create_sample_threads() -> List[StandardizedThread]:
                 is_masked=False,
             ),
             StandardizedMessage(
+                idx=1,
                 id="msg5",
+                message_id="msg5",
                 author_id="user_alice",
                 author_name="Alice Brown",
                 content="Hi Bob, I'll help you. My ID is I123456 and contact is alice@company.com. Check channel C01ABC123DE or ask user U0ABCDEF04R",
@@ -101,16 +111,18 @@ def create_sample_threads() -> List[StandardizedThread]:
         last_activity_at=datetime.now(),
     )
 
-    # Thread 3: Slack-specific IDs
-    thread3 = StandardizedThread(
-        id="thread_003",
+    # conversation 3: Slack-specific IDs
+    conversation3 = StandardizedConversation(
+        id="conversation_003",
         source=SourceType.SLACK,
         source_url="https://example.slack.com/archives/C1A2B3C4D5E/p999999",
         channel_id="C1A2B3C4D5E",
         channel_name="tech-support",
         messages=[
             StandardizedMessage(
+                idx=0,
                 id="msg6",
+                message_id="msg6",
                 author_id="U0ABCDEF04R",
                 author_name="Tech User",
                 content="Please check channel C1234567890 for updates. Contact U9876543210 or W1122334455 if needed.",
@@ -123,7 +135,7 @@ def create_sample_threads() -> List[StandardizedThread]:
         last_activity_at=datetime.now(),
     )
 
-    return [thread1, thread2, thread3]
+    return [conversation1, conversation2, conversation3]
 
 
 def print_divider(char="=", length=80):
@@ -131,11 +143,11 @@ def print_divider(char="=", length=80):
     print(char * length)
 
 
-def print_thread(thread: StandardizedThread, title: str):
-    """Print thread details."""
-    print(f"\n🔹 {title}: {thread.id} ({thread.channel_name})")
-    print(f"   Messages: {len(thread.messages)}")
-    for msg in thread.messages:
+def print_conversation(conversation: StandardizedConversation, title: str):
+    """Print conversation details."""
+    print(f"\n🔹 {title}: {conversation.id} ({conversation.channel_name})")
+    print(f"   Messages: {len(conversation.messages)}")
+    for msg in conversation.messages:
         masked_flag = "✓" if msg.is_masked else "✗"
         print(f"   • [{masked_flag}] {msg.author_name}: {msg.content}")
 
@@ -148,17 +160,17 @@ async def test_masking():
     print_divider()
     print()
 
-    # Create sample threads
-    threads = create_sample_threads()
+    # Create sample conversations
+    conversations = create_sample_conversations()
 
-    print(f"📊 Created {len(threads)} sample threads with PII")
+    print(f"📊 Created {len(conversations)} sample conversations with PII")
     print()
 
-    # Display original threads
-    print("ORIGINAL THREADS (Before Masking):")
+    # Display original conversations
+    print("ORIGINAL CONVERSATIONS (Before Masking):")
     print_divider("-")
-    for thread in threads:
-        print_thread(thread, "Thread")
+    for conversation in conversations:
+        print_conversation(conversation, "Conversation")
     print()
 
     try:
@@ -169,9 +181,9 @@ async def test_masking():
         print()
 
         # Get statistics before masking
-        stats = await masker.get_masking_stats(threads)
+        stats = await masker.get_masking_stats(conversations)
         print("📈 Masking Statistics:")
-        print(f"   Total threads: {stats['total_threads']}")
+        print(f"   Total conversations: {stats['total_conversations']}")
         print(f"   Total messages: {stats['total_messages']}")
         print(f"   Total characters: {stats['total_characters']}")
         print(f"   Estimated API calls: {stats['estimated_api_calls']}")
@@ -182,19 +194,19 @@ async def test_masking():
 
         # Perform masking
         print("🔐 Starting PII masking with SAP GenAI Orchestration V2...")
-        print("   (Processing threads in parallel with asyncio.gather)")
+        print("   (Processing conversations in parallel with asyncio.gather)")
         print()
 
-        masked_threads = await masker.mask_threads(threads)
+        masked_conversations = await masker.mask_conversations(conversations)
 
         print("✅ Masking completed successfully!")
         print()
 
-        # Display masked threads
-        print("MASKED THREADS (After Masking):")
+        # Display masked conversations
+        print("MASKED CONVERSATIONS (After Masking):")
         print_divider("-")
-        for thread in masked_threads:
-            print_thread(thread, "Thread")
+        for conversation in masked_conversations:
+            print_conversation(conversation, "Conversation")
         print()
 
         # Verify masking results
@@ -204,7 +216,7 @@ async def test_masking():
 
         # Check 1: All messages masked
         all_masked = all(
-            msg.is_masked for thread in masked_threads for msg in thread.messages
+            msg.is_masked for conversation in masked_conversations for msg in conversation.messages
         )
         status1 = "✅" if all_masked else "❌"
         print(f"{status1} All messages marked as masked: {all_masked}")
@@ -212,27 +224,27 @@ async def test_masking():
         # Check 2: All author names updated to USER_X
         author_names_updated = all(
             msg.author_name and msg.author_name.startswith("USER_")
-            for thread in masked_threads
-            for msg in thread.messages
+            for conversation in masked_conversations
+            for msg in conversation.messages
         )
         status2 = "✅" if author_names_updated else "❌"
         print(
             f"{status2} All author names updated to USER_X format: {author_names_updated}"
         )
 
-        # Check 3: Thread structure preserved
-        structure_preserved = len(masked_threads) == len(threads) and all(
-            len(masked_threads[i].messages) == len(threads[i].messages)
-            for i in range(len(threads))
+        # Check 3: Conversation structure preserved
+        structure_preserved = len(masked_conversations) == len(conversations) and all(
+            len(masked_conversations[i].messages) == len(conversations[i].messages)
+            for i in range(len(conversations))
         )
         status3 = "✅" if structure_preserved else "❌"
-        print(f"{status3} Thread structure preserved: {structure_preserved}")
+        print(f"{status3} Conversation structure preserved: {structure_preserved}")
 
         # Check 4: Content changed (masking applied)
         content_changed = any(
-            threads[i].messages[j].content != masked_threads[i].messages[j].content
-            for i in range(len(threads))
-            for j in range(len(threads[i].messages))
+            conversations[i].messages[j].content != masked_conversations[i].messages[j].content
+            for i in range(len(conversations))
+            for j in range(len(conversations[i].messages))
         )
         status4 = "✅" if content_changed else "❌"
         print(f"{status4} Content was modified (masking applied): {content_changed}")
@@ -240,8 +252,8 @@ async def test_masking():
         # Check 6: Custom I_NUMBER entities are masked
         inumber_masked = True
         original_inumbers = ["i111111", "D123456", "C987654", "I123456"]
-        for thread in masked_threads:
-            for msg in thread.messages:
+        for conversation in masked_conversations:
+            for msg in conversation.messages:
                 for inumber in original_inumbers:
                     if inumber in msg.content or inumber.lower() in msg.content:
                         inumber_masked = False
@@ -259,8 +271,8 @@ async def test_masking():
         # Check 7: Local phone numbers (123-4567 format) are masked
         local_phone_masked = True
         local_phones = ["555-1234", "555-9876"]
-        for thread in masked_threads:
-            for msg in thread.messages:
+        for conversation in masked_conversations:
+            for msg in conversation.messages:
                 for phone in local_phones:
                     if phone in msg.content:
                         local_phone_masked = False
@@ -277,9 +289,9 @@ async def test_masking():
 
         # Check 5: Same user gets same USER_X identifier
         user_consistency = True
-        for thread in masked_threads:
+        for conversation in masked_conversations:
             author_map_check = {}
-            for msg in thread.messages:
+            for msg in conversation.messages:
                 if msg.author_id in author_map_check:
                     if author_map_check[msg.author_id] != msg.author_name:
                         user_consistency = False
@@ -297,8 +309,8 @@ async def test_masking():
         # Check 8: Slack user IDs are masked
         slack_user_masked = True
         slack_users = ["U0ABCDEF04R", "U9876543210", "W1122334455"]
-        for thread in masked_threads:
-            for msg in thread.messages:
+        for conversation in masked_conversations:
+            for msg in conversation.messages:
                 for user in slack_users:
                     if user in msg.content:
                         slack_user_masked = False
@@ -362,22 +374,24 @@ async def test_masking():
         traceback.print_exc()
 
 
-async def test_single_thread():
-    """Quick test with a single thread for faster debugging."""
+async def test_single_conversation():
+    """Quick test with a single conversation for faster debugging."""
 
     print("\n" + "=" * 80)
-    print("QUICK TEST - Single Thread")
+    print("QUICK TEST - Single Conversation")
     print("=" * 80 + "\n")
 
-    # Create a simple single thread
-    thread = StandardizedThread(
-        id="test_thread",
+    # Create a simple single conversation
+    conversation = StandardizedConversation(
+        id="test_conversation",
         source=SourceType.TEXT,
         channel_id="test",
         channel_name="test",
         messages=[
             StandardizedMessage(
+                idx=0,
                 id="msg1",
+                message_id="msg1",
                 author_id="user1",
                 author_name="Test User",
                 content="My ID is i111111, email is test@example.com, phone is +1-555-0100, and local phone is 123-4567",
@@ -391,17 +405,17 @@ async def test_single_thread():
     )
 
     print("Original message:")
-    print(f"  {thread.messages[0].author_name}: {thread.messages[0].content}")
+    print(f"  {conversation.messages[0].author_name}: {conversation.messages[0].content}")
     print()
 
     try:
         masker = PIIMasker()
-        masked = await masker.mask_threads([thread])
+        masked = await masker.mask_conversations([conversation])
 
         print("Masked message:")
         print(f"  {masked[0].messages[0].author_name}: {masked[0].messages[0].content}")
         print()
-        print("✅ Single thread test passed!")
+        print("✅ Single conversation test passed!")
 
     except Exception as e:
         print(f"❌ Error: {e}")
@@ -414,10 +428,10 @@ if __name__ == "__main__":
 
     # Check if user wants quick test
     if len(sys.argv) > 1 and sys.argv[1] == "--quick":
-        asyncio.run(test_single_thread())
+        asyncio.run(test_single_conversation())
     else:
         asyncio.run(test_masking())
 
     print(
-        "\n💡 Tip: Use 'python test_masking.py --quick' for faster single-thread test\n"
+        "\n💡 Tip: Use 'python test_masking.py --quick' for faster single-conversation test\n"
     )
