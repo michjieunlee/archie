@@ -73,8 +73,7 @@ class PIIMasker:
         - PHONE: Phone numbers
         - ADDRESS: Physical addresses
         - I_NUMBER: Custom entity for personal IDs (I/D/C followed by digits, e.g., i123456, D123456, C987654)
-
-        Excluded: ORG, LOCATION (to preserve technical context)
+        - SLACK_USER: Slack user IDs (e.g., U1234567890, U0ACPTBU04R, W1234567890)
         """
         return MaskingModuleConfig(
             masking_providers=[
@@ -90,14 +89,22 @@ class PIIMasker:
                         DPICustomEntity(
                             regex=r"\b[IDCidc]\d{6,6}\b",
                             replacement_strategy=DPIMethodConstant(
-                                method="constant", value="I_NUMBER"
+                                method="constant", value="MASKED_I_NUMBER"
                             ),
                         ),
                         # Custom entity for local phone numbers (e.g., 123-4567)
                         DPICustomEntity(
                             regex=r"\b\d{3}-\d{4}\b",
                             replacement_strategy=DPIMethodConstant(
-                                method="constant", value="LOCAL_PHONE"
+                                method="constant", value="MASKED_LOCAL_PHONE"
+                            ),
+                        ),
+                        # Custom entity for Slack user IDs (e.g., U0ACPTBU04R, U1234567890, W1234567890)
+                        # Pattern: U or W followed by 8-11 alphanumeric characters
+                        DPICustomEntity(
+                            regex=r"\b[UW][A-Z0-9]{8,11}\b",
+                            replacement_strategy=DPIMethodConstant(
+                                method="constant", value="MASKED_SLACK_USER"
                             ),
                         ),
                     ],
@@ -152,12 +159,12 @@ class PIIMasker:
         5. Fails entire pipeline on any error (strict mode)
 
         Masked entities:
-        - Personal names (e.g., "John Doe" -> "USER_1")
-        - Email addresses (e.g., "john@example.com" -> "EMAIL_1")
-        - Phone numbers (e.g., "+1-555-0100" -> "PHONE_1")
-        - Addresses (e.g., "123 Main St" -> "ADDRESS_1")
-        - Personal IDs (e.g., "i538638" -> "PERSONAL_ID_1", "D123456" -> "PERSONAL_ID_2")
-
+        - Personal names (e.g., "John Doe" -> "MASKED_PERSON")
+        - Email addresses (e.g., "john@example.com" -> "MASKED_EMAIL")
+        - Phone numbers (e.g., "+1-555-0100" -> "MASKED_PHONE_NUMBER")
+        - Addresses (e.g., "123 Main St" -> "MASKED_ADDRESS")
+        - Personal IDs (e.g., "D123456" -> "MASKED_I_NUMBER")
+        - Slack user IDs (e.g., "U0ABCDEF04R" -> "MASKED_SLACK_USER")
         Args:
             threads: List of StandardizedThread objects to mask
 
@@ -364,6 +371,13 @@ class PIIMasker:
             "total_characters": total_chars,
             "estimated_api_calls": len(threads),  # One call per thread
             "estimated_time_seconds": estimated_time,  # Parallel processing
-            "entities_masked": ["PERSON", "EMAIL", "PHONE", "ADDRESS", "PERSONAL_ID"],
+            "entities_masked": [
+                "PERSON",
+                "EMAIL",
+                "PHONE",
+                "ADDRESS",
+                "I_NUMBER",
+                "SLACK_USER",
+            ],
             "masking_method": "anonymization",
         }
