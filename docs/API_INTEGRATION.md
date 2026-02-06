@@ -4,7 +4,7 @@ This document provides comprehensive API interfaces and data models for team int
 
 ## Data Models
 
-### StandardizedThread (Primary Interface)
+### StandardizedConversation (Primary Interface)
 
 ```python
 from pydantic import BaseModel
@@ -19,24 +19,27 @@ class SourceType(str, Enum):
 
 class StandardizedMessage(BaseModel):
     """Platform-agnostic message format."""
+    idx: int                          # Global sequential index
     id: str                           # Unique message identifier
+    message_id: str                   # Platform-specific message ID
     author_id: str                    # User/author identifier (may be masked)
     author_name: Optional[str] = None # Display name (may be None for privacy)
     content: str                      # Message text content
     timestamp: datetime               # Message timestamp
     is_masked: bool = False          # Whether PII masking was applied
+    parent_idx: Optional[int] = None  # Index of parent message for replies
     metadata: Dict[str, Any] = {}    # Additional platform-specific data
 
-class StandardizedThread(BaseModel):
-    """Platform-agnostic conversation thread format."""
-    id: str                          # Unique thread identifier
+class StandardizedConversation(BaseModel):
+    """Platform-agnostic conversation format."""
+    id: str                          # Unique conversation identifier
     source: SourceType               # Input source (slack, file, text)
-    source_url: Optional[str] = None # Original URL (for Slack threads)
+    source_url: Optional[str] = None # Original URL (for Slack conversations)
     channel_id: str                  # Channel/context identifier
     channel_name: Optional[str] = None
     messages: List[StandardizedMessage]
     participant_count: int           # Number of unique participants
-    created_at: datetime            # Thread start time
+    created_at: datetime            # Conversation start time
     last_activity_at: datetime      # Last message time
     metadata: Dict[str, Any] = {}   # Additional context data
 ```
@@ -259,7 +262,7 @@ GET /api/joule/status/{job_id}
 ```json
 {
     "status": "success",
-    "threads": [/* Array of StandardizedThread */],
+    "conversations": [/* Array of StandardizedConversation */],
     "stats": {
         "total_messages": 245,
         "total_threads": 12,
@@ -310,7 +313,7 @@ POST /api/kb/extract
 Content-Type: application/json
 
 {
-    "threads": [/* Array of StandardizedThread */],
+    "conversations": [/* Array of StandardizedConversation */],
     "options": {
         "min_confidence": 0.6,
         "categories": ["troubleshooting", "process", "decision"]
@@ -358,14 +361,14 @@ Content-Type: application/json
 
 #### 1. Batch Processing Flow
 ```python
-# Receive standardized threads from input processing
-threads: List[StandardizedThread] = request_data["threads"]
+# Receive standardized conversations from input processing
+conversations: List[StandardizedConversation] = request_data["conversations"]
 
 # Step 1: PII Masking
-masked_threads = await pii_masker.mask_batch(threads)
+masked_conversations = await pii_masker.mask_conversations(conversations)
 
 # Step 2: KB Extraction
-extractions = await kb_extractor.extract_batch(masked_threads)
+extractions = await kb_extractor.extract_batch(masked_conversations)
 
 # Step 3: KB Matching
 matches = await kb_matcher.match_batch(extractions, existing_kb)

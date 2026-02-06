@@ -82,7 +82,7 @@ conversation = await client.fetch_conversations_with_threads(limit=50)
 
 # Step 2: Apply PII masking separately  
 pii_masker = PIIMasker()
-masked_conversations = await pii_masker.mask_threads([conversation])
+masked_conversations = await pii_masker.mask_conversations([conversation])
 
 # Result: Clean separation of concerns
 ```
