@@ -54,7 +54,7 @@ python tests/integrations/test_slack_integration.py --list-channels
 
 ### What Gets Tested
 - ✅ **Thread expansion** with chronological insertion and global indexing
-- ✅ **Conversation fetching**: Direct StandardizedConversation output  
+- ✅ **Conversation fetching**: Direct StandardizedConversation output
 - ✅ **Global indexing**: Sequential idx assignment with parent_idx references
 - ✅ **Separation of concerns**: Fetch → Mask → Process (separate steps)
 - ✅ **PII masking** with USER_1, USER_2 format (separate step)
@@ -67,7 +67,7 @@ python tests/integrations/test_slack_integration.py --list-channels
 Once configured, the Slack integration:
 
 1. **Fetches conversations** with complete thread expansion and global indexing
-2. **Preserves context** with chronological thread insertion and parent_idx references  
+2. **Preserves context** with chronological thread insertion and parent_idx references
 3. **Returns StandardizedConversation** with idx-based message ordering
 4. **Separates PII masking** as independent processing step
 5. **Provides rich metadata** including participant counts and processing stats
@@ -80,7 +80,7 @@ Once configured, the Slack integration:
 # Step 1: Fetch conversations (pure fetching, no PII masking)
 conversation = await client.fetch_conversations_with_threads(limit=50)
 
-# Step 2: Apply PII masking separately  
+# Step 2: Apply PII masking separately
 pii_masker = PIIMasker()
 masked_conversations = await pii_masker.mask_conversations([conversation])
 
@@ -93,7 +93,7 @@ masked_conversations = await pii_masker.mask_conversations([conversation])
 ```python
 messages = [
     {idx: 0, parent_idx: None, content: "Main message 1"},
-    {idx: 1, parent_idx: None, content: "Main message 2"}, 
+    {idx: 1, parent_idx: None, content: "Main message 2"},
     {idx: 2, parent_idx: 1, content: "Reply to message 2"},
     {idx: 3, parent_idx: 1, content: "Another reply to message 2"},
     {idx: 4, parent_idx: None, content: "Main message 3"}

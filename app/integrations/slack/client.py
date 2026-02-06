@@ -3,7 +3,7 @@ Slack API Client
 Owner: ① Slack · GitHub Integration & Flow Owner
 
 Responsibilities:
-- conversations.history: Fetch channel messages  
+- conversations.history: Fetch channel messages
 - conversations.replies: Fetch thread replies
 - Thread expansion: Automatically detect and expand all threaded conversations
 - Pure fetching focus - NO PII masking
@@ -150,7 +150,7 @@ class SlackClient:
 
         This method:
         1. Fetches main channel messages (in reverse chronological order from Slack)
-        2. Detects threaded messages (reply_count > 0)  
+        2. Detects threaded messages (reply_count > 0)
         3. Fetches all thread replies and inserts them chronologically after parent
         4. Assigns global indexing (idx) and parent references (parent_idx)
 
@@ -160,7 +160,7 @@ class SlackClient:
         try:
             logger.info("Starting conversation fetching with thread expansion...")
 
-            # Step 1: Get raw messages for thread detection  
+            # Step 1: Get raw messages for thread detection
             raw_messages = await self.fetch_conversation_history_with_raw_data(
                 channel_id=channel_id,
                 from_datetime=from_datetime,
@@ -213,17 +213,17 @@ class SlackClient:
                         # Add replies (skip first message as it's the parent we already have)
                         if len(thread_raw_messages) > 1:
                             thread_replies_raw = thread_raw_messages[1:]  # Skip parent message
-                            
+
                             for reply_data in thread_replies_raw:
                                 reply_msg = self._parse_message_to_standardized(
-                                    reply_data, 
-                                    current_idx, 
+                                    reply_data,
+                                    current_idx,
                                     parent_idx=main_msg_idx
                                 )
                                 if reply_msg:
                                     all_standardized_messages.append(reply_msg)
                                     current_idx += 1
-                            
+
                             logger.info(f"Added {len(thread_replies_raw)} thread replies")
 
                         processed_threads.add(thread_ts)
