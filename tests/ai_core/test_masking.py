@@ -71,7 +71,7 @@ def create_sample_threads() -> List[StandardizedThread]:
         last_activity_at=datetime.now(),
     )
 
-    # Thread 2: Support conversation
+    # Thread 2: Support conversation with Slack IDs
     thread2 = StandardizedThread(
         id="thread_002",
         source=SourceType.SLACK,
@@ -91,7 +91,7 @@ def create_sample_threads() -> List[StandardizedThread]:
                 id="msg5",
                 author_id="user_alice",
                 author_name="Alice Brown",
-                content="Hi Bob, I'll help you. My ID is I123456 and contact is alice@company.com",
+                content="Hi Bob, I'll help you. My ID is I123456 and contact is alice@company.com. Check channel C01ABC123DE or ask user U0ABCDEF04R",
                 timestamp=datetime.now(),
                 is_masked=False,
             ),
@@ -101,7 +101,29 @@ def create_sample_threads() -> List[StandardizedThread]:
         last_activity_at=datetime.now(),
     )
 
-    return [thread1, thread2]
+    # Thread 3: Slack-specific IDs
+    thread3 = StandardizedThread(
+        id="thread_003",
+        source=SourceType.SLACK,
+        source_url="https://example.slack.com/archives/C1A2B3C4D5E/p999999",
+        channel_id="C1A2B3C4D5E",
+        channel_name="tech-support",
+        messages=[
+            StandardizedMessage(
+                id="msg6",
+                author_id="U0ABCDEF04R",
+                author_name="Tech User",
+                content="Please check channel C1234567890 for updates. Contact U9876543210 or W1122334455 if needed.",
+                timestamp=datetime.now(),
+                is_masked=False,
+            ),
+        ],
+        participant_count=1,
+        created_at=datetime.now(),
+        last_activity_at=datetime.now(),
+    )
+
+    return [thread1, thread2, thread3]
 
 
 def print_divider(char="=", length=80):
@@ -272,6 +294,23 @@ async def test_masking():
             f"{status5} Same author_id gets same USER_X across messages: {user_consistency}"
         )
 
+        # Check 8: Slack user IDs are masked
+        slack_user_masked = True
+        slack_users = ["U0ABCDEF04R", "U9876543210", "W1122334455"]
+        for thread in masked_threads:
+            for msg in thread.messages:
+                for user in slack_users:
+                    if user in msg.content:
+                        slack_user_masked = False
+                        break
+                if not slack_user_masked:
+                    break
+            if not slack_user_masked:
+                break
+
+        status8 = "✅" if slack_user_masked else "❌"
+        print(f"{status8} Slack user IDs were masked: {slack_user_masked}")
+
         print()
 
         # Summary
@@ -284,6 +323,7 @@ async def test_masking():
                 user_consistency,
                 inumber_masked,
                 local_phone_masked,
+                slack_user_masked,
             ]
         )
 
