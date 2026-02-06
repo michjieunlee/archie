@@ -53,8 +53,7 @@ archie/
 │   ├── integrations/           # ① Owner's area
 │   │   ├── slack/              # Slack API integration
 │   │   │   ├── client.py       # Slack API client
-│   │   │   └── models.py       # Slack data models
-│   │   └── github/             # GitHub API integration
+│   │   │   └── github/             # GitHub API integration
 │   │       ├── client.py       # GitHub API client
 │   │       ├── pr.py           # PR creation logic
 │   │       └── models.py       # GitHub data models
@@ -76,7 +75,7 @@ archie/
 │   │       └── kb_template.md
 │   │
 │   ├── models/                 # Shared data models
-│   │   ├── thread.py           # Standardized thread
+│   │   ├── thread.py           # StandardizedConversation
 │   │   └── knowledge.py        # KB document model
 │   │
 │   └── services/               # Business logic
@@ -171,7 +170,7 @@ pytest tests/ -v
    └── Fetch current KB repository → Parse existing documents → AI-searchable format
 
 3. Data Standardization (① Owner)
-   └── Convert all inputs → List[StandardizedThread] + Existing KB Context
+   └── Convert all inputs → List[StandardizedConversation] + Existing KB Context
 
 4. Living KB AI Processing (② Owner)
    ├── PII Masking: Batch mask all conversations
