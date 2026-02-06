@@ -23,32 +23,32 @@ async def fetch_slack_conversation(
 ) -> 'StandardizedConversation':
     """
     Fetch Slack conversations with reply expansion.
-    
+
     Args:
         channel_id: Slack channel ID (uses configured default if not provided)
         from_datetime: Start time for message fetching
         to_datetime: End time for message fetching
         limit: Maximum number of messages to fetch (max 100)
-        
+
     Returns:
-        StandardizedConversation with all messages and replies (unmasked)
+        StandardizedConversation with all messages and replies
     """
     try:
         client = SlackClient()
-        
-        # Fetch Slack conversations with replies (no PII masking)
+
+        # Fetch Slack conversations with replies
         conversation = await client.fetch_conversations_with_threads(
             channel_id=channel_id,
             from_datetime=from_datetime,
             to_datetime=to_datetime,
             limit=min(limit, 100)  # Max 100 messages
         )
-        
+
         logger.info(f"Successfully fetched Slack conversation with {len(conversation.messages)} messages, "
                    f"{conversation.participant_count} participants")
-        
+
         return conversation
-        
+
     except Exception as e:
         logger.error(f"Error fetching Slack conversation: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch Slack conversation: {str(e)}")
@@ -64,8 +64,7 @@ async def fetch_conversations(
     """
     Fetch Slack conversations with reply expansion.
 
-    Returns raw StandardizedConversation data (no PII masking applied).
-    For PII masking, use a separate processing step.
+    Returns raw StandardizedConversation data.
 
     Examples:
     - GET /api/slack/fetch  (uses defaults)
@@ -77,7 +76,7 @@ async def fetch_conversations(
     try:
         logger.info(f"Starting conversation fetch - from_datetime: {from_datetime}, to_datetime: {to_datetime}, limit: {limit}")
 
-        # Fetch conversations (no PII masking)
+        # Fetch conversations
         conversation = await fetch_slack_conversation(
             channel_id=channel_id,
             from_datetime=from_datetime,

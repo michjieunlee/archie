@@ -87,7 +87,7 @@ MOCK_THREAD_DATA = {
 
 EXPECTED_MESSAGE_ORDER = [
     "Hey team, I need help with the new feature implementation",
-    "I can help! Let me take a look at the requirements", 
+    "I can help! Let me take a look at the requirements",
     "Thanks both! I'll update the documentation once it's ready",
     "Quick update: The deployment went smoothly"
 ]
@@ -212,11 +212,11 @@ class TestOutputFormatter:
         print(f"   → Category: {getattr(conversation.category, 'value', 'None') if hasattr(conversation, 'category') and conversation.category else 'None'}")
         print(f"   → Messages: {len(conversation.messages)}")
         print(f"   → Participants: {conversation.participant_count}")
-        
+
         # Check global indexing
         indices = [msg.idx for msg in conversation.messages]
         print(f"   → Message indices: {indices}")
-        
+
         # Check thread structure
         thread_messages = [msg for msg in conversation.messages if msg.parent_idx is not None]
         if thread_messages:
@@ -347,12 +347,12 @@ class MockSlackTest(BaseSlackTest):
 
             # Setup mocks
             original_fetch = client.client.fetch_conversations_with_threads
-            
+
             async def mock_fetch(*args, **kwargs):
                 # Create mock StandardizedConversation
                 messages = []
                 idx = 0
-                
+
                 # Add thread messages first (maintaining thread structure)
                 for msg_data in mock_thread["messages"]:
                     message = StandardizedMessage(
@@ -367,7 +367,7 @@ class MockSlackTest(BaseSlackTest):
                     )
                     messages.append(message)
                     idx += 1
-                
+
                 # Add standalone messages
                 for msg_data in mock_history["messages"][1:]:  # Skip first one (it's the thread root)
                     message = StandardizedMessage(
@@ -429,7 +429,7 @@ class MockSlackTest(BaseSlackTest):
                     details.append("insufficient messages")
 
                 return TestResult(
-                    "Conversation Structure", 
+                    "Conversation Structure",
                     success,
                     "; ".join(details) if details else f"✅ ID, indexing, threads, {len(conversation.messages)} messages"
                 )
@@ -449,20 +449,20 @@ class MockSlackTest(BaseSlackTest):
         try:
             # Verify SlackClient doesn't have masking methods
             client = SlackTestClient()
-            
+
             has_no_masking = not hasattr(client.client, 'mask_messages')
             has_fetch_method = hasattr(client.client, 'fetch_conversations_with_threads')
-            
+
             # Verify StandardizedConversation has required fields
             from app.models.thread import StandardizedConversation, StandardizedMessage
             conversation_fields = StandardizedConversation.model_fields.keys()
             message_fields = StandardizedMessage.model_fields.keys()
-            
+
             has_conversation_id = 'id' in conversation_fields
             has_message_indexing = 'idx' in message_fields and 'parent_idx' in message_fields
-            
+
             success = all([has_no_masking, has_fetch_method, has_conversation_id, has_message_indexing])
-            
+
             details = []
             if not has_no_masking:
                 details.append("SlackClient still has masking methods")
@@ -474,7 +474,7 @@ class MockSlackTest(BaseSlackTest):
                 details.append("StandardizedMessage missing idx/parent_idx fields")
 
             return TestResult(
-                "Clean Architecture", 
+                "Clean Architecture",
                 success,
                 "; ".join(details) if details else "✅ Clean SlackClient, proper field structure"
             )
@@ -505,7 +505,7 @@ class RealSlackTest(BaseSlackTest):
             self.tracker.start_conversion()
             # No additional conversion needed - SlackClient now returns StandardizedConversation directly
             self.tracker.end_conversion()
-            
+
             metrics = self.tracker.finalize()
 
             # Verbose mode output

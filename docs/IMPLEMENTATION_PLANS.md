@@ -13,7 +13,7 @@ Concise implementation guidance for the complete living KB system.
 
 ### ① Integration Owner
 **Core Responsibilities**: Slack API, GitHub operations, Joule endpoints
-**Key Files**: `app/integrations/slack/client.py`, `app/integrations/slack/models.py`, `app/integrations/github/client.py`
+**Key Files**: `app/integrations/slack/client.py`, `app/integrations/github/client.py`
 **Main Tasks**:
 - Slack thread expansion with StandardizedConversation model
 - GitHub KB reading + complex PR operations (create/update/append)
