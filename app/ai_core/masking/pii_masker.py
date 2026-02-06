@@ -5,7 +5,7 @@ Owner: ③ AI Core · Compliance · Knowledge Logic Owner
 Responsibilities:
 - Leverage SAP GenAI SDK Orchestration V2 + Data Masking
 - Mask personal information (names, emails, phone numbers, addresses)
-- Process standardized threads with parallel batch processing
+- Process standardized conversations with parallel batch processing
 """
 
 import logging
@@ -31,7 +31,7 @@ from gen_ai_hub.orchestration_v2.models.data_masking import (
     ProfileEntity,
 )
 
-from app.models.thread import StandardizedThread, StandardizedMessage
+from app.models.thread import StandardizedConversation, StandardizedMessage
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ class PIIMasker:
     PII (Personally Identifiable Information) Masker.
 
     Uses SAP GenAI SDK Orchestration V2 with Data Masking for compliance.
-    Processes StandardizedThread objects with parallel batch processing.
+    Processes StandardizedConversation objects with parallel batch processing.
     """
 
     def __init__(self):
@@ -145,16 +145,16 @@ class PIIMasker:
 
         return config
 
-    async def mask_threads(
-        self, threads: List[StandardizedThread]
-    ) -> List[StandardizedThread]:
+    async def mask_conversations(
+        self, conversations: List[StandardizedConversation]
+    ) -> List[StandardizedConversation]:
         """
-        Mask PII in a batch of standardized threads using parallel processing.
+        Mask PII in a batch of standardized conversations using parallel processing.
 
         This method:
-        1. Processes each thread's messages together as a batch
+        1. Processes each conversation's messages together as a batch
         2. Updates author_name to masked identifiers (USER_1, USER_2, etc.)
-        3. Uses asyncio.gather() for parallel processing of multiple threads
+        3. Uses asyncio.gather() for parallel processing of multiple conversations
         4. Uses SAP GenAI Orchestration V2 for masking content
         5. Fails entire pipeline on any error (strict mode)
 
@@ -166,45 +166,45 @@ class PIIMasker:
         - Personal IDs (e.g., "D123456" -> "MASKED_I_NUMBER")
         - Slack user IDs (e.g., "U0ABCDEF04R" -> "MASKED_SLACK_USER")
         Args:
-            threads: List of StandardizedThread objects to mask
+            conversations: List of StandardizedConversation objects to mask
 
         Returns:
-            List[StandardizedThread] with masked content and author_name updated
+            List[StandardizedConversation] with masked content and author_name updated
 
         Raises:
-            MaskingError: If masking fails for any thread
+            MaskingError: If masking fails for any conversation
         """
-        if not threads:
-            logger.info("No threads to mask")
+        if not conversations:
+            logger.info("No conversations to mask")
             return []
 
-        logger.info(f"Starting PII masking for {len(threads)} threads")
+        logger.info(f"Starting PII masking for {len(conversations)} conversations")
 
         try:
             # Create deep copy to avoid modifying original
-            masked_threads = deepcopy(threads)
+            masked_conversations = deepcopy(conversations)
 
-            # Create tasks for parallel processing of all threads
+            # Create tasks for parallel processing of all conversations
             tasks = []
-            for thread_idx, thread in enumerate(masked_threads):
+            for conv_idx, conversation in enumerate(masked_conversations):
                 logger.info(
-                    f"Queuing thread {thread_idx + 1}/{len(masked_threads)}: {thread.id} ({len(thread.messages)} messages)"
+                    f"Queuing conversation {conv_idx + 1}/{len(masked_conversations)} ({len(conversation.messages)} messages)"
                 )
-                tasks.append(self._mask_thread_messages(thread))
+                tasks.append(self._mask_conversation_messages(conversation))
 
-            # Process all threads in parallel using asyncio.gather
-            # Note: Each await inside _mask_thread_messages() yields control to event loop
-            # allowing all threads to process concurrently
-            logger.info(f"Processing {len(tasks)} threads in parallel...")
+            # Process all conversations in parallel using asyncio.gather
+            # Note: Each await inside _mask_conversation_messages() yields control to event loop
+            # allowing all conversations to process concurrently
+            logger.info(f"Processing {len(tasks)} conversations in parallel...")
             await asyncio.gather(*tasks)
 
             # Update masked flags and author names
-            for thread in masked_threads:
-                # Build author mapping for this thread
+            for conversation in masked_conversations:
+                # Build author mapping for this conversation
                 author_map = {}
                 next_user_num = 1
 
-                for message in thread.messages:
+                for message in conversation.messages:
                     # Create masked author name if not already mapped
                     if message.author_id not in author_map:
                         author_map[message.author_id] = f"USER_{next_user_num}"
@@ -214,31 +214,31 @@ class PIIMasker:
                     message.author_name = author_map[message.author_id]
                     message.is_masked = True
 
-            total_messages = sum(len(t.messages) for t in masked_threads)
+            total_messages = sum(len(c.messages) for c in masked_conversations)
             logger.info(
-                f"Successfully masked {len(threads)} threads ({total_messages} messages)"
+                f"Successfully masked {len(conversations)} conversations ({total_messages} messages)"
             )
-            return masked_threads
+            return masked_conversations
 
         except Exception as e:
             error_msg = f"PII masking failed: {str(e)}"
             logger.error(error_msg)
             raise MaskingError(error_msg) from e
 
-    async def _mask_thread_messages(self, thread: StandardizedThread) -> None:
+    async def _mask_conversation_messages(self, conversation: StandardizedConversation) -> None:
         """
-        Mask all messages in a thread using a single Orchestration V2 call.
+        Mask all messages in a conversation using a single Orchestration V2 call.
 
         Args:
-            thread: StandardizedThread whose messages need masking
+            conversation: StandardizedConversation whose messages need masking
 
         Raises:
-            MaskingError: If masking fails for the thread
+            MaskingError: If masking fails for the conversation
         """
         try:
             # Combine all messages into a natural conversation flow
             # This allows the LLM to better understand context for consistent masking
-            combined_text = "\n\n".join([msg.content for msg in thread.messages])
+            combined_text = "\n\n".join([msg.content for msg in conversation.messages])
 
             # Create orchestration config
             config = self._create_orchestration_config(combined_text)
@@ -257,23 +257,23 @@ class PIIMasker:
                 masked_combined = self._extract_masked_content(result)
 
                 # Split the masked content back into individual messages
-                self._distribute_masked_content(thread, masked_combined)
+                self._distribute_masked_content(conversation, masked_combined)
 
                 logger.debug(
-                    f"Masked thread {thread.id}: {len(thread.messages)} messages"
+                    f"Masked conversation {conversation.id}: {len(conversation.messages)} messages"
                 )
             else:
                 raise MaskingError(
-                    f"Invalid response from orchestration service for thread {thread.id}"
+                    f"Invalid response from orchestration service for conversation {conversation.id}"
                 )
 
         except Exception as e:
-            error_msg = f"Thread masking failed for {thread.id}: {str(e)}"
+            error_msg = f"Conversation masking failed for {conversation.id}: {str(e)}"
             logger.error(error_msg)
             raise MaskingError(error_msg) from e
 
     def _distribute_masked_content(
-        self, thread: StandardizedThread, masked_combined: str
+        self, conversation: StandardizedConversation, masked_combined: str
     ) -> None:
         """
         Distribute masked content back to individual messages.
@@ -281,7 +281,7 @@ class PIIMasker:
         The masked text is split by double newlines (same separator used when combining).
 
         Args:
-            thread: Thread whose messages need updating
+            conversation: Conversation whose messages need updating
             masked_combined: Combined masked text
 
         Raises:
@@ -292,21 +292,21 @@ class PIIMasker:
             masked_parts = masked_combined.split("\n\n")
 
             # Verify we got the expected number of parts
-            if len(masked_parts) != len(thread.messages):
+            if len(masked_parts) != len(conversation.messages):
                 logger.warning(
-                    f"Message count mismatch: expected {len(thread.messages)}, got {len(masked_parts)}. "
+                    f"Message count mismatch: expected {len(conversation.messages)}, got {len(masked_parts)}. "
                     f"Attempting to distribute content anyway."
                 )
 
             # Distribute masked content to messages
-            for i, message in enumerate(thread.messages):
+            for i, message in enumerate(conversation.messages):
                 if i < len(masked_parts):
                     message.content = masked_parts[i].strip()
                 else:
                     # If we have fewer parts than messages, this is an error
                     logger.error(f"Missing masked content for message {i+1}")
                     raise MaskingError(
-                        f"Could not find masked content for message {i+1}/{len(thread.messages)}"
+                        f"Could not find masked content for message {i+1}/{len(conversation.messages)}"
                     )
 
         except Exception as e:
@@ -344,7 +344,7 @@ class PIIMasker:
             raise MaskingError(f"Failed to extract masked content: {e}") from e
 
     async def get_masking_stats(
-        self, threads: List[StandardizedThread]
+        self, conversations: List[StandardizedConversation]
     ) -> Dict[str, Any]:
         """
         Get statistics about masking requirements (without actually masking).
@@ -352,24 +352,24 @@ class PIIMasker:
         Useful for pre-flight checks and reporting.
 
         Args:
-            threads: Threads to analyze
+            conversations: Conversations to analyze
 
         Returns:
             Dictionary with statistics
         """
-        total_messages = sum(len(thread.messages) for thread in threads)
+        total_messages = sum(len(conversation.messages) for conversation in conversations)
         total_chars = sum(
-            len(msg.content) for thread in threads for msg in thread.messages
+            len(msg.content) for conversation in conversations for msg in conversation.messages
         )
 
         # With parallel processing, time ≈ max of all threads (not sum)
         estimated_time = self.settings.orchestration_timeout
 
         return {
-            "total_threads": len(threads),
+            "total_conversations": len(conversations),
             "total_messages": total_messages,
             "total_characters": total_chars,
-            "estimated_api_calls": len(threads),  # One call per thread
+            "estimated_api_calls": len(conversations),  # One call per conversation
             "estimated_time_seconds": estimated_time,  # Parallel processing
             "entities_masked": [
                 "PERSON",

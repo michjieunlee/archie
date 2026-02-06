@@ -1,7 +1,7 @@
 """
-Standardized Thread Model
+Standardized Conversation Model
 
-Unified thread data structure regardless of input source (Slack, Teams, File, Text, etc.)
+Unified conversation data structure regardless of input source (Slack, Teams, File, Text, etc.)
 """
 
 from pydantic import BaseModel
@@ -19,7 +19,7 @@ class SourceType(str, Enum):
     TEAMS = "teams"  # Future extension
 
 
-class ThreadCategory(str, Enum):
+class ConversationCategory(str, Enum):
     """Knowledge base document categories."""
 
     TROUBLESHOOTING = "troubleshooting"
@@ -30,6 +30,8 @@ class ThreadCategory(str, Enum):
 class StandardizedMessage(BaseModel):
     """Platform-agnostic message format."""
 
+    idx: int  # Global index across conversation (0, 1, 2, 3...)
+    parent_idx: Optional[int] = None  # Points to parent message idx (for thread replies)
     id: str
     author_id: str
     author_name: Optional[str] = None  # May be masked or None for privacy
@@ -39,15 +41,15 @@ class StandardizedMessage(BaseModel):
     metadata: Dict[str, Any] = {}
 
 
-class StandardizedThread(BaseModel):
-    """Platform-agnostic thread format."""
+class StandardizedConversation(BaseModel):
+    """Platform-agnostic conversation format."""
 
-    id: str
+    id: str  # Unique identifier for the conversation
     source: SourceType
     source_url: Optional[str] = None  # Optional for file/text inputs
     channel_id: str
     channel_name: Optional[str] = None
-    messages: List[StandardizedMessage]
+    messages: List[StandardizedMessage]  # Chronologically ordered with global indexing
     participant_count: int
     created_at: datetime
     last_activity_at: datetime
@@ -85,12 +87,12 @@ class KBOperationType(str, Enum):
 class KBExtractionResult(BaseModel):
     """Result of KB extraction analysis (for AI Core team ②)."""
 
-    thread_id: str
+    conversation_id: str
     is_kb_worthy: bool
     confidence_score: float  # 0.0 to 1.0
     reasoning: str  # AI explanation
     suggested_title: str
-    category: ThreadCategory  # e.g., "troubleshooting", "process", "decision"
+    category: ConversationCategory  # e.g., "troubleshooting", "process", "decision"
     tags: List[str]
     key_topics: List[str]
     estimated_value: str  # "high", "medium", "low"
@@ -99,7 +101,7 @@ class KBExtractionResult(BaseModel):
 class KBMatchResult(BaseModel):
     """Result of matching against existing KB documents."""
 
-    thread_id: str
+    conversation_id: str
     operation: KBOperationType
     confidence_score: float
     reasoning: str
@@ -122,7 +124,7 @@ class KBOperationResult(BaseModel):
     # AI context
     ai_confidence: float
     ai_reasoning: str
-    source_threads: List[str]
+    source_conversations: List[str]
 
     # For update operations
     target_section: Optional[str] = None  # Section to update (for append/replace)
