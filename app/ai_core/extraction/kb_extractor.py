@@ -35,6 +35,27 @@ logger = logging.getLogger(__name__)
 config = get_settings()
 
 
+# Custom Exceptions
+
+
+class CategoryClassificationError(Exception):
+    """
+    Raised when category classification fails.
+    This is a system error (500) - the LLM failed to classify the conversation.
+    """
+
+    pass
+
+
+class KBExtractionError(Exception):
+    """
+    Raised when KB extraction fails.
+    This is a system error (500) - the LLM failed to extract structured data.
+    """
+
+    pass
+
+
 class KBExtractor:
     """
     Extracts knowledge from Slack conversations using a 3-step process.
@@ -72,63 +93,58 @@ class KBExtractor:
             context: Optional additional context (e.g., related code, documentation)
 
         Returns:
-            KnowledgeArticle if extraction successful, None otherwise
+            KnowledgeArticle if extraction successful,
+            None if conversation has no sufficient content
+
+        Raises:
+            CategoryClassificationError: If LLM fails to classify the conversation
+            KBExtractionError: If LLM fails to extract structured KB data
         """
-        try:
-            logger.info(f"Starting KB extraction for conversation {conversation.id}")
+        logger.info(f"Starting KB extraction for conversation {conversation.id}")
 
-            # Validate conversation has sufficient content
-            if not self._is_conversation_extractable(conversation):
-                logger.warning(f"Conversation {conversation.id} not suitable for extraction")
-                return None
-
-            # Step 1: Classify category
-            category = await self._classify_category(conversation)
-            if not category:
-                logger.warning(f"Could not classify category for conversation {conversation.id}")
-                return None
-
-            logger.info(f"Classified conversation {conversation.id} as: {category}")
-
-            # Step 2: Extract with category-specific model
-            extraction_output = await self._extract_with_model(
-                conversation, category, context
-            )
-            if not extraction_output:
-                logger.warning(f"Extraction failed for conversation {conversation.id}")
-                return None
-
-            logger.info(f"Successfully extracted: {extraction_output.title}")
-
-            # Step 3: Build complete KnowledgeArticle with metadata
-            metadata = ExtractionMetadata(
-                source_type=conversation.source.value,
-                source_id=conversation.id,
-                channel_id=conversation.channel_id,
-                channel_name=conversation.channel_name or "unknown",
-                participants=[msg.author_id for msg in conversation.messages],
-                message_count=len(conversation.messages),
-            )
-
-            knowledge_article = KnowledgeArticle(
-                extraction_output=extraction_output,
-                category=category,
-                extraction_metadata=metadata,
-            )
-
+        # Validate conversation has sufficient content
+        if not self._is_conversation_extractable(conversation):
             logger.info(
-                f"Successfully created KB article: {knowledge_article.title} "
-                f"(confidence: {knowledge_article.ai_confidence:.2f})"
+                f"Conversation {conversation.id} not suitable for extraction: "
+                f"insufficient content or too few messages"
             )
-            return knowledge_article
-
-        except Exception as e:
-            logger.error(f"Error during KB extraction: {str(e)}", exc_info=True)
             return None
+
+        # Step 1: Classify category (raises CategoryClassificationError on failure)
+        category = await self._classify_category(conversation)
+        logger.info(f"Classified conversation {conversation.id} as: {category}")
+
+        # Step 2: Extract with category-specific model (raises KBExtractionError on failure)
+        extraction_output = await self._extract_with_model(
+            conversation, category, context
+        )
+        logger.info(f"Successfully extracted: {extraction_output.title}")
+
+        # Step 3: Build complete KnowledgeArticle with metadata
+        metadata = ExtractionMetadata(
+            source_type=conversation.source.value,
+            source_id=conversation.id,
+            channel_id=conversation.channel_id,
+            channel_name=conversation.channel_name or "unknown",
+            participants=[msg.author_id for msg in conversation.messages],
+            message_count=len(conversation.messages),
+        )
+
+        knowledge_article = KnowledgeArticle(
+            extraction_output=extraction_output,
+            category=category,
+            extraction_metadata=metadata,
+        )
+
+        logger.info(
+            f"Successfully created KB article: {knowledge_article.title} "
+            f"(confidence: {knowledge_article.ai_confidence:.2f})"
+        )
+        return knowledge_article
 
     async def _classify_category(
         self, conversation: StandardizedConversation
-    ) -> Optional[KBCategory]:
+    ) -> KBCategory:
         """
         Step 1: Classify the conversation into a category.
 
@@ -136,10 +152,15 @@ class KBExtractor:
             conversation: The conversation to classify
 
         Returns:
-            KBCategory if successful, None otherwise
+            KBCategory if successful
+
+        Raises:
+            CategoryClassificationError: If classification fails
         """
         try:
-            conversation_content = self._format_conversation_for_extraction(conversation)
+            conversation_content = self._format_conversation_for_extraction(
+                conversation
+            )
 
             prompt = CATEGORY_CLASSIFICATION_PROMPT.format(
                 thread_content=conversation_content
@@ -159,18 +180,30 @@ class KBExtractor:
                 "decision": KBCategory.DECISIONS,  # Handle singular
             }
 
-            return category_map.get(category_str)
+            category = category_map.get(category_str)
+            if not category:
+                raise CategoryClassificationError(
+                    f"LLM returned invalid category: '{category_str}'. "
+                    f"Expected one of: troubleshooting, processes, decisions"
+                )
 
+            return category
+
+        except CategoryClassificationError:
+            # Re-raise custom exception
+            raise
         except Exception as e:
             logger.error(f"Error classifying category: {str(e)}", exc_info=True)
-            return None
+            raise CategoryClassificationError(
+                f"Failed to classify conversation category: {str(e)}"
+            ) from e
 
     async def _extract_with_model(
         self,
         conversation: StandardizedConversation,
         category: KBCategory,
         context: Optional[Dict[str, Any]] = None,
-    ) -> Optional[KnowledgeExtractionOutput]:
+    ) -> KnowledgeExtractionOutput:
         """
         Step 2: Extract knowledge using the appropriate category-specific model.
 
@@ -181,9 +214,14 @@ class KBExtractor:
 
         Returns:
             Category-specific extraction output if successful
+
+        Raises:
+            KBExtractionError: If extraction fails
         """
         try:
-            conversation_content = self._format_conversation_for_extraction(conversation)
+            conversation_content = self._format_conversation_for_extraction(
+                conversation
+            )
             context_str = self._format_context(context) if context else ""
 
             user_prompt = EXTRACTION_USER_PROMPT_TEMPLATE.format(
@@ -207,18 +245,29 @@ class KBExtractor:
             elif category == KBCategory.DECISIONS:
                 structured_llm = self.llm.with_structured_output(DecisionExtraction)
             else:
-                logger.error(f"Unknown category: {category}")
-                return None
+                raise KBExtractionError(f"Unknown category: {category}")
 
             extraction_output = await structured_llm.ainvoke(messages)
 
+            if not extraction_output:
+                raise KBExtractionError(
+                    f"LLM returned empty extraction output for category {category.value}"
+                )
+
             return extraction_output
 
+        except KBExtractionError:
+            # Re-raise custom exception
+            raise
         except Exception as e:
             logger.error(f"Error extracting with model: {str(e)}", exc_info=True)
-            return None
+            raise KBExtractionError(
+                f"Failed to extract KB from conversation: {str(e)}"
+            ) from e
 
-    def _is_conversation_extractable(self, conversation: StandardizedConversation) -> bool:
+    def _is_conversation_extractable(
+        self, conversation: StandardizedConversation
+    ) -> bool:
         """
         Check if conversation has sufficient content for extraction.
 
@@ -243,14 +292,19 @@ class KBExtractor:
             )
             return False
 
-        # Must have at least 2 messages for a discussion
-        if len(conversation.messages) < 2:
+        # Check if this is a text input conversation (single message is OK)
+        is_text_input = conversation.metadata.get("source") == "text_input"
+
+        # Must have at least 2 messages for a discussion (unless it's text input)
+        if not is_text_input and len(conversation.messages) < 2:
             logger.debug(f"Conversation {conversation.id} has less than 2 messages")
             return False
 
         return True
 
-    def _format_conversation_for_extraction(self, conversation: StandardizedConversation) -> str:
+    def _format_conversation_for_extraction(
+        self, conversation: StandardizedConversation
+    ) -> str:
         """
         Format conversation messages for the extraction prompt.
 

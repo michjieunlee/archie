@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.config import get_settings
-from app.api.routes import slack, github, knowledge
+from app.api.routes import kb, slack, github
 
 settings = get_settings()
 
@@ -13,7 +13,7 @@ app = FastAPI(
 # Include routers
 app.include_router(slack.router, prefix="/api/slack", tags=["Slack"])
 app.include_router(github.router, prefix="/api/github", tags=["GitHub"])
-app.include_router(knowledge.router, prefix="/api/knowledge", tags=["Knowledge"])
+app.include_router(kb.router, prefix="/api/kb", tags=["KB Management"])
 
 
 @app.get("/health")

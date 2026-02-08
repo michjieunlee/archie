@@ -1,4 +1,4 @@
 # Business logic services
-from app.services.pipeline import KBPipeline
+from app.services.kb_orchestrator import KBOrchestrator
 
-__all__ = ["KBPipeline"]
+__all__ = ["KBOrchestrator"]
