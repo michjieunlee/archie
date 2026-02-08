@@ -66,7 +66,7 @@ async def test_text_to_kb_simple():
     print(f"  Title: {result.kb_article_title}")
     print(f"  Category: {result.kb_category}")
     print(f"  Confidence: {result.ai_confidence}")
-    print(f"  File Path: {result.file_path}")
+    print(f"  Summary: {result.kb_summary}")
     print(f"  Reasoning: {result.ai_reasoning[:100]}...")
 
     assert result.status == "success", f"Expected success, got {result.status}"
@@ -78,7 +78,9 @@ async def test_text_to_kb_simple():
     if result.action == KBActionType.CREATE:
         assert result.kb_article_title is not None, "Title should not be None"
         assert result.kb_category == "troubleshooting", "Should be troubleshooting"
-        assert result.file_path is not None, "File path should be suggested"
+        assert (
+            result.kb_summary is not None and len(result.kb_summary) > 0
+        ), "Summary should be generated"
 
     return result
 
@@ -121,7 +123,7 @@ async def test_text_to_kb_process():
     print(f"  Title: {result.kb_article_title}")
     print(f"  Category: {result.kb_category}")
     print(f"  Confidence: {result.ai_confidence}")
-    print(f"  File Path: {result.file_path}")
+    print(f"  Summary: {result.kb_summary}")
 
     assert result.status == "success", f"Expected success, got {result.status}"
     assert result.action in [
@@ -246,7 +248,7 @@ async def test_decision_documentation():
     print(f"  Title: {result.kb_article_title}")
     print(f"  Category: {result.kb_category}")
     print(f"  Confidence: {result.ai_confidence}")
-    print(f"  File Path: {result.file_path}")
+    print(f"  Summary: {result.kb_summary}")
 
     assert result.status == "success", f"Expected success, got {result.status}"
 
