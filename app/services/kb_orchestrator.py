@@ -21,7 +21,12 @@ from app.ai_core.extraction.kb_extractor import (
 from app.ai_core.matching import KBMatcher
 from app.ai_core.generation import KBGenerator
 from app.integrations.github import GitHubClient, PRManager
-from app.models.thread import StandardizedConversation, StandardizedMessage, SourceType
+from app.models.thread import (
+    StandardizedConversation,
+    StandardizedMessage,
+    Source,
+    SourceType,
+)
 from app.models.api_responses import (
     KBProcessingResponse,
     KBQueryResponse,
@@ -323,10 +328,11 @@ class KBOrchestrator:
         # Create conversation
         conversation = StandardizedConversation(
             id=f"text_input_{int(now.timestamp())}",
-            source=SourceType.TEXT,
-            source_url=None,
-            channel_id="text_input",
-            channel_name=title or "Text Input",
+            source=Source(
+                type=SourceType.TEXT,
+                channel_id="text_input",
+                channel_name=title or "Text Input",
+            ),
             messages=[message],
             participant_count=1,
             created_at=now,

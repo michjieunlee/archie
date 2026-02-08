@@ -34,7 +34,13 @@ from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock
 
 from app.integrations.slack.client import SlackClient
-from app.models.thread import StandardizedConversation, StandardizedMessage, SourceType, ConversationCategory
+from app.models.thread import (
+    StandardizedConversation,
+    StandardizedMessage,
+    Source,
+    SourceType,
+    ConversationCategory,
+)
 from app.config import get_settings
 
 
@@ -50,15 +56,15 @@ MOCK_HISTORY_DATA = {
             "text": "Hey team, I need help with the new feature implementation",
             "reply_count": 2,
             "reactions": [{"name": "thumbsup", "count": 1}],
-            "attachments": []
+            "attachments": [],
         },
         {
             "ts": "1706123300.654321",
             "user": "U456USER2",
             "text": "Quick update: The deployment went smoothly",
             "reactions": [],
-            "attachments": []
-        }
+            "attachments": [],
+        },
     ]
 }
 
@@ -68,20 +74,20 @@ MOCK_THREAD_DATA = {
             "ts": "1706123400.123456",
             "user": "U123USER1",
             "text": "Hey team, I need help with the new feature implementation",
-            "thread_ts": "1706123400.123456"
+            "thread_ts": "1706123400.123456",
         },
         {
             "ts": "1706123450.789012",
             "user": "U456USER2",
             "text": "I can help! Let me take a look at the requirements",
-            "thread_ts": "1706123400.123456"
+            "thread_ts": "1706123400.123456",
         },
         {
             "ts": "1706123500.345678",
             "user": "U789USER3",
             "text": "Thanks both! I'll update the documentation once it's ready",
-            "thread_ts": "1706123400.123456"
-        }
+            "thread_ts": "1706123400.123456",
+        },
     ]
 }
 
@@ -89,7 +95,7 @@ EXPECTED_MESSAGE_ORDER = [
     "Hey team, I need help with the new feature implementation",
     "I can help! Let me take a look at the requirements",
     "Thanks both! I'll update the documentation once it's ready",
-    "Quick update: The deployment went smoothly"
+    "Quick update: The deployment went smoothly",
 ]
 
 
@@ -97,9 +103,11 @@ EXPECTED_MESSAGE_ORDER = [
 # Configuration and Data Classes
 # ============================================================================
 
+
 @dataclass
 class TestConfig:
     """Test configuration settings."""
+
     verbose: bool = False
     limit: Optional[int] = 10
     from_datetime: Optional[datetime] = None
@@ -115,6 +123,7 @@ class TestConfig:
 @dataclass
 class TestResult:
     """Test execution result."""
+
     name: str
     passed: bool
     message: Optional[str] = None
@@ -123,6 +132,7 @@ class TestResult:
 @dataclass
 class PerformanceMetrics:
     """Performance timing metrics."""
+
     extraction_time: float = 0.0
     conversion_time: float = 0.0
     total_time: float = 0.0
@@ -131,6 +141,7 @@ class PerformanceMetrics:
 # ============================================================================
 # Utility Classes
 # ============================================================================
+
 
 class TestOutputFormatter:
     """Handles all test output formatting."""
@@ -172,7 +183,9 @@ class TestOutputFormatter:
             elif config.from_datetime:
                 days_ago = (datetime.now() - config.from_datetime).days
                 if days_ago == 0:
-                    hours_ago = int((datetime.now() - config.from_datetime).total_seconds() / 3600)
+                    hours_ago = int(
+                        (datetime.now() - config.from_datetime).total_seconds() / 3600
+                    )
                     config_parts.append(f"last {hours_ago}h")
                 else:
                     config_parts.append(f"last {days_ago}d")
@@ -185,16 +198,22 @@ class TestOutputFormatter:
             print()
 
     @staticmethod
-    def print_verbose_extraction(conversation: StandardizedConversation, user_mapping: Dict[str, str]):
+    def print_verbose_extraction(
+        conversation: StandardizedConversation, user_mapping: Dict[str, str]
+    ):
         """Print detailed extraction results."""
         print("📊 CONVERSATION EXTRACTION RESULTS:")
 
         for i, msg in enumerate(conversation.messages, 1):
-            user_display = user_mapping.get(msg.author_id, f"USER_{len(user_mapping) + 1}")
-            timestamp_str = msg.timestamp.strftime('%H:%M:%S')
+            user_display = user_mapping.get(
+                msg.author_id, f"USER_{len(user_mapping) + 1}"
+            )
+            timestamp_str = msg.timestamp.strftime("%H:%M:%S")
             preview = msg.content[:60] + "..." if len(msg.content) > 60 else msg.content
 
-            print(f"   {i:2d}. [{user_display}] {timestamp_str} (idx:{msg.idx}): {preview}")
+            print(
+                f"   {i:2d}. [{user_display}] {timestamp_str} (idx:{msg.idx}): {preview}"
+            )
 
             if msg.parent_idx is not None:
                 print(f"       └─ Reply to message {msg.parent_idx}")
@@ -208,8 +227,10 @@ class TestOutputFormatter:
         """Print conversation structure details."""
         print(f"📝 CONVERSATION DETAILS:")
         print(f"   → ID: {conversation.id}")
-        print(f"   → Source: {conversation.source.value}")
-        print(f"   → Category: {getattr(conversation.category, 'value', 'None') if hasattr(conversation, 'category') and conversation.category else 'None'}")
+        print(f"   → Source: {conversation.source.type.value}")
+        print(
+            f"   → Category: {getattr(conversation.category, 'value', 'None') if hasattr(conversation, 'category') and conversation.category else 'None'}"
+        )
         print(f"   → Messages: {len(conversation.messages)}")
         print(f"   → Participants: {conversation.participant_count}")
 
@@ -218,19 +239,26 @@ class TestOutputFormatter:
         print(f"   → Message indices: {indices}")
 
         # Check thread structure
-        thread_messages = [msg for msg in conversation.messages if msg.parent_idx is not None]
+        thread_messages = [
+            msg for msg in conversation.messages if msg.parent_idx is not None
+        ]
         if thread_messages:
             print(f"   → Thread replies: {len(thread_messages)}")
 
     @staticmethod
     def print_performance_breakdown(metrics: PerformanceMetrics):
         """Print concise performance metrics."""
-        print(f"\n⏱️  Performance: API {metrics.extraction_time:.2f}s | Conversion {metrics.conversion_time:.2f}s | Total {metrics.total_time:.2f}s")
+        print(
+            f"\n⏱️  Performance: API {metrics.extraction_time:.2f}s | Conversion {metrics.conversion_time:.2f}s | Total {metrics.total_time:.2f}s"
+        )
 
     @staticmethod
     def print_results_summary(results: List[TestResult]):
         """Print clean test results summary."""
-        print(f"\n📊 Results: {sum(1 for r in results if r.passed)}/{len(results)} tests passed", end="")
+        print(
+            f"\n📊 Results: {sum(1 for r in results if r.passed)}/{len(results)} tests passed",
+            end="",
+        )
 
         if all(r.passed for r in results):
             print(" ✅")
@@ -278,10 +306,12 @@ class SlackTestClient:
         return await self.client.fetch_conversations_with_threads(
             from_datetime=config.from_datetime,
             to_datetime=config.to_datetime,
-            limit=config.limit if config.limit else 1000
+            limit=config.limit if config.limit else 1000,
         )
 
-    def create_user_mapping(self, conversation: StandardizedConversation) -> Dict[str, str]:
+    def create_user_mapping(
+        self, conversation: StandardizedConversation
+    ) -> Dict[str, str]:
         """Create user mapping for display purposes."""
         user_mapping = {}
         user_counter = 1
@@ -312,6 +342,7 @@ class MockDataFactory:
 # Test Base Classes
 # ============================================================================
 
+
 class BaseSlackTest:
     """Base class for Slack integration tests."""
 
@@ -333,10 +364,13 @@ class BaseSlackTest:
 # Specific Test Classes
 # ============================================================================
 
+
 class MockSlackTest(BaseSlackTest):
     """Tests using mock data."""
 
-    async def test_conversation_structure(self, config: TestConfig = None) -> TestResult:
+    async def test_conversation_structure(
+        self, config: TestConfig = None
+    ) -> TestResult:
         """Test StandardizedConversation structure with mock data."""
         if config is None:
             config = TestConfig()
@@ -358,18 +392,22 @@ class MockSlackTest(BaseSlackTest):
                     message = StandardizedMessage(
                         id=msg_data["ts"],  # Add required id field
                         idx=idx,
-                        parent_idx=0 if idx > 0 else None,  # First message is root, others are replies
+                        parent_idx=(
+                            0 if idx > 0 else None
+                        ),  # First message is root, others are replies
                         content=msg_data["text"],
                         author_id=msg_data["user"],
                         author_name=f"USER_{idx + 1}",
                         timestamp=datetime.fromtimestamp(float(msg_data["ts"])),
-                        message_id=msg_data["ts"]
+                        message_id=msg_data["ts"],
                     )
                     messages.append(message)
                     idx += 1
 
                 # Add standalone messages
-                for msg_data in mock_history["messages"][1:]:  # Skip first one (it's the thread root)
+                for msg_data in mock_history["messages"][
+                    1:
+                ]:  # Skip first one (it's the thread root)
                     message = StandardizedMessage(
                         id=msg_data["ts"],  # Add required id field
                         idx=idx,
@@ -378,20 +416,23 @@ class MockSlackTest(BaseSlackTest):
                         author_id=msg_data["user"],
                         author_name=f"USER_{idx + 1}",
                         timestamp=datetime.fromtimestamp(float(msg_data["ts"])),
-                        message_id=msg_data["ts"]
+                        message_id=msg_data["ts"],
                     )
                     messages.append(message)
                     idx += 1
 
                 return StandardizedConversation(
                     id="mock_conversation_123",
-                    source=SourceType.SLACK,
+                    source=Source(
+                        type=SourceType.SLACK,
+                        channel_id="C1234567890",
+                        channel_name="test-channel",
+                    ),
                     messages=messages,
                     participant_count=3,
                     category=ConversationCategory.TROUBLESHOOTING,
-                    channel_id="C1234567890",  # Add required field
-                    created_at=datetime.now(),  # Add required field
-                    last_activity_at=datetime.now()  # Add required field
+                    created_at=datetime.now(),
+                    last_activity_at=datetime.now(),
                 )
 
             # Apply mock
@@ -409,12 +450,24 @@ class MockSlackTest(BaseSlackTest):
 
                 # Verify results
                 has_id = conversation.id is not None
-                has_global_indexing = all(msg.idx is not None for msg in conversation.messages)
-                has_thread_structure = any(msg.parent_idx is not None for msg in conversation.messages)
-                correct_source = conversation.source == SourceType.SLACK
+                has_global_indexing = all(
+                    msg.idx is not None for msg in conversation.messages
+                )
+                has_thread_structure = any(
+                    msg.parent_idx is not None for msg in conversation.messages
+                )
+                correct_source = conversation.source.type == SourceType.SLACK
                 correct_message_count = len(conversation.messages) >= 3
 
-                success = all([has_id, has_global_indexing, has_thread_structure, correct_source, correct_message_count])
+                success = all(
+                    [
+                        has_id,
+                        has_global_indexing,
+                        has_thread_structure,
+                        correct_source,
+                        correct_message_count,
+                    ]
+                )
 
                 details = []
                 if not has_id:
@@ -431,7 +484,11 @@ class MockSlackTest(BaseSlackTest):
                 return TestResult(
                     "Conversation Structure",
                     success,
-                    "; ".join(details) if details else f"✅ ID, indexing, threads, {len(conversation.messages)} messages"
+                    (
+                        "; ".join(details)
+                        if details
+                        else f"✅ ID, indexing, threads, {len(conversation.messages)} messages"
+                    ),
                 )
 
             finally:
@@ -450,18 +507,30 @@ class MockSlackTest(BaseSlackTest):
             # Verify SlackClient doesn't have masking methods
             client = SlackTestClient()
 
-            has_no_masking = not hasattr(client.client, 'mask_messages')
-            has_fetch_method = hasattr(client.client, 'fetch_conversations_with_threads')
+            has_no_masking = not hasattr(client.client, "mask_messages")
+            has_fetch_method = hasattr(
+                client.client, "fetch_conversations_with_threads"
+            )
 
             # Verify StandardizedConversation has required fields
             from app.models.thread import StandardizedConversation, StandardizedMessage
+
             conversation_fields = StandardizedConversation.model_fields.keys()
             message_fields = StandardizedMessage.model_fields.keys()
 
-            has_conversation_id = 'id' in conversation_fields
-            has_message_indexing = 'idx' in message_fields and 'parent_idx' in message_fields
+            has_conversation_id = "id" in conversation_fields
+            has_message_indexing = (
+                "idx" in message_fields and "parent_idx" in message_fields
+            )
 
-            success = all([has_no_masking, has_fetch_method, has_conversation_id, has_message_indexing])
+            success = all(
+                [
+                    has_no_masking,
+                    has_fetch_method,
+                    has_conversation_id,
+                    has_message_indexing,
+                ]
+            )
 
             details = []
             if not has_no_masking:
@@ -476,7 +545,11 @@ class MockSlackTest(BaseSlackTest):
             return TestResult(
                 "Clean Architecture",
                 success,
-                "; ".join(details) if details else "✅ Clean SlackClient, proper field structure"
+                (
+                    "; ".join(details)
+                    if details
+                    else "✅ Clean SlackClient, proper field structure"
+                ),
             )
 
         except Exception as e:
@@ -500,7 +573,9 @@ class RealSlackTest(BaseSlackTest):
             self.tracker.end_extraction()
 
             if not conversation.messages:
-                return TestResult("Real Slack API", True, "No messages found (empty channel)")
+                return TestResult(
+                    "Real Slack API", True, "No messages found (empty channel)"
+                )
 
             self.tracker.start_conversion()
             # No additional conversion needed - SlackClient now returns StandardizedConversation directly
@@ -528,6 +603,7 @@ class RealSlackTest(BaseSlackTest):
 # Test Runner
 # ============================================================================
 
+
 class SlackTestRunner:
     """Main test runner."""
 
@@ -554,7 +630,9 @@ class SlackTestRunner:
         self.formatter.print_results_summary(results)
         return results
 
-    async def _run_mock_tests(self, test_mode: str, config: TestConfig = None) -> List[TestResult]:
+    async def _run_mock_tests(
+        self, test_mode: str, config: TestConfig = None
+    ) -> List[TestResult]:
         """Run mock data tests."""
         self.formatter.print_header("Mock Data Tests")
 
@@ -566,13 +644,19 @@ class SlackTestRunner:
 
         # Conversation structure test
         structure_result = await mock_test.test_conversation_structure(config)
-        self.formatter.print_test_status("Conversation Structure", structure_result.passed, structure_result.message)
+        self.formatter.print_test_status(
+            "Conversation Structure", structure_result.passed, structure_result.message
+        )
         results.append(structure_result)
 
         if test_mode != "quick":
             # Clean architecture test
             architecture_result = await mock_test.test_clean_architecture(config)
-            self.formatter.print_test_status("Clean Architecture", architecture_result.passed, architecture_result.message)
+            self.formatter.print_test_status(
+                "Clean Architecture",
+                architecture_result.passed,
+                architecture_result.message,
+            )
             results.append(architecture_result)
 
         return results
@@ -583,7 +667,9 @@ class SlackTestRunner:
 
         real_test = RealSlackTest()
         result = await real_test.test_real_integration(config)
-        self.formatter.print_test_status("Real Slack API", result.passed, result.message)
+        self.formatter.print_test_status(
+            "Real Slack API", result.passed, result.message
+        )
         return [result]
 
     async def _list_slack_channels(self):
@@ -611,6 +697,7 @@ class SlackTestRunner:
 # Configuration Parser
 # ============================================================================
 
+
 class ConfigParser:
     """Parse command line arguments into test configuration."""
 
@@ -633,23 +720,54 @@ Examples:
   %(prog)s --real --from 2026-02-01 --to 2026-02-05  # Date range
   %(prog)s --quick                          # Quick mock test
   %(prog)s --list-channels                  # List channels
-            """
+            """,
         )
 
         # Test mode arguments
-        parser.add_argument("--mock", action="store_true", help="Test with mock data (default)")
-        parser.add_argument("--real", action="store_true", help="Test with real Slack API")
-        parser.add_argument("--quick", action="store_true", help="Quick test with mock data")
-        parser.add_argument("--list-channels", action="store_true", help="List Slack channels")
+        parser.add_argument(
+            "--mock", action="store_true", help="Test with mock data (default)"
+        )
+        parser.add_argument(
+            "--real", action="store_true", help="Test with real Slack API"
+        )
+        parser.add_argument(
+            "--quick", action="store_true", help="Quick test with mock data"
+        )
+        parser.add_argument(
+            "--list-channels", action="store_true", help="List Slack channels"
+        )
 
         # Configuration arguments (for --real mode)
-        parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed test output with message content")
-        parser.add_argument("--limit", type=int, help="Maximum number of messages to extract (default: 10)")
-        parser.add_argument("--no-limit", action="store_true", help="Extract all messages in time range")
-        parser.add_argument("--hours", type=int, help="Extract messages from last N hours")
-        parser.add_argument("--days", type=int, help="Extract messages from last N days")
-        parser.add_argument("--from", dest="from_date", help="Start date (YYYY-MM-DD or 'YYYY-MM-DD HH:MM:SS')")
-        parser.add_argument("--to", dest="to_date", help="End date (YYYY-MM-DD or 'YYYY-MM-DD HH:MM:SS')")
+        parser.add_argument(
+            "--verbose",
+            "-v",
+            action="store_true",
+            help="Show detailed test output with message content",
+        )
+        parser.add_argument(
+            "--limit",
+            type=int,
+            help="Maximum number of messages to extract (default: 10)",
+        )
+        parser.add_argument(
+            "--no-limit", action="store_true", help="Extract all messages in time range"
+        )
+        parser.add_argument(
+            "--hours", type=int, help="Extract messages from last N hours"
+        )
+        parser.add_argument(
+            "--days", type=int, help="Extract messages from last N days"
+        )
+        parser.add_argument(
+            "--from",
+            dest="from_date",
+            help="Start date (YYYY-MM-DD or 'YYYY-MM-DD HH:MM:SS')",
+        )
+        parser.add_argument(
+            "--to",
+            dest="to_date",
+            help="End date (YYYY-MM-DD or 'YYYY-MM-DD HH:MM:SS')",
+        )
 
         args = parser.parse_args()
 
@@ -694,18 +812,22 @@ Examples:
             config.from_datetime = ConfigParser._parse_datetime(args.from_date, "from")
 
         if args.to_date:
-            config.to_datetime = ConfigParser._parse_datetime(args.to_date, "to", end_of_day=True)
+            config.to_datetime = ConfigParser._parse_datetime(
+                args.to_date, "to", end_of_day=True
+            )
 
         return config
 
     @staticmethod
-    def _parse_datetime(date_str: str, field_name: str, end_of_day: bool = False) -> datetime:
+    def _parse_datetime(
+        date_str: str, field_name: str, end_of_day: bool = False
+    ) -> datetime:
         """Parse datetime string."""
         try:
             if len(date_str) > 10:
-                return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+                return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
             else:
-                base_date = datetime.strptime(date_str, '%Y-%m-%d')
+                base_date = datetime.strptime(date_str, "%Y-%m-%d")
                 if end_of_day:
                     return base_date.replace(hour=23, minute=59, second=59)
                 return base_date
@@ -719,6 +841,7 @@ Examples:
 # Main Function
 # ============================================================================
 
+
 async def main():
     """Main test execution function."""
     test_mode, config = ConfigParser.parse_args()
@@ -730,12 +853,22 @@ async def main():
 
     # Print usage examples
     print(f"\n💡 Test mode examples:")
-    print(f"   python {sys.argv[0]} --mock                           # Mock data testing")
-    print(f"   python {sys.argv[0]} --real --verbose                 # Real API with details")
-    print(f"   python {sys.argv[0]} --real --limit 25                # Real API, 25 messages")
-    print(f"   python {sys.argv[0]} --real --days 7 --verbose        # Last 7 days, detailed")
+    print(
+        f"   python {sys.argv[0]} --mock                           # Mock data testing"
+    )
+    print(
+        f"   python {sys.argv[0]} --real --verbose                 # Real API with details"
+    )
+    print(
+        f"   python {sys.argv[0]} --real --limit 25                # Real API, 25 messages"
+    )
+    print(
+        f"   python {sys.argv[0]} --real --days 7 --verbose        # Last 7 days, detailed"
+    )
     print(f"   python {sys.argv[0]} --real --hours 24                # Last 24 hours")
-    print(f"   python {sys.argv[0]} --real --from 2026-02-01         # From specific date")
+    print(
+        f"   python {sys.argv[0]} --real --from 2026-02-01         # From specific date"
+    )
     print(f"   python {sys.argv[0]} --quick                          # Quick mock test")
     print(f"   python {sys.argv[0]} --list-channels                  # List channels\n")
 

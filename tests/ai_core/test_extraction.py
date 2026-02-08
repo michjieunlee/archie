@@ -17,24 +17,32 @@ from datetime import datetime, timezone
 
 from app.ai_core.extraction.kb_extractor import KBExtractor
 from app.ai_core.generation.kb_generator import KBGenerator
-from app.models.thread import StandardizedThread, StandardizedMessage, SourceType
+from app.models.thread import (
+    StandardizedConversation,
+    StandardizedMessage,
+    Source,
+    SourceType,
+)
 from app.models.knowledge import KBCategory
 
 
 @pytest.fixture
-def sample_troubleshooting_thread():
-    """Create a sample troubleshooting thread."""
+def sample_troubleshooting_conversation():
+    """Create a sample troubleshooting conversation."""
     now = datetime.now(timezone.utc)
-    return StandardizedThread(
+    return StandardizedConversation(
         id="1234567890.123456",
-        source=SourceType.SLACK,
-        channel_id="C01234567",
-        channel_name="engineering",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C01234567",
+            channel_name="engineering",
+        ),
         participant_count=2,
         created_at=now,
         last_activity_at=now,
         messages=[
             StandardizedMessage(
+                idx=0,
                 id="msg1",
                 author_id="U001",
                 author_name="Alice",
@@ -42,6 +50,7 @@ def sample_troubleshooting_thread():
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=1,
                 id="msg2",
                 author_id="U002",
                 author_name="Bob",
@@ -49,6 +58,7 @@ def sample_troubleshooting_thread():
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=2,
                 id="msg3",
                 author_id="U001",
                 author_name="Alice",
@@ -56,6 +66,7 @@ def sample_troubleshooting_thread():
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=3,
                 id="msg4",
                 author_id="U001",
                 author_name="Alice",
@@ -70,16 +81,19 @@ def sample_troubleshooting_thread():
 def sample_process_thread():
     """Create a sample process/workflow thread."""
     now = datetime.now(timezone.utc)
-    return StandardizedThread(
+    return StandardizedConversation(
         id="1234567891.123456",
-        source=SourceType.SLACK,
-        channel_id="C01234567",
-        channel_name="devops",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C01234567",
+            channel_name="devops",
+        ),
         participant_count=2,
         created_at=now,
         last_activity_at=now,
         messages=[
             StandardizedMessage(
+                idx=0,
                 id="msg1",
                 author_id="U003",
                 author_name="Charlie",
@@ -87,6 +101,7 @@ def sample_process_thread():
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=1,
                 id="msg2",
                 author_id="U004",
                 author_name="Diana",
@@ -94,6 +109,7 @@ def sample_process_thread():
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=2,
                 id="msg3",
                 author_id="U003",
                 author_name="Charlie",
@@ -101,6 +117,7 @@ def sample_process_thread():
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=3,
                 id="msg4",
                 author_id="U004",
                 author_name="Diana",
@@ -115,16 +132,19 @@ def sample_process_thread():
 def sample_decision_thread():
     """Create a sample technical decision thread."""
     now = datetime.now(timezone.utc)
-    return StandardizedThread(
+    return StandardizedConversation(
         id="1234567892.123456",
-        source=SourceType.SLACK,
-        channel_id="C01234567",
-        channel_name="architecture",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C01234567",
+            channel_name="architecture",
+        ),
         participant_count=3,
         created_at=now,
         last_activity_at=now,
         messages=[
             StandardizedMessage(
+                idx=0,
                 id="msg1",
                 author_id="U005",
                 author_name="Eve",
@@ -132,6 +152,7 @@ def sample_decision_thread():
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=1,
                 id="msg2",
                 author_id="U006",
                 author_name="Frank",
@@ -139,6 +160,7 @@ def sample_decision_thread():
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=2,
                 id="msg3",
                 author_id="U007",
                 author_name="Grace",
@@ -146,6 +168,7 @@ def sample_decision_thread():
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=3,
                 id="msg4",
                 author_id="U005",
                 author_name="Eve",
@@ -187,6 +210,7 @@ async def test_extract_troubleshooting_knowledge(sample_troubleshooting_thread):
     # Assert metadata
     assert article.extraction_metadata.source_type == "slack"
     assert article.extraction_metadata.source_id == sample_troubleshooting_thread.id
+    assert article.extraction_metadata.channel_id == "C01234567"
     assert article.extraction_metadata.channel_name == "engineering"
     assert article.extraction_metadata.message_count == 4
 
@@ -268,16 +292,19 @@ if __name__ == "__main__":
     print("TEST 1: TROUBLESHOOTING EXTRACTION")
     print("=" * 80)
 
-    troubleshooting = StandardizedThread(
+    troubleshooting = StandardizedConversation(
         id="1234567890.123456",
-        source=SourceType.SLACK,
-        channel_id="C01234567",
-        channel_name="engineering",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C01234567",
+            channel_name="engineering",
+        ),
         participant_count=2,
         created_at=now,
         last_activity_at=now,
         messages=[
             StandardizedMessage(
+                idx=0,
                 id="msg1",
                 author_id="U001",
                 author_name="Alice",
@@ -285,6 +312,7 @@ if __name__ == "__main__":
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=1,
                 id="msg2",
                 author_id="U002",
                 author_name="Bob",
@@ -292,6 +320,7 @@ if __name__ == "__main__":
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=2,
                 id="msg3",
                 author_id="U001",
                 author_name="Alice",
@@ -299,6 +328,7 @@ if __name__ == "__main__":
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=3,
                 id="msg4",
                 author_id="U001",
                 author_name="Alice",
@@ -324,16 +354,19 @@ if __name__ == "__main__":
     print("TEST 2: PROCESS EXTRACTION")
     print("=" * 80)
 
-    process = StandardizedThread(
+    process = StandardizedConversation(
         id="1234567891.123456",
-        source=SourceType.SLACK,
-        channel_id="C01234567",
-        channel_name="devops",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C01234567",
+            channel_name="devops",
+        ),
         participant_count=2,
         created_at=now,
         last_activity_at=now,
         messages=[
             StandardizedMessage(
+                idx=0,
                 id="msg1",
                 author_id="U003",
                 author_name="Charlie",
@@ -341,6 +374,7 @@ if __name__ == "__main__":
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=1,
                 id="msg2",
                 author_id="U004",
                 author_name="Diana",
@@ -348,6 +382,7 @@ if __name__ == "__main__":
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=2,
                 id="msg3",
                 author_id="U003",
                 author_name="Charlie",
@@ -355,6 +390,7 @@ if __name__ == "__main__":
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=3,
                 id="msg4",
                 author_id="U004",
                 author_name="Diana",
@@ -380,16 +416,19 @@ if __name__ == "__main__":
     print("TEST 3: DECISION EXTRACTION")
     print("=" * 80)
 
-    decision = StandardizedThread(
+    decision = StandardizedConversation(
         id="1234567892.123456",
-        source=SourceType.SLACK,
-        channel_id="C01234567",
-        channel_name="architecture",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C01234567",
+            channel_name="architecture",
+        ),
         participant_count=3,
         created_at=now,
         last_activity_at=now,
         messages=[
             StandardizedMessage(
+                idx=0,
                 id="msg1",
                 author_id="U005",
                 author_name="Eve",
@@ -397,6 +436,7 @@ if __name__ == "__main__":
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=1,
                 id="msg2",
                 author_id="U006",
                 author_name="Frank",
@@ -404,6 +444,7 @@ if __name__ == "__main__":
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=2,
                 id="msg3",
                 author_id="U007",
                 author_name="Grace",
@@ -411,6 +452,7 @@ if __name__ == "__main__":
                 timestamp=now,
             ),
             StandardizedMessage(
+                idx=3,
                 id="msg4",
                 author_id="U005",
                 author_name="Eve",
