@@ -35,6 +35,9 @@ class KBProcessingResponse(BaseModel):
     # KB article information (if created/updated)
     kb_article_title: Optional[str] = Field(None, description="Title of the KB article")
     kb_category: Optional[str] = Field(None, description="Category of the KB article")
+    kb_summary: Optional[str] = Field(
+        None, description="Summary of the generated KB article"
+    )
     ai_confidence: Optional[float] = Field(
         None, description="AI confidence score (0.0-1.0)"
     )
@@ -44,9 +47,6 @@ class KBProcessingResponse(BaseModel):
 
     # GitHub PR information (if created)
     pr_url: Optional[str] = Field(None, description="URL of the created GitHub PR")
-    file_path: Optional[str] = Field(
-        None, description="Path of the KB file in repository"
-    )
 
     # Processing metadata
     messages_fetched: Optional[int] = Field(

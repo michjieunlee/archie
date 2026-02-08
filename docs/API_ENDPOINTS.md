@@ -34,8 +34,8 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
 1. Fetch Slack messages with automatic thread expansion
 2. Mask PII data using SAP GenAI Orchestration V2
 3. Extract KB using AI (categorization + structured extraction)
-4. Match against existing KB (TODO: not yet implemented)
-5. Generate KB document (TODO: not yet implemented)
+4. Match against existing KB (STUB: always returns CREATE)
+5. Generate KB document using templates
 6. Create GitHub PR (TODO: not yet implemented)
 
 **Response Model**: `KBProcessingResponse`
@@ -46,10 +46,10 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
   "messages_fetched": 87,
   "kb_article_title": "Database Connection Troubleshooting",
   "kb_category": "troubleshooting",
+  "kb_summary": "This article describes how to troubleshoot database connection timeouts by adjusting pool size and connection settings.",
   "ai_confidence": 0.85,
   "ai_reasoning": "This conversation contains...",
   "pr_url": null,
-  "file_path": null
 }
 ```
 
@@ -86,8 +86,8 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
 1. Convert text to StandardizedConversation format
 2. Mask PII data using SAP GenAI Orchestration V2
 3. Extract KB using AI (categorization + structured extraction)
-4. Match against existing KB (TODO: not yet implemented)
-5. Generate KB document (TODO: not yet implemented)
+4. Match against existing KB (STUB: always returns CREATE)
+5. Generate KB document using templates
 6. Create GitHub PR (TODO: not yet implemented)
 
 **Response Model**: `KBProcessingResponse`
@@ -305,12 +305,13 @@ Navigate to: `http://localhost:8000/docs`
 - Slack conversation fetching with thread expansion
 - PII masking with SAP GenAI Orchestration V2
 - KB extraction with AI (categorization + structured extraction)
+- KB document generation (markdown with templates)
+- LLM-based article summary generation
 - Request/response models
 - Error handling
 
 🚧 **TODO** (marked in code):
-- KB matching against existing documents
-- KB document generation (markdown with templates)
+- KB matching against existing documents (stub: always returns CREATE)
 - GitHub PR creation
 - KB search implementation (for Q&A)
 - LLM-based answer generation (for Q&A)
