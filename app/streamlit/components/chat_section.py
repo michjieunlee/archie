@@ -1,130 +1,220 @@
 """
 Chat section component for the Streamlit app.
-Provides an independent chat interface that works with or without GitHub config.
+Provides a centered chat interface with sticky input bar and file upload dialog.
 """
 import streamlit as st
+import streamlit.components.v1 as components
 from config.settings import MAX_FILE_SIZE_MB, MAX_FILES_COUNT
 
+# Height of the sticky input bar (px) – used to calculate chat container height
+_INPUT_BAR_HEIGHT = 200
 
+
+# ── file-upload dialog (requires Streamlit >= 1.37) ────────────────────
+@st.dialog("Attach Text Files")
+def file_upload_dialog():
+    """Pop-up dialog for attaching text files."""
+    st.markdown(f"Upload up to **{MAX_FILES_COUNT}** text files (max **{MAX_FILE_SIZE_MB} MB** each).")
+
+    if "file_uploader_key" not in st.session_state:
+        st.session_state.file_uploader_key = 0
+
+    uploaded = st.file_uploader(
+        "Upload files",
+        accept_multiple_files=True,
+        type=["txt", "md", "json", "csv", "log", "html"],
+        key=f"file_uploader_{st.session_state.file_uploader_key}",
+        label_visibility="collapsed",
+    )
+
+    # Validate
+    valid_files = []
+    if uploaded:
+        for f in uploaded[:MAX_FILES_COUNT]:
+            size_mb = f.size / (1024 * 1024)
+            if size_mb > MAX_FILE_SIZE_MB:
+                st.error(f"'{f.name}' exceeds {MAX_FILE_SIZE_MB} MB – skipped.")
+            else:
+                valid_files.append(f)
+        if len(uploaded) > MAX_FILES_COUNT:
+            st.warning(f"Only the first {MAX_FILES_COUNT} files will be used.")
+
+    # Show selected files
+    if valid_files:
+        st.markdown(f"**Selected ({len(valid_files)}/{MAX_FILES_COUNT}):**")
+        for f in valid_files:
+            st.caption(f"📄 {f.name}  ({f.size / (1024*1024):.2f} MB)")
+
+    # Confirm button
+    if st.button("Attach", type="primary", disabled=len(valid_files) == 0):
+        st.session_state.pending_files = [
+            {"name": f.name, "size": f.size, "type": f.type, "content": f.getvalue()}
+            for f in valid_files
+        ]
+        st.session_state.file_uploader_key += 1
+        st.rerun()
+
+
+# ── helper: inject real JS via a zero-height iframe ────────────────────
+def _inject_sticky_js():
+    """Use components.html to run JS that pins the input bar to the bottom."""
+    js = """
+    <script>
+    (function() {
+        function pin() {
+            var doc = window.parent.document;
+
+            var ta = doc.querySelector('textarea[aria-label="Message"]');
+            if (!ta) return;
+
+            var block = ta.closest('[data-testid="stVerticalBlock"]');
+            if (!block) return;
+            var outer = block.parentElement &&
+                          block.parentElement.closest('[data-testid="stVerticalBlock"]');
+            if (outer) block = outer;
+
+            // Match the main content area's exact bounds
+            var mainEl = doc.querySelector('[data-testid="stMain"]');
+            var left = 0;
+            var width = '100%';
+            if (mainEl) {
+                var rect = mainEl.getBoundingClientRect();
+                left = rect.left;
+                width = rect.width + 'px';
+            }
+
+            block.style.position   = 'fixed';
+            block.style.bottom     = '0';
+            block.style.left       = left + 'px';
+            block.style.width      = width;
+            block.style.right      = 'auto';
+            block.style.background = '#ffffff';
+            block.style.borderTop  = '1px solid #e0e0e0';
+            block.style.padding    = '0.75rem 2rem';
+            block.style.boxSizing  = 'border-box';
+            block.style.zIndex     = '100';
+            block.style.boxShadow  = '0 -2px 8px rgba(0,0,0,0.06)';
+            block.dataset.pinned   = '1';
+        }
+
+        setTimeout(pin, 300);
+        new MutationObserver(function() { setTimeout(pin, 150); })
+            .observe(window.parent.document.body, {childList: true, subtree: true});
+    })();
+    </script>
+    """
+    components.html(js, height=0, scrolling=False)
+
+
+# ── main render function ───────────────────────────────────────────────
 def render_chat_section():
     """
-    Render the chat interface section.
+    Render chat history in a scrollable container and a sticky input bar.
     """
-    # Chat container with fixed height
-    chat_container = st.container()
-    
+    if "pending_files" not in st.session_state:
+        st.session_state.pending_files = []
+
+    # ── scrollable chat history ────────────────────────────────────────
+    # height is viewport-relative via CSS override below; the Python value
+    # is just an initial fallback.
+    chat_container = st.container(height=500, border=False)
     with chat_container:
-        # Display chat history
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
-                
-                # Display attached files if any
                 if "files" in message and message["files"]:
                     st.markdown("**📎 Attached Files:**")
-                    for file_info in message["files"]:
-                        file_size_mb = file_info['size'] / (1024 * 1024)
-                        st.caption(f"📄 {file_info['name']} ({file_size_mb:.2f}MB)")
-        
-        # Show welcome message if no messages
+                    for fi in message["files"]:
+                        st.caption(
+                            f"📄 {fi['name']} ({fi['size']/(1024*1024):.2f} MB)"
+                        )
+
+        # Welcome message
         if not st.session_state.messages:
             with st.chat_message("assistant"):
                 st.markdown("""
                 👋 **Welcome to Archie!**
-                
+
                 I'm your AI Knowledge Base Assistant. Here's what I can help you with:
-                
-                - 💬 **Chat freely:** Ask me anything, request summaries, or seek clarifications
-                - 📊 **Analyze repositories:** Process GitHub repos to extract knowledge base articles
-                - 🔍 **Provide insights:** Get explanations about code patterns and best practices
-                - 📎 **Upload files:** Attach up to 3 files to your messages for analysis
-                
-                Feel free to start chatting, or configure GitHub settings on the left to process repositories!
+
+                - 💬 **Chat:** Ask me anything, request summaries, or seek clarifications
+                - 📊 **Connect KnowledgeBase repository:** Connect GitHub to extract knowledge base articles
+                - 📊 **Connect Slack channel:** Connect Slack to extract messages
+                - 📎 **Upload files:** Attach text files
+
+                Connect your GitHub repository and Slack channel on the left, then get started!
                 """)
-    
-    st.divider()
-    
-    # File upload section
-    st.markdown(f"**📎 Attach Files (optional, up to {MAX_FILES_COUNT} files, max {MAX_FILE_SIZE_MB}MB each):**")
-    
-    # Initialize file uploader key for clearing after message send
-    if "file_uploader_key" not in st.session_state:
-        st.session_state.file_uploader_key = 0
-    
-    uploaded_files = st.file_uploader(
-        "Drag and drop files here or click to browse",
-        accept_multiple_files=True,
-        key=f"file_uploader_{st.session_state.file_uploader_key}",
-        help=f"Upload up to {MAX_FILES_COUNT} files (max {MAX_FILE_SIZE_MB}MB each) to include in your message",
-        label_visibility="collapsed"
-    )
-    
-    # Validate file count and size
-    if uploaded_files:
-        valid_files = []
-        for file in uploaded_files[:MAX_FILES_COUNT]:
-            file_size_mb = file.size / (1024 * 1024)
-            if file_size_mb > MAX_FILE_SIZE_MB:
-                st.error(f"❌ File '{file.name}' exceeds {MAX_FILE_SIZE_MB}MB limit ({file_size_mb:.2f}MB). Skipping this file.")
-            else:
-                valid_files.append(file)
-        
-        if len(uploaded_files) > MAX_FILES_COUNT:
-            st.warning(f"⚠️ Maximum {MAX_FILES_COUNT} files allowed. Only the first {MAX_FILES_COUNT} files will be used.")
-        
-        uploaded_files = valid_files
-    
-    # Display currently attached files
-    if uploaded_files:
-        st.markdown(f"**Selected files ({len(uploaded_files)}/{MAX_FILES_COUNT}):**")
-        cols = st.columns(len(uploaded_files))
-        for idx, file in enumerate(uploaded_files):
-            with cols[idx]:
-                file_size_mb = file.size / (1024 * 1024)
-                st.caption(f"📄 {file.name}")
-                st.caption(f"Size: {file_size_mb:.2f}MB")
-    
-    # Chat input at the bottom
-    user_input = st.chat_input(
-        "Type your message here...",
-        disabled=st.session_state.get("processing", False)
-    )
-    
-    if user_input:
-        # Prepare file information if files are uploaded
-        file_info_list = []
-        if uploaded_files:
-            for file in uploaded_files:
-                file_info_list.append({
-                    "name": file.name,
-                    "size": file.size,
-                    "type": file.type,
-                    "content": file.getvalue()  # Store file content
-                })
-        
-        # Add user message with files
-        user_message = {
-            "role": "user",
-            "content": user_input
-        }
+
+    # CSS: make the chat container fill available vertical space
+    st.markdown(f"""
+        <style>
+        /* Override the fixed-height container so it stretches dynamically */
+        [data-testid="stVerticalBlockBorderWrapper"] {{
+            height: calc(100vh - {_INPUT_BAR_HEIGHT + 140}px) !important;
+            max-height: none !important;
+            min-height: 200px !important;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
+
+    # ── input bar (will be pinned to bottom by JS) ─────────────────────
+    input_bar = st.container()
+    with input_bar:
+        # Show pending file badges above input
+        if st.session_state.pending_files:
+            badge_html = " ".join(
+                f'<span class="file-badge">📄 {f["name"]}</span>'
+                for f in st.session_state.pending_files
+            )
+            st.markdown(badge_html, unsafe_allow_html=True)
+
+        if "chat_input_key" not in st.session_state:
+            st.session_state.chat_input_key = 0
+
+        col_input, col_btns = st.columns([6, 1])
+
+        with col_input:
+            user_input = st.text_area(
+                "Message",
+                height=150,
+                placeholder="Type your message here...",
+                key=f"chat_input_area_{st.session_state.chat_input_key}",
+                label_visibility="collapsed",
+            )
+
+        with col_btns:
+            send_clicked = st.button(
+                "SEND", key="send_btn", use_container_width=True, type="primary", 
+                # help="Send message",
+            )
+            attach_clicked = st.button(
+                "ATTACH FILES", key="attach_btn", use_container_width=True,
+                # help="Attach text files",
+            )
+
+    # Inject JS to pin the input bar
+    _inject_sticky_js()
+
+    # Open the dialog when + is clicked
+    if attach_clicked:
+        file_upload_dialog()
+
+    # ── handle send ────────────────────────────────────────────────────
+    if send_clicked and user_input:
+        file_info_list = list(st.session_state.pending_files)
+
+        user_message = {"role": "user", "content": user_input}
         if file_info_list:
             user_message["files"] = file_info_list
-        
+
         st.session_state.messages.append(user_message)
-        
-        # Generate response based on input and files
+
         response = generate_chat_response(user_input, file_info_list)
-        
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": response
-        })
-        
-        # Clear the file uploader by incrementing a counter
-        if "file_uploader_key" not in st.session_state:
-            st.session_state.file_uploader_key = 0
-        st.session_state.file_uploader_key += 1
-        
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+        # Clear pending files and reset input field
+        st.session_state.pending_files = []
+        st.session_state.chat_input_key += 1
         st.rerun()
 
 
