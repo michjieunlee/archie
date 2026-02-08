@@ -42,8 +42,25 @@ class KBOrchestrator:
         self.extractor = KBExtractor()
         self.matcher = KBMatcher()
         self.generator = KBGenerator()
-        self.github_client = GitHubClient()
-        self.pr_manager = PRManager(self.github_client)
+
+        # Lazy initialization of GitHub client (only when needed)
+        # This prevents initialization errors when GitHub credentials are not configured
+        self._github_client = None
+        self._pr_manager = None
+
+    @property
+    def github_client(self):
+        """Lazy initialization of GitHub client."""
+        if self._github_client is None:
+            self._github_client = GitHubClient()
+        return self._github_client
+
+    @property
+    def pr_manager(self):
+        """Lazy initialization of PR manager."""
+        if self._pr_manager is None:
+            self._pr_manager = PRManager(self.github_client)
+        return self._pr_manager
 
     async def process_slack_messages(
         self,
@@ -248,25 +265,30 @@ class KBOrchestrator:
             logger.error(f"KB extraction failed: {str(e)}")
             raise
 
-        # Step 3: Match against existing KB (TODO: implement)
-        # For now, always create new
-        logger.info("KB matching skipped (not yet implemented)")
+        # Step 3: Match against existing KB
+        logger.info("Matching against existing KB...")
+        existing_kb_docs = []  # TODO: Fetch from GitHub repo
+        match_result = await self.matcher.match(kb_article, existing_kb_docs)
+        logger.info(
+            f"Match result: {match_result.action.value} (confidence: {match_result.confidence_score})"
+        )
 
         # Step 4: Generate KB document (TODO: implement full generation)
         logger.info("KB generation skipped (using extraction output)")
+        file_path = match_result.suggested_path
 
         # Step 5: Create GitHub PR (TODO: implement)
         logger.info("GitHub PR creation skipped (not yet implemented)")
 
         return KBProcessingResponse(
             status="success",
-            action=KBActionType.CREATE,
+            action=KBActionType(match_result.action.value),
             kb_article_title=kb_article.title,
             kb_category=kb_article.category.value,
             ai_confidence=kb_article.ai_confidence,
             ai_reasoning=kb_article.ai_reasoning,
             pr_url=None,  # TODO: add when PR creation is implemented
-            file_path=None,  # TODO: add when generation is implemented
+            file_path=file_path,
             messages_fetched=messages_fetched,
             text_length=text_length,
         )
