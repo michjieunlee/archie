@@ -145,10 +145,12 @@ SLACK_CHANNEL_ID=C1234567890  # Optional, default channel
 GITHUB_TOKEN=ghp-your-token
 GITHUB_REPO_OWNER=your-org
 GITHUB_REPO_NAME=knowledge-base
+GITHUB_DEFAULT_BRANCH=main
 
 # AI Processing
+SAP_GENAI_API_URL=https://your-endpoint.sap.com
 SAP_GENAI_API_KEY=your-api-key
-SAP_GENAI_ENDPOINT=https://your-endpoint.sap.com
+SAP_GENAI_DEPLOYMENT_ID=your-deployment-id
 ```
 
 ### Running Tests
