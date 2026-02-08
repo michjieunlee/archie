@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Slack
     slack_bot_token: str = ""
-    slack_signing_secret: str = ""
+    slack_channel_id: str = ""
 
     # GitHub
     github_token: str = ""

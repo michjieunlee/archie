@@ -3,8 +3,8 @@
 Concise implementation guidance for the complete living KB system.
 
 ## 🎯 System Overview
-**Goal**: Transform conversations into living knowledge base updates  
-**Architecture**: Multi-input → AI Processing → GitHub KB Updates  
+**Goal**: Transform conversations into living knowledge base updates
+**Architecture**: Multi-input → AI Processing → GitHub KB Updates
 **Key Feature**: Living KB - existing GitHub repository context drives all AI decisions
 
 ---
@@ -12,10 +12,10 @@ Concise implementation guidance for the complete living KB system.
 ## Team Structure & Responsibilities
 
 ### ① Integration Owner
-**Core Responsibilities**: Slack API, GitHub operations, Joule endpoints  
-**Key Files**: `app/integrations/slack/client.py`, `app/integrations/github/client.py`  
+**Core Responsibilities**: Slack API, GitHub operations, Joule endpoints
+**Key Files**: `app/integrations/slack/client.py`, `app/integrations/github/client.py`
 **Main Tasks**:
-- Slack channel scanning + thread permalink processing
+- Slack thread expansion with StandardizedConversation model
 - GitHub KB reading + complex PR operations (create/update/append)
 - Multi-input processing (Slack/file/text)
 - Joule API endpoints for progress tracking
@@ -23,23 +23,23 @@ Concise implementation guidance for the complete living KB system.
 **Implementation Focus**:
 ```python
 # Slack Integration
-SlackClient.scan_channel() - comprehensive message collection
-SlackClient.get_thread_from_permalink() - thread expansion
+SlackClient.fetch_conversations_with_threads() -> StandardizedConversation
+SlackClient.convert_to_standardized_conversation(slack_conversation: StandardizedConversation)
 
-# GitHub Integration  
+# GitHub Integration
 GitHubClient.read_kb_repository() - fetch existing KB for context
 GitHubClient.create_kb_pr() - complex operations (create/update/append)
 
 # APIs
-/api/input/slack, /api/input/file, /api/input/text
+GET /api/slack/extract, /api/input/file, /api/input/text
 /api/joule/extract-knowledge, /api/joule/status, /api/joule/results
 ```
 
 ### ② AI/Knowledge Owner
-**Core Responsibilities**: SAP GenAI SDK, PII masking, KB operations  
-**Key Files**: `app/ai_core/masking/`, `app/ai_core/extraction/`, `app/ai_core/matching/`  
+**Core Responsibilities**: SAP GenAI SDK, PII masking, KB operations
+**Key Files**: `app/ai_core/masking/`, `app/ai_core/extraction/`, `app/ai_core/matching/`
 **Main Tasks**:
-- PII masking with SAP GenAI SDK batch processing
+- PII masking with SAP GenAI SDK batch processing (USER_1, USER_2 format)
 - Knowledge extraction WITH existing KB context
 - Complex KB operations (create/update/append/replace)
 - AI reasoning and confidence scoring
@@ -53,12 +53,12 @@ KBMatcher.match_against_existing() - semantic comparison vs existing KB
 KBGenerator.generate_documents() - create/update operations with reasoning
 
 # Key Concept: Living KB Context
-Input: StandardizedThread + ExistingKBContext
+Input: StandardizedConversation + ExistingKBContext
 Output: KBOperationResult (with create/update/append instructions)
 ```
 
 ### ③ Joule Interface Owner
-**Core Responsibilities**: User interface, progress tracking, result display  
+**Core Responsibilities**: User interface, progress tracking, result display
 **Main Tasks**:
 - Joule conversation interface for triggering extraction
 - Real-time progress tracking and status reporting
@@ -74,7 +74,7 @@ Output: KBOperationResult (with create/update/append instructions)
 4. Handle errors gracefully with user-friendly messages
 
 # API Integration
-POST /api/input/* → POST /api/knowledge/process → Display results
+GET /api/slack/extract → POST /api/knowledge/process → Display results
 ```
 
 ---
@@ -83,17 +83,17 @@ POST /api/input/* → POST /api/knowledge/process → Display results
 
 **Core Data Flow**:
 ```
-StandardizedThread + ExistingKBContext → AI Processing → KBOperationResult → GitHub PR
+StandardizedConversation + ExistingKBContext → AI Processing → KBOperationResult → GitHub PR
 ```
 
 **Key Models** (see `app/models/thread.py`):
-- `StandardizedThread` - Platform-agnostic conversation format
-- `ExistingKBContext` - Current state of KB repository  
+- `StandardizedConversation` - Platform-agnostic conversation format
+- `ExistingKBContext` - Current state of KB repository
 - `KBOperationResult` - AI decisions for KB operations (create/update/append)
 
 **Living KB Operations**:
 - `CREATE` - New document
-- `UPDATE` - Replace entire document  
+- `UPDATE` - Replace entire document
 - `APPEND` - Add section to existing document
 - `REPLACE` - Replace specific section
 - `MERGE` - Combine with existing document
@@ -102,9 +102,9 @@ StandardizedThread + ExistingKBContext → AI Processing → KBOperationResult �
 
 ## Technical Approach
 
-**GitHub Integration**: Personal access token (not GitHub App)  
-**Empty KB Handling**: Treat as empty context, no errors  
-**Parallel Development**: Mock AI responses enable independent work  
+**GitHub Integration**: Personal access token (not GitHub App)
+**Empty KB Handling**: Treat as empty context, no errors
+**Parallel Development**: Mock AI responses enable independent work
 **AI Integration**: SAP GenAI SDK with fallback options
 
 **Demo Strategy**:
