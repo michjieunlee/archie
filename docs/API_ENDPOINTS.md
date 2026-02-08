@@ -121,13 +121,11 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
 ```json
 {
   "query": "How do I fix API timeout errors?",
-  "max_results": 5
 }
 ```
 
 **Parameters**:
 - `query` (required): User's question about the knowledge base
-- `max_results` (optional, default=5, range=1-20): Maximum number of results to return
 
 **Pipeline**:
 1. Parse and understand the query
@@ -291,7 +289,6 @@ curl -X POST "http://localhost:8000/api/kb/query" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "How to fix database issues?",
-    "max_results": 3
   }'
 ```
 

@@ -159,11 +159,7 @@ class KBOrchestrator:
                 reason=str(e),
             )
 
-    async def query_knowledge_base(
-        self,
-        query: str,
-        max_results: int = 5,
-    ) -> KBQueryResponse:
+    async def query_knowledge_base(self, query: str) -> KBQueryResponse:
         """
         Use case 3: Query knowledge base (Q&A).
 
@@ -175,8 +171,7 @@ class KBOrchestrator:
         5. Return formatted response
 
         Args:
-            query: User's question
-            max_results: Maximum number of results to return
+            query: User's question about the knowledge base
 
         Returns:
             KBQueryResponse with search results and answer
