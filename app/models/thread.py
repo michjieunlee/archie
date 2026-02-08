@@ -19,6 +19,17 @@ class SourceType(str, Enum):
     TEAMS = "teams"  # Future extension
 
 
+class Source(BaseModel):
+    """Source information for a conversation."""
+
+    type: SourceType
+    channel_id: str
+    channel_name: Optional[str] = None
+    history_from: Optional[datetime] = None
+    history_to: Optional[datetime] = None
+    message_limit: Optional[int] = None
+
+
 class ConversationCategory(str, Enum):
     """Knowledge base document categories."""
 
@@ -31,7 +42,9 @@ class StandardizedMessage(BaseModel):
     """Platform-agnostic message format."""
 
     idx: int  # Global index across conversation (0, 1, 2, 3...)
-    parent_idx: Optional[int] = None  # Points to parent message idx (for thread replies)
+    parent_idx: Optional[int] = (
+        None  # Points to parent message idx (for thread replies)
+    )
     id: str
     author_id: str
     author_name: Optional[str] = None  # May be masked or None for privacy
@@ -45,10 +58,8 @@ class StandardizedConversation(BaseModel):
     """Platform-agnostic conversation format."""
 
     id: str  # Unique identifier for the conversation
-    source: SourceType
-    source_url: Optional[str] = None  # Optional for file/text inputs
-    channel_id: str
-    channel_name: Optional[str] = None
+    source: Source
+
     messages: List[StandardizedMessage]  # Chronologically ordered with global indexing
     participant_count: int
     created_at: datetime
@@ -73,12 +84,12 @@ class ExistingKBDocument(BaseModel):
 class KBOperationType(str, Enum):
     """Types of operations that can be performed on KB documents."""
 
-    CREATE = "create"      # Create new document
-    UPDATE = "update"      # Update entire document
-    APPEND = "append"      # Add section to existing document
-    REPLACE = "replace"    # Replace specific section
-    REMOVE = "remove"      # Remove section/document
-    MERGE = "merge"        # Merge with another document
+    CREATE = "create"  # Create new document
+    UPDATE = "update"  # Update entire document
+    APPEND = "append"  # Add section to existing document
+    REPLACE = "replace"  # Replace specific section
+    REMOVE = "remove"  # Remove section/document
+    MERGE = "merge"  # Merge with another document
 
 
 # AI Processing Models for team integration
