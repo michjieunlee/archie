@@ -98,10 +98,10 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
   "text_length": 142,
   "kb_article_title": "API Timeout Resolution",
   "kb_category": "troubleshooting",
+  "kb_summary": "This article describes how to troubleshoot database connection timeouts by adjusting pool size and connection settings.",
   "ai_confidence": 0.92,
   "ai_reasoning": "Clear problem-solution structure...",
   "pr_url": null,
-  "file_path": null
 }
 ```
 
@@ -146,7 +146,6 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
       "category": "troubleshooting",
       "excerpt": "To fix API timeout errors, increase the connection timeout...",
       "relevance_score": 0.95,
-      "file_path": "troubleshooting/api-timeout.md",
       "github_url": "https://github.com/.../troubleshooting/api-timeout.md"
     }
   ],
@@ -196,12 +195,12 @@ Used by both `/from-slack` and `/from-text` endpoints.
   // KB article info
   kb_article_title?: string
   kb_category?: string
+  kb_summary?: string
   ai_confidence?: number  // 0.0 - 1.0
   ai_reasoning?: string
   
   // GitHub PR info
   pr_url?: string
-  file_path?: string
   
   // Metadata
   messages_fetched?: number  // For Slack
@@ -232,7 +231,6 @@ Individual search result in query response.
   category: string
   excerpt: string
   relevance_score: number  // 0.0 - 1.0
-  file_path: string
   github_url: string
 }
 ```
