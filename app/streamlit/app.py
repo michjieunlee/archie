@@ -1,10 +1,10 @@
 """
 Main Streamlit application for Archie.
-Provides a two-column interface: configuration on left, chat on right.
+Provides a centered chat interface with integration buttons on the left.
 """
 import streamlit as st
-from components.config_section import render_config_section
 from components.chat_section import render_chat_section
+from components.integration_panel import render_integration_panel, render_integration_buttons
 from services.mock_api import process_github_repository
 from config.settings import PAGE_CONFIG
 
@@ -15,64 +15,134 @@ def main():
     """
     # Configure the page
     st.set_page_config(**PAGE_CONFIG)
-    
+
     # Apply custom CSS
     st.markdown("""
         <style>
-        /* Hide Streamlit default elements */
+        /* Hide Streamlit default elements but keep sidebar toggle */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
-        
-        /* Adjust column spacing */
-        [data-testid="column"] {
-            padding: 1rem;
+        [data-testid="stDecoration"] {display: none;}
+        header[data-testid="stHeader"] {
+            background: transparent !important;
         }
-        
-        /* Config section styling */
-        .config-section {
-            background-color: #f8f9fa;
-            padding: 1.5rem;
-            border-radius: 10px;
-            border: 1px solid #dee2e6;
+        /* Hide toolbar content but keep layout so >> button stays visible */
+        [data-testid="stToolbar"] {
+            visibility: hidden;
         }
-        
-        /* Chat section styling */
+        [data-testid="stExpandSidebarButton"] {
+            visibility: visible !important;
+        }
+
+        /* Main container adjustments */
+        .block-container {
+            padding-top: 1rem;
+            padding-bottom: 12rem;
+            max-width: 100%;
+        }
+
+        /* Header styling */
+        .app-header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .app-title {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            color: #1f1f1f;
+        }
+
+        .app-subtitle {
+            font-size: 1.2rem;
+            color: #666;
+            font-weight: 400;
+        }
+
+        /* Chat message styling */
         .stChatMessage {
             padding: 1rem;
         }
-        
-        /* Improve spacing */
-        .block-container {
-            padding-top: 2rem;
-            padding-bottom: 2rem;
+
+        /* ===== Sidebar: remove ALL top space ===== */
+        [data-testid="stSidebar"] {
+            padding-top: 0 !important;
+        }
+
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 0 !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+            padding-top: 0 !important;
+            gap: 0.5rem !important;
+        }
+
+        /* Remove the extra decorative top bar in sidebar */
+        [data-testid="stSidebar"] [data-testid="stDecoration"] {
+            display: none !important;
+        }
+
+        /* Kill any top margin/padding on the first sidebar child */
+        [data-testid="stSidebar"] .stMarkdown:first-child {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+
+        section[data-testid="stSidebar"] > div {
+            padding-top: 0.5rem !important;
+        }
+
+        /* File badge shown above input when files are attached */
+        .file-badge {
+            display: inline-block;
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 16px;
+            padding: 0.2rem 0.8rem;
+            margin-right: 0.5rem;
+            font-size: 0.85rem;
         }
         </style>
     """, unsafe_allow_html=True)
-    
+
     # Initialize session state
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "processing" not in st.session_state:
         st.session_state.processing = False
+    if "active_integration" not in st.session_state:
+        st.session_state.active_integration = None
     if "github_url" not in st.session_state:
         st.session_state.github_url = ""
     if "github_token" not in st.session_state:
         st.session_state.github_token = ""
-    
-    # App title
-    st.title("Archie - AI Knowledge Base Assistant")
-    
-    # Create two-column layout: 1/3 for config, 2/3 for chat
-    col_config, col_chat = st.columns([1, 2])
-    
-    with col_config:
-        # Render configuration section on the left
-        render_config_section()
-    
-    with col_chat:
-        # Render chat section on the right
-        render_chat_section()
-    
+    if "github_connected" not in st.session_state:
+        st.session_state.github_connected = False
+    if "slack_channel_id" not in st.session_state:
+        st.session_state.slack_channel_id = ""
+    if "slack_connected" not in st.session_state:
+        st.session_state.slack_connected = False
+
+    # App header - centered
+    st.markdown("""
+        <div class="app-header">
+            <h1 class="app-title">Archie</h1>
+            <p class="app-subtitle">AI Knowledge Base Assistant</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Render integration buttons first, then config panel below
+    render_integration_buttons()
+
+    # Render integration panel below buttons if active
+    if st.session_state.active_integration:
+        render_integration_panel()
+
+    # Render chat section in center (includes sticky input bar via components.html JS)
+    render_chat_section()
+
     # Handle repository processing if triggered
     if st.session_state.processing and st.session_state.github_url:
         process_repository()

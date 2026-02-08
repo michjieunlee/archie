@@ -2,7 +2,7 @@
 # Phase 1: Basic Interface with Mock API
 
 # Core Streamlit
-streamlit==1.31.0
+streamlit>=1.37.0
 
 # HTTP requests (for future real API integration)
 requests==2.31.0

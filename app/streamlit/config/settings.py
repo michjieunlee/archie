@@ -7,7 +7,7 @@ PAGE_CONFIG = {
     "page_title": "Archie - AI Knowledge Base Assistant",
     "page_icon": "🤖",
     "layout": "wide",
-    "initial_sidebar_state": "collapsed"
+    "initial_sidebar_state": "expanded"
 }
 
 # API Configuration (for Phase 2)
