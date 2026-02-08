@@ -9,37 +9,6 @@ def render_integration_buttons():
     """
     Render the three integration buttons on the left side.
     """
-    st.markdown("""
-        <style>
-        /* Integration button styling */
-        .integration-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
-            border: 2px solid #ddd;
-            background: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            transition: all 0.2s;
-            margin-bottom: 1rem;
-        }
-
-        .integration-btn:hover {
-            border-color: #1f77b4;
-            box-shadow: 0 2px 8px rgba(31, 119, 180, 0.3);
-        }
-
-        .integration-btn.active {
-            border-color: #1f77b4;
-            background: #e3f2fd;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # Create a sidebar for integration buttons
     with st.sidebar:
         st.markdown("### Integrations")
 
