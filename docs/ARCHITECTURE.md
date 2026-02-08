@@ -1,6 +1,6 @@
 # Archie Architecture Overview
 
-This document provides visual architecture diagrams and system design overview for the updated multi-input, batch processing architecture.
+This document provides visual architecture diagrams and system design overview for the updated multi-input, batch processing architecture with thread expansion and PII masking.
 
 ## System Architecture Diagram
 
@@ -19,7 +19,7 @@ This document provides visual architecture diagrams and system design overview f
 │ │ • Thread Expand │ │────▶│ │      +          │ │────▶│ │ • New Documents │ │
 │ │ • Rate Limiting │ │    │ │ KB Context      │ │    │ │ • Modifications │ │
 │ └─────────────────┘ │    │ │      ↓          │ │    │ └─────────────────┘ │
-│                     │    │ │ StandardizedThread │   │                     │
+│                     │    │ │ StandardizedConversation │                   │
 │ ┌─────────────────┐ │    │ │ + ExistingKB    │ │    │ ┌─────────────────┐ │
 │ │ File Upload     │ │────▶│ └─────────────────┘ │    │ │ Joule Interface │ │
 │ │ • JSON Export   │ │    │                     │────▶│ │ • Status        │ │
@@ -44,9 +44,12 @@ This document provides visual architecture diagrams and system design overview f
 └─────────────────────┘    └─────────────────────┘    └─────────────────────┘
 ```
 
-## Data Flow Architecture
 
-### 1. Multi-Input Processing Flow
+```
+
+## Multi-Input Processing Flow
+
+### 1. Slack API Processing Flow
 
 ```
 ┌──────────────┐
@@ -67,16 +70,15 @@ This document provides visual architecture diagrams and system design overview f
 └──────┬───────┘                              │
        │                                      ▼
        ▼                              ┌──────────────┐
-┌──────────────┐                     │ Standardized │
-│ Text Input   │────────────────────▶│ Thread       │
-│ Processing   │                     │ Converter    │
-└──────────────┘                     └──────┬───────┘
-                                            │
+┌──────────────┐                     │ Conversation │
+│ Text Input   │────────────────────▶│ Converter    │
+│ Processing   │                     └──────┬───────┘
+└──────────────┘                            │
                                             ▼
                                     ┌──────────────┐
-                                    │ List[        │
-                                    │ Standardized │
-                                    │ Thread]      │
+                                    │ StandardizedConversation │
+                                    │ with Rich    │
+                                    │ Metadata     │
                                     └──────────────┘
 ```
 
@@ -84,15 +86,15 @@ This document provides visual architecture diagrams and system design overview f
 
 ```
 ┌─────────────────────┐
-│ List[               │
-│ StandardizedThread] │
+│ StandardizedConversation │
+│ (with expansion)    │
 └──────────┬──────────┘
            │
            ▼
 ┌─────────────────────┐
 │ PII MASKING         │
 │ • Batch process     │
-│ • SAP GenAI SDK     │
+│ • USER_X format     │
 │ • Privacy compliance│
 └──────────┬──────────┘
            │
@@ -135,14 +137,14 @@ This document provides visual architecture diagrams and system design overview f
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
-│ ① INTEGRATION       │    │ ③ AI CORE           │    │ SHARED MODELS       │
+│ ① INTEGRATION       │    │ ② AI CORE           │    │ SHARED MODELS       │
 │ OWNER               │    │ OWNER               │    │                     │
 │                     │    │                     │    │                     │
 │ ┌─────────────────┐ │    │ ┌─────────────────┐ │    │ ┌─────────────────┐ │
-│ │ Slack API       │ │    │ │ PII Masking     │ │    │ │ StandardizedThread│ │
-│ │ • Client        │ │    │ │ • SAP GenAI SDK │ │    │ │ • Message       │ │
-│ │ • Parser        │ │    │ │ • Compliance    │ │    │ │ • Thread        │ │
-│ │ • Models        │ │    │ └─────────────────┘ │    │ └─────────────────┘ │
+│ │ Slack API       │ │    │ │ PII Masking     │ │    │ │ StandardizedConversation│ │
+│ │ • Client        │ │    │ │ • SAP GenAI SDK │ │    │ │ • StandardizedMessage│ │
+│ │ • Models        │ │    │ │ • USER_X Format │ │    │ │                 │ │
+│ │ • Thread Expand │ │    │ └─────────────────┘ │    │ └─────────────────┘ │
 │ └─────────────────┘ │    │                     │    │                     │
 │                     │    │ ┌─────────────────┐ │    │ ┌─────────────────┐ │
 │ ┌─────────────────┐ │    │ │ KB Extraction   │ │    │ │ KBExtractionResult│ │
@@ -172,27 +174,27 @@ This document provides visual architecture diagrams and system design overview f
 ### Input Layer APIs
 
 ```
-POST /api/input/slack
-├── SlackClient.scan_channel()
-├── SlackClient.get_thread_messages()
-└── Convert to StandardizedThread
+GET /api/slack/fetch
+├── SlackClient.fetch_conversations_with_threads()
+├── SlackClient.convert_to_standardized_conversation()
+└── Return StandardizedConversation with rich metadata
 
 POST /api/input/file
 ├── File parsing logic
 ├── Format detection
-└── Convert to StandardizedThread
+└── Convert to StandardizedConversation
 
 POST /api/input/text
 ├── Text parsing logic
 ├── Structure detection
-└── Convert to StandardizedThread
+└── Convert to StandardizedConversation
 ```
 
 ### AI Processing APIs
 
 ```
 POST /api/kb/extract
-├── PIIMasker.mask_batch()
+├── PIIMasker.mask_conversations()
 ├── KBExtractor.extract_batch()
 └── Return List[KBExtractionResult]
 
@@ -256,7 +258,7 @@ Large Channel Processing:
 ```
 Batch Processing:
 ┌─────────────────┐
-│ 3-5 threads     │
+│ 3-5 conversations│
 │ per AI call     │
 └────────┬────────┘
          │
@@ -305,6 +307,3 @@ Batch Processing:
 │ Handling        │    │ Successful      │
 └─────────────────┘    │ Results         │
                        └─────────────────┘
-```
-
-This architecture supports the hackathon requirements while maintaining clear separation of concerns and enabling parallel development across team members.

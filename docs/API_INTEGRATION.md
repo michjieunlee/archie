@@ -4,7 +4,7 @@ This document provides comprehensive API interfaces and data models for team int
 
 ## Data Models
 
-### StandardizedThread (Primary Interface)
+### StandardizedConversation (Primary Interface)
 
 ```python
 from pydantic import BaseModel
@@ -14,29 +14,32 @@ from typing import List, Optional, Dict, Any
 
 class SourceType(str, Enum):
     SLACK = "slack"
-    FILE = "file" 
+    FILE = "file"
     TEXT = "text"
 
 class StandardizedMessage(BaseModel):
     """Platform-agnostic message format."""
+    idx: int                          # Global sequential index
     id: str                           # Unique message identifier
+    message_id: str                   # Platform-specific message ID
     author_id: str                    # User/author identifier (may be masked)
     author_name: Optional[str] = None # Display name (may be None for privacy)
     content: str                      # Message text content
     timestamp: datetime               # Message timestamp
     is_masked: bool = False          # Whether PII masking was applied
+    parent_idx: Optional[int] = None  # Index of parent message for replies
     metadata: Dict[str, Any] = {}    # Additional platform-specific data
 
-class StandardizedThread(BaseModel):
-    """Platform-agnostic conversation thread format."""
-    id: str                          # Unique thread identifier
+class StandardizedConversation(BaseModel):
+    """Platform-agnostic conversation format."""
+    id: str                          # Unique conversation identifier
     source: SourceType               # Input source (slack, file, text)
-    source_url: Optional[str] = None # Original URL (for Slack threads)
+    source_url: Optional[str] = None # Original URL (for Slack conversations)
     channel_id: str                  # Channel/context identifier
     channel_name: Optional[str] = None
     messages: List[StandardizedMessage]
     participant_count: int           # Number of unique participants
-    created_at: datetime            # Thread start time
+    created_at: datetime            # Conversation start time
     last_activity_at: datetime      # Last message time
     metadata: Dict[str, Any] = {}   # Additional context data
 ```
@@ -63,7 +66,7 @@ class KBMatchResult(BaseModel):
     reasoning: str
     related_documents: List[str]    # IDs of related existing documents
     merge_candidates: List[str]     # Documents that could be merged
-    
+
 class KBGenerationResult(BaseModel):
     """Result of KB document generation."""
     title: str
@@ -87,7 +90,7 @@ Content-Type: application/json
 
 {
     "workspace_url": "https://yourworkspace.slack.com",
-    "channel_id": "C0AC762HXBQ", 
+    "channel_id": "C0AC762HXBQ",
     "time_range": {
         "start": "2024-01-01T00:00:00Z",
         "end": "2024-01-07T23:59:59Z"
@@ -110,7 +113,7 @@ Content-Type: application/json
 
 {
     "repo_owner": "your-org",
-    "repo_name": "knowledge-base", 
+    "repo_name": "knowledge-base",
     "branch": "main",
     "github_token": "ghp_your-token",
     "options": {
@@ -129,7 +132,7 @@ Content-Type: application/json
         {
             "file_path": "troubleshooting/database/connection-issues.md",
             "title": "Database Connection Issues",
-            "category": "troubleshooting", 
+            "category": "troubleshooting",
             "tags": ["database", "connection"],
             "content": "# Database Connection Issues\n\n## Overview\n...",
             "metadata": {
@@ -168,7 +171,7 @@ Content-Type: application/json
             "source_threads": ["slack-123", "slack-456"]
         },
         {
-            "type": "update", 
+            "type": "update",
             "file_path": "processes/deployment/ci-cd.md",
             "operation": "append",
             "section": "## New Deployment Steps",
@@ -259,7 +262,7 @@ GET /api/joule/status/{job_id}
 ```json
 {
     "status": "success",
-    "threads": [/* Array of StandardizedThread */],
+    "conversations": [/* Array of StandardizedConversation */],
     "stats": {
         "total_messages": 245,
         "total_threads": 12,
@@ -310,7 +313,7 @@ POST /api/kb/extract
 Content-Type: application/json
 
 {
-    "threads": [/* Array of StandardizedThread */],
+    "conversations": [/* Array of StandardizedConversation */],
     "options": {
         "min_confidence": 0.6,
         "categories": ["troubleshooting", "process", "decision"]
@@ -358,14 +361,14 @@ Content-Type: application/json
 
 #### 1. Batch Processing Flow
 ```python
-# Receive standardized threads from input processing
-threads: List[StandardizedThread] = request_data["threads"]
+# Receive standardized conversations from input processing
+conversations: List[StandardizedConversation] = request_data["conversations"]
 
 # Step 1: PII Masking
-masked_threads = await pii_masker.mask_batch(threads)
+masked_conversations = await pii_masker.mask_conversations(conversations)
 
-# Step 2: KB Extraction  
-extractions = await kb_extractor.extract_batch(masked_threads)
+# Step 2: KB Extraction
+extractions = await kb_extractor.extract_batch(masked_conversations)
 
 # Step 3: KB Matching
 matches = await kb_matcher.match_batch(extractions, existing_kb)
@@ -416,7 +419,7 @@ Content-Type: application/json
 ### Mock AI Extraction Response
 ```json
 {
-    "thread_id": "slack-123456", 
+    "thread_id": "slack-123456",
     "is_kb_worthy": true,
     "confidence_score": 0.85,
     "reasoning": "Thread contains detailed troubleshooting steps for database connection issues, with clear problem description and verified solution.",
@@ -428,13 +431,13 @@ Content-Type: application/json
 }
 ```
 
-### Mock KB Generation Response  
+### Mock KB Generation Response
 ```json
 {
     "title": "Database Connection Timeout Resolution",
     "content": "# Database Connection Timeout Resolution\n\n## Problem\n...",
     "file_path": "troubleshooting/database/connection-timeouts.md",
-    "category": "troubleshooting", 
+    "category": "troubleshooting",
     "tags": ["database", "connection", "timeout"],
     "metadata": {
         "difficulty": "intermediate",
@@ -449,7 +452,7 @@ Content-Type: application/json
 
 ### Slack API Limits
 - **conversations.history**: 100+ requests/minute
-- **conversations.replies**: 100+ requests/minute  
+- **conversations.replies**: 100+ requests/minute
 - **Recommendation**: Process in batches of 50 threads max
 - **Implement**: Exponential backoff for 429 responses
 

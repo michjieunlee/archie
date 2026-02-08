@@ -1,5 +1,5 @@
 # Shared data models
-from app.models.thread import StandardizedThread, StandardizedMessage, SourceType
+from app.models.thread import StandardizedConversation, StandardizedMessage, SourceType
 from app.models.knowledge import (
     KnowledgeArticle,
     KBCategory,
@@ -10,7 +10,7 @@ from app.models.knowledge import (
 )
 
 __all__ = [
-    "StandardizedThread",
+    "StandardizedConversation",
     "StandardizedMessage",
     "SourceType",
     "KnowledgeArticle",

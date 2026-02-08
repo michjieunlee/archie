@@ -53,9 +53,7 @@ archie/
 │   ├── integrations/           # ① Owner's area
 │   │   ├── slack/              # Slack API integration
 │   │   │   ├── client.py       # Slack API client
-│   │   │   ├── parser.py       # Permalink parsing
-│   │   │   └── models.py       # Slack data models
-│   │   └── github/             # GitHub API integration
+│   │   │   └── github/             # GitHub API integration
 │   │       ├── client.py       # GitHub API client
 │   │       ├── pr.py           # PR creation logic
 │   │       └── models.py       # GitHub data models
@@ -77,7 +75,7 @@ archie/
 │   │       └── kb_template.md
 │   │
 │   ├── models/                 # Shared data models
-│   │   ├── thread.py           # Standardized thread
+│   │   ├── thread.py           # StandardizedConversation
 │   │   └── knowledge.py        # KB document model
 │   │
 │   └── services/               # Business logic
@@ -93,8 +91,8 @@ archie/
 ```
 
 ## Team Structure
-- **① Integration Owner**: Slack API, GitHub operations, Joule endpoints  
-- **② AI/Knowledge Owner**: SAP GenAI SDK, PII masking, KB operations  
+- **① Integration Owner**: Slack API, GitHub operations, Joule endpoints
+- **② AI/Knowledge Owner**: SAP GenAI SDK, PII masking, KB operations
 - **③ Joule Interface Owner**: User interface, progress tracking, result display
 
 *See `docs/IMPLEMENTATION_PLANS.md` for detailed team responsibilities and implementation guidance.*
@@ -139,9 +137,11 @@ uvicorn app.main:app --reload --port 8000
 ### Configuration
 
 ```bash
-# Multi-workspace configuration
+# Slack Integration
 SLACK_BOT_TOKEN=xoxb-your-bot-token
-SLACK_SIGNING_SECRET=your-signing-secret
+SLACK_CHANNEL_ID=C1234567890  # Optional, default channel
+
+# GitHub Integration
 GITHUB_TOKEN=ghp-your-token
 GITHUB_REPO_OWNER=your-org
 GITHUB_REPO_NAME=knowledge-base
@@ -163,14 +163,14 @@ pytest tests/ -v
 ```
 1. Multi-Input Collection
    ├── Slack API: Channel + Time Range → All Messages + Threads
-   ├── File Upload: Conversation History → Parsed Messages  
+   ├── File Upload: Conversation History → Parsed Messages
    └── Text Input: Direct Paste → Structured Conversations
-   
+
 2. Existing KB Context (① Owner)
    └── Fetch current KB repository → Parse existing documents → AI-searchable format
 
 3. Data Standardization (① Owner)
-   └── Convert all inputs → List[StandardizedThread] + Existing KB Context
+   └── Convert all inputs → List[StandardizedConversation] + Existing KB Context
 
 4. Living KB AI Processing (② Owner)
    ├── PII Masking: Batch mask all conversations
@@ -188,7 +188,7 @@ pytest tests/ -v
 2. Fetch thread messages (① Owner) → integrations/slack/client.py
 3. PII Masking (② Owner) → ai_core/masking/pii_masker.py
 4. KB Extraction (② Owner) → ai_core/extraction/kb_extractor.py
-5. KB Matching (② Owner) → ai_core/matching/kb_matcher.py  
+5. KB Matching (② Owner) → ai_core/matching/kb_matcher.py
 6. KB Generation (② Owner) → ai_core/generation/kb_generator.py
 7. GitHub PR Creation (① Owner) → integrations/github/pr.py
 ```
