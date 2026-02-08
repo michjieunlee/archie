@@ -292,8 +292,11 @@ class KBExtractor:
             )
             return False
 
-        # Must have at least 2 messages for a discussion
-        if len(conversation.messages) < 2:
+        # Check if this is a text input conversation (single message is OK)
+        is_text_input = conversation.metadata.get("source") == "text_input"
+
+        # Must have at least 2 messages for a discussion (unless it's text input)
+        if not is_text_input and len(conversation.messages) < 2:
             logger.debug(f"Conversation {conversation.id} has less than 2 messages")
             return False
 
