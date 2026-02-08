@@ -1,6 +1,8 @@
 # Archie API Integration Guide
 
-This document provides comprehensive API interfaces and data models for team integration, particularly for the AI Core team (③) and GitHub integration components.
+This document provides comprehensive API interfaces and data models for team integration, particularly for the AI Core team (②) and GitHub integration components.
+
+> **Note:** This document describes the planned API design. For current implementation status, see the actual endpoint implementations in `app/api/routes/`.
 
 ## Data Models
 

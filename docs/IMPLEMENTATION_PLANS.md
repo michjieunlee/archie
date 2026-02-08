@@ -22,39 +22,44 @@ Concise implementation guidance for the complete living KB system.
 
 **Implementation Focus**:
 ```python
-# Slack Integration
+# Slack Integration (✅ Working)
 SlackClient.fetch_conversations_with_threads() -> StandardizedConversation
-SlackClient.convert_to_standardized_conversation(slack_conversation: StandardizedConversation)
+# Returns StandardizedConversation with thread expansion and global indexing
 
-# GitHub Integration
-GitHubClient.read_kb_repository() - fetch existing KB for context
-GitHubClient.create_kb_pr() - complex operations (create/update/append)
+# GitHub Integration (🚧 Not yet implemented)
+GitHubClient.read_kb_repository() - fetch existing KB for context (TODO)
+GitHubClient.create_kb_pr() - complex operations (create/update/append) (TODO)
 
-# APIs
-GET /api/slack/extract, /api/input/file, /api/input/text
-/api/joule/extract-knowledge, /api/joule/status, /api/joule/results
+# APIs (Current endpoints)
+GET /api/slack/fetch (✅ Working)
+GET /api/kb/from-slack (✅ Working)
+POST /api/kb/from-text (✅ Working)
+POST /api/kb/query (⚠️ Placeholder only)
+# Joule endpoints not yet implemented
 ```
 
 ### ② AI/Knowledge Owner
 **Core Responsibilities**: SAP GenAI SDK, PII masking, KB operations
 **Key Files**: `app/ai_core/masking/`, `app/ai_core/extraction/`, `app/ai_core/matching/`
 **Main Tasks**:
-- PII masking with SAP GenAI SDK batch processing (USER_1, USER_2 format)
-- Knowledge extraction WITH existing KB context
-- Complex KB operations (create/update/append/replace)
-- AI reasoning and confidence scoring
+- ✅ PII masking with SAP GenAI SDK batch processing (USER_1, USER_2 format)
+- ✅ Knowledge extraction with category classification
+- ✅ Template-based KB document generation
+- ✅ AI reasoning and confidence scoring
+- 🚧 Complex KB operations (currently only CREATE, update/append/replace not implemented)
 
 **Implementation Focus**:
 ```python
-# Processing Pipeline
-PIIMasker.mask_threads() - SAP GenAI Data Masking API
-KBExtractor.extract_knowledge() - conversation analysis + confidence
-KBMatcher.match_against_existing() - semantic comparison vs existing KB
-KBGenerator.generate_documents() - create/update operations with reasoning
+# Processing Pipeline (Current Status)
+PIIMasker.mask_conversations() - SAP GenAI Orchestration V2 (✅ Working)
+KBExtractor.extract_knowledge() - category classification + structured extraction (✅ Working)
+KBMatcher.match() - semantic comparison vs existing KB (🚧 Stub - always returns CREATE)
+KBGenerator.generate_markdown() - template-based markdown generation (✅ Working)
 
-# Key Concept: Living KB Context
+# Key Concept: Living KB Context (Planned)
 Input: StandardizedConversation + ExistingKBContext
 Output: KBOperationResult (with create/update/append instructions)
+# Note: ExistingKBContext fetching not yet implemented
 ```
 
 ### ③ Joule Interface Owner
