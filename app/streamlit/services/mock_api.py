@@ -64,18 +64,3 @@ def process_github_repository(github_url: str, github_token: str) -> dict:
             "error": str(e),
             "error_details": "An unexpected error occurred during processing. Please check your inputs and try again."
         }
-
-
-def get_processing_status() -> dict:
-    """
-    Mock function to get current processing status.
-    
-    Returns:
-        dict: Current processing status and progress
-    """
-    return {
-        "status": "processing",
-        "current_step": "Analyzing pull requests",
-        "progress": 45,
-        "estimated_time_remaining": "2 minutes"
-    }
