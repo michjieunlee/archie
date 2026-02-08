@@ -10,6 +10,7 @@ import logging
 import time
 
 from app.integrations.slack.client import SlackClient
+from app.models.thread import StandardizedConversation
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -19,8 +20,8 @@ async def fetch_slack_conversation(
     channel_id: Optional[str] = None,
     from_datetime: Optional[datetime] = None,
     to_datetime: Optional[datetime] = None,
-    limit: int = 100
-) -> 'StandardizedConversation':
+    limit: int = 100,
+) -> StandardizedConversation:
     """
     Fetch Slack conversations with reply expansion.
 
@@ -41,25 +42,37 @@ async def fetch_slack_conversation(
             channel_id=channel_id,
             from_datetime=from_datetime,
             to_datetime=to_datetime,
-            limit=min(limit, 100)  # Max 100 messages
+            limit=min(limit, 100),  # Max 100 messages
         )
 
-        logger.info(f"Successfully fetched Slack conversation with {len(conversation.messages)} messages, "
-                   f"{conversation.participant_count} participants")
+        logger.info(
+            f"Successfully fetched Slack conversation with {len(conversation.messages)} messages, "
+            f"{conversation.participant_count} participants"
+        )
 
         return conversation
 
     except Exception as e:
         logger.error(f"Error fetching Slack conversation: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch Slack conversation: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch Slack conversation: {str(e)}"
+        )
 
 
 @router.get("/fetch")
 async def fetch_conversations(
-    from_datetime: Optional[datetime] = Query(None, description="Start datetime for message range (ISO format)"),
-    to_datetime: Optional[datetime] = Query(None, description="End datetime for message range (ISO format)"),
-    limit: Optional[int] = Query(100, description="Maximum messages if no datetime range (default: 100)"),
-    channel_id: Optional[str] = Query(None, description="Slack channel ID (optional, uses config if not provided)")
+    from_datetime: Optional[datetime] = Query(
+        None, description="Start datetime for message range (ISO format)"
+    ),
+    to_datetime: Optional[datetime] = Query(
+        None, description="End datetime for message range (ISO format)"
+    ),
+    limit: Optional[int] = Query(
+        100, description="Maximum messages if no datetime range (default: 100)"
+    ),
+    channel_id: Optional[str] = Query(
+        None, description="Slack channel ID (optional, uses config if not provided)"
+    ),
 ):
     """
     Fetch Slack conversations with reply expansion.
@@ -74,14 +87,16 @@ async def fetch_conversations(
     start_time = time.time()
 
     try:
-        logger.info(f"Starting conversation fetch - from_datetime: {from_datetime}, to_datetime: {to_datetime}, limit: {limit}")
+        logger.info(
+            f"Starting conversation fetch - from_datetime: {from_datetime}, to_datetime: {to_datetime}, limit: {limit}"
+        )
 
         # Fetch conversations
         conversation = await fetch_slack_conversation(
             channel_id=channel_id,
             from_datetime=from_datetime,
             to_datetime=to_datetime,
-            limit=limit or 100
+            limit=limit or 100,
         )
 
         # Handle empty case
@@ -92,7 +107,7 @@ async def fetch_conversations(
                 "conversation": None,
                 "total_messages": 0,
                 "total_participants": 0,
-                "processing_time_seconds": round(time.time() - start_time, 2)
+                "processing_time_seconds": round(time.time() - start_time, 2),
             }
 
         # Build response
@@ -100,7 +115,9 @@ async def fetch_conversations(
         total_participants = conversation.participant_count
         processing_time = time.time() - start_time
 
-        logger.info(f"Fetch complete: {total_messages} messages, {total_participants} participants in {processing_time:.2f}s")
+        logger.info(
+            f"Fetch complete: {total_messages} messages, {total_participants} participants in {processing_time:.2f}s"
+        )
 
         return {
             "success": True,
@@ -110,15 +127,19 @@ async def fetch_conversations(
             "total_participants": total_participants,
             "processing_time_seconds": round(processing_time, 2),
             "fetch_stats": {
-                "replies_expanded": conversation.metadata.get("replies_expanded", False),
+                "replies_expanded": conversation.metadata.get(
+                    "replies_expanded", False
+                ),
                 "pii_masked": False,  # No PII masking applied
                 "fetch_params": {
-                    "from_datetime": from_datetime.isoformat() if from_datetime else None,
+                    "from_datetime": (
+                        from_datetime.isoformat() if from_datetime else None
+                    ),
                     "to_datetime": to_datetime.isoformat() if to_datetime else None,
                     "limit": limit,
-                    "channel_id": channel_id
-                }
-            }
+                    "channel_id": channel_id,
+                },
+            },
         }
 
     except Exception as e:
@@ -130,6 +151,6 @@ async def fetch_conversations(
             detail={
                 "success": False,
                 "message": f"Fetch failed: {str(e)}",
-                "processing_time_seconds": round(processing_time, 2)
-            }
+                "processing_time_seconds": round(processing_time, 2),
+            },
         )
