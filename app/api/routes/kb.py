@@ -43,9 +43,6 @@ class KBQueryRequest(BaseModel):
     """Request model for KB query endpoint."""
 
     query: str = Field(..., description="User's question about the knowledge base")
-    max_results: int = Field(
-        5, ge=1, le=20, description="Maximum number of results to return (1-20)"
-    )
 
 
 # API Endpoints
@@ -165,7 +162,6 @@ async def kb_query(request: KBQueryRequest):
     ```json
     {
         "query": "How do I fix API timeout errors?",
-        "max_results": 5
     }
     ```
 
@@ -192,10 +188,7 @@ async def kb_query(request: KBQueryRequest):
     try:
         logger.info(f"KB query request: query='{request.query}'")
 
-        result = await orchestrator.query_knowledge_base(
-            query=request.query,
-            max_results=request.max_results,
-        )
+        result = await orchestrator.query_knowledge_base(query=request.query)
 
         return result
 

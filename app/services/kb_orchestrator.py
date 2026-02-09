@@ -10,6 +10,11 @@ Orchestrates the full KB creation pipeline for three main use cases:
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
+from textwrap import dedent
+
+from gen_ai_hub.proxy.langchain.openai import ChatOpenAI
+from gen_ai_hub.proxy.core.proxy_clients import get_proxy_client
+from langchain_core.messages import HumanMessage
 
 from app.api.routes.slack import fetch_slack_conversation
 from app.ai_core.masking import PIIMasker
@@ -21,12 +26,19 @@ from app.ai_core.extraction.kb_extractor import (
 from app.ai_core.matching import KBMatcher
 from app.ai_core.generation import KBGenerator
 from app.integrations.github import GitHubClient, PRManager
-from app.models.thread import StandardizedConversation, StandardizedMessage, SourceType
+from app.models.thread import (
+    StandardizedConversation,
+    StandardizedMessage,
+    Source,
+    SourceType,
+)
 from app.models.api_responses import (
     KBProcessingResponse,
     KBQueryResponse,
     KBActionType,
 )
+from app.models.knowledge import KnowledgeArticle
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +54,16 @@ class KBOrchestrator:
         self.extractor = KBExtractor()
         self.matcher = KBMatcher()
         self.generator = KBGenerator()
+
+        # Initialize LLM for KB summary generation
+        config = get_settings()
+        self.proxy_client = get_proxy_client("gen-ai-hub")
+        self.llm = ChatOpenAI(
+            proxy_model_name=config.openai_model,
+            proxy_client=self.proxy_client,
+            temperature=0.0,
+            max_tokens=500,
+        )
 
         # Lazy initialization of GitHub client (only when needed)
         # This prevents initialization errors when GitHub credentials are not configured
@@ -159,11 +181,7 @@ class KBOrchestrator:
                 reason=str(e),
             )
 
-    async def query_knowledge_base(
-        self,
-        query: str,
-        max_results: int = 5,
-    ) -> KBQueryResponse:
+    async def query_knowledge_base(self, query: str) -> KBQueryResponse:
         """
         Use case 3: Query knowledge base (Q&A).
 
@@ -175,8 +193,7 @@ class KBOrchestrator:
         5. Return formatted response
 
         Args:
-            query: User's question
-            max_results: Maximum number of results to return
+            query: User's question about the knowledge base
 
         Returns:
             KBQueryResponse with search results and answer
@@ -273,9 +290,10 @@ class KBOrchestrator:
             f"Match result: {match_result.action.value} (confidence: {match_result.confidence_score})"
         )
 
-        # Step 4: Generate KB document (TODO: implement full generation)
-        logger.info("KB generation skipped (using extraction output)")
-        file_path = match_result.suggested_path
+        # Step 4: Generate KB document and summary
+        logger.info("Generating KB document and summary...")
+        markdown_content = self.generator.generate_markdown(kb_article)
+        kb_summary = self._generate_article_summary(markdown_content)
 
         # Step 5: Create GitHub PR (TODO: implement)
         logger.info("GitHub PR creation skipped (not yet implemented)")
@@ -285,10 +303,10 @@ class KBOrchestrator:
             action=KBActionType(match_result.action.value),
             kb_article_title=kb_article.title,
             kb_category=kb_article.category.value,
+            kb_summary=kb_summary,
             ai_confidence=kb_article.ai_confidence,
             ai_reasoning=kb_article.ai_reasoning,
             pr_url=None,  # TODO: add when PR creation is implemented
-            file_path=file_path,
             messages_fetched=messages_fetched,
             text_length=text_length,
         )
@@ -328,10 +346,11 @@ class KBOrchestrator:
         # Create conversation
         conversation = StandardizedConversation(
             id=f"text_input_{int(now.timestamp())}",
-            source=SourceType.TEXT,
-            source_url=None,
-            channel_id="text_input",
-            channel_name=title or "Text Input",
+            source=Source(
+                type=SourceType.TEXT,
+                channel_id="text_input",
+                channel_name=title or "Text Input",
+            ),
             messages=[message],
             participant_count=1,
             created_at=now,
@@ -344,3 +363,38 @@ class KBOrchestrator:
         )
 
         return conversation
+
+    def _generate_article_summary(self, markdown_content: str) -> str:
+        """
+        Generate a concise summary of the KB article using LLM.
+
+        Args:
+            markdown_content: The markdown content of the article
+
+        Returns:
+            A brief summary (2-3 sentences) of the article
+        """
+        try:
+            prompt = dedent(
+                f"""
+                Generate a brief, user-friendly summary (2-3 sentences) of this knowledge base article. 
+                The summary should give readers a quick overview of what the article covers and its main purpose.
+                
+                {markdown_content}
+                
+                Provide only the summary text, without any preamble or additional formatting.
+            """
+            ).strip()
+
+            messages = [HumanMessage(content=prompt)]
+            response = self.llm.invoke(messages)
+
+            summary = response.content.strip()
+            logger.info(f"Generated summary from markdown content")
+
+            return summary
+
+        except Exception as e:
+            logger.error(f"Error generating article summary: {str(e)}", exc_info=True)
+            # Fallback to a simple summary
+            return "Unable to generate summary at this time."

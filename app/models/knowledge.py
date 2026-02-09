@@ -29,6 +29,15 @@ class ExtractionMetadata(BaseModel):
     source_id: str = Field(..., description="Unique identifier of the source")
     channel_id: Optional[str] = Field(None, description="Slack channel ID")
     channel_name: Optional[str] = Field(None, description="Slack channel name")
+    history_from: Optional[datetime] = Field(
+        None, description="Start time of conversation history"
+    )
+    history_to: Optional[datetime] = Field(
+        None, description="End time of conversation history"
+    )
+    message_limit: Optional[int] = Field(
+        None, description="Maximum number of messages retrieved"
+    )
     participants: List[str] = Field(
         default_factory=list, description="User IDs of participants"
     )
