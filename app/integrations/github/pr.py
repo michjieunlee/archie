@@ -7,9 +7,14 @@ Responsibilities:
 - PR template and labeling
 """
 
+import logging
 from dataclasses import dataclass
+from typing import Optional
+from datetime import datetime
 from app.integrations.github.client import GitHubClient
 from app.integrations.github.models import PRMetadata
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -32,36 +37,232 @@ class PRManager:
         title: str,
         content: str,
         file_path: str,
-        metadata: PRMetadata,
+        summary: Optional[str] = None,
+        source_url: Optional[str] = None,
+        ai_confidence: Optional[float] = None,
     ) -> PRResult:
         """
         Create a PR with knowledge base document.
 
         Steps:
-        1. Generate unique branch name
+        1. Generate unique branch name from title
         2. Create branch from main
-        3. Add/update markdown file
-        4. Create PR with metadata
+        3. Ensure KB folder structure exists
+        4. Add/update markdown file
+        5. Create PR with metadata
 
         Args:
-            title: PR title
-            content: Markdown content
-            file_path: Path in KB repo
-            metadata: PR metadata (source, category, etc.)
+            title: KB article title (used for PR title and branch name)
+            content: Markdown content to write
+            file_path: Path in KB repo (e.g., "troubleshooting/db-issue.md")
+            summary: Brief summary of the article
+            source_url: Source URL (e.g., Slack thread URL)
+            ai_confidence: AI confidence score
 
         Returns:
             PRResult with PR details
         """
-        # TODO: Implement full PR creation flow
-        raise NotImplementedError
+        try:
+            # Step 1: Generate branch name
+            branch_name = self.client.generate_branch_name(title)
+            logger.info(f"Generated branch name: {branch_name}")
 
-    def _generate_branch_name(self, title: str) -> str:
-        """Generate branch name from title."""
-        # Format: kb/{sanitized-title}-{timestamp}
-        # TODO: Implement
-        raise NotImplementedError
+            # Step 2: Create branch
+            await self.client.create_branch(branch_name)
 
-    def _build_pr_body(self, metadata: PRMetadata) -> str:
-        """Build PR description body with metadata."""
-        # TODO: Implement PR body template
-        raise NotImplementedError
+            # Step 3: Ensure KB folder structure exists
+            await self.client.ensure_kb_structure(branch_name)
+
+            # Step 4: Create/update the file
+            commit_message = f"Add KB article: {title}"
+            commit_sha = await self.client.create_or_update_file(
+                branch_name=branch_name,
+                file_path=file_path,
+                content=content,
+                commit_message=commit_message,
+            )
+            logger.info(f"Added/updated file {file_path} in branch {branch_name}")
+
+            # Step 5: Create PR
+            pr_title = f"KB: {title}"
+            pr_body = self._build_pr_body(
+                summary=summary,
+                source_url=source_url,
+                ai_confidence=ai_confidence,
+            )
+
+            # Create the PR
+            pr = self.client.repo.create_pull(
+                title=pr_title,
+                body=pr_body,
+                head=branch_name,
+                base=self.client.default_branch,
+            )
+
+            # Add labels to categorize the PR
+            self._add_pr_labels(pr, file_path)
+
+            logger.info(f"Created PR #{pr.number}: {pr.html_url}")
+
+            return PRResult(
+                pr_number=pr.number,
+                pr_url=pr.html_url,
+                branch_name=branch_name,
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to create PR for '{title}': {e}")
+            raise
+
+    def _build_pr_body(
+        self,
+        summary: Optional[str] = None,
+        source_url: Optional[str] = None,
+        ai_confidence: Optional[float] = None,
+    ) -> str:
+        """
+        Build PR description body with metadata.
+
+        Args:
+            summary: Brief article summary
+            source_url: Source URL (e.g., Slack thread)
+            ai_confidence: AI confidence score
+
+        Returns:
+            Formatted PR body
+        """
+        body_parts = []
+
+        # Add summary if provided
+        if summary:
+            body_parts.append(f"## Summary\n\n{summary}")
+
+        # Add metadata section
+        metadata_parts = []
+
+        if source_url:
+            metadata_parts.append(f"**Source**: {source_url}")
+
+        if ai_confidence is not None:
+            confidence_pct = int(ai_confidence * 100)
+            metadata_parts.append(f"**AI Confidence**: {confidence_pct}%")
+
+        metadata_parts.append(f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+
+        if metadata_parts:
+            body_parts.append("## Metadata\n\n" + "\n".join(metadata_parts))
+
+        # Add footer
+        body_parts.append(
+            "---\n\n"
+            "🤖 *This knowledge base article was automatically generated by Archie from team conversations.*\n\n"
+            "Please review the content for accuracy before merging."
+        )
+
+        return "\n\n".join(body_parts)
+
+    def _add_pr_labels(self, pr, file_path: str) -> None:
+        """
+        Add relevant labels to the PR based on the file path.
+
+        Args:
+            pr: GitHub PR object
+            file_path: Path to the file
+        """
+        try:
+            labels = ["archie-generated", "knowledge-base"]
+
+            # Add category-specific label
+            if file_path.startswith("troubleshooting/"):
+                labels.append("troubleshooting")
+            elif file_path.startswith("processes/"):
+                labels.append("processes")
+            elif file_path.startswith("decisions/"):
+                labels.append("decisions")
+
+            # Apply labels (only if they exist in the repository)
+            existing_labels = {label.name for label in self.client.repo.get_labels()}
+            valid_labels = [label for label in labels if label in existing_labels]
+
+            if valid_labels:
+                pr.add_to_labels(*valid_labels)
+                logger.info(f"Added labels to PR #{pr.number}: {valid_labels}")
+            else:
+                logger.info(f"No matching labels found in repository for: {labels}")
+
+        except Exception as e:
+            logger.warning(f"Failed to add labels to PR #{pr.number}: {e}")
+            # Don't raise - labels are not critical
+
+    async def get_pr_status(self, pr_number: int) -> dict:
+        """
+        Get the current status of a PR.
+
+        Args:
+            pr_number: PR number to check
+
+        Returns:
+            Dictionary with PR status information
+        """
+        try:
+            pr = self.client.repo.get_pull(pr_number)
+
+            return {
+                "number": pr.number,
+                "title": pr.title,
+                "state": pr.state,
+                "merged": pr.merged,
+                "url": pr.html_url,
+                "created_at": pr.created_at.isoformat(),
+                "updated_at": pr.updated_at.isoformat(),
+                "merged_at": pr.merged_at.isoformat() if pr.merged_at else None,
+                "author": pr.user.login,
+                "branch": pr.head.ref,
+                "commits": pr.commits,
+                "additions": pr.additions,
+                "deletions": pr.deletions,
+                "changed_files": pr.changed_files,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get PR status for #{pr_number}: {e}")
+            raise
+
+    async def update_kb_pr(
+        self,
+        pr_number: int,
+        content: str,
+        file_path: str,
+        commit_message: str,
+    ) -> str:
+        """
+        Update an existing KB PR with new content.
+
+        Args:
+            pr_number: Existing PR number
+            content: Updated markdown content
+            file_path: Path to the file to update
+            commit_message: Commit message for the update
+
+        Returns:
+            Commit SHA
+        """
+        try:
+            # Get PR details
+            pr = self.client.repo.get_pull(pr_number)
+            branch_name = pr.head.ref
+
+            # Update the file in the PR branch
+            commit_sha = await self.client.create_or_update_file(
+                branch_name=branch_name,
+                file_path=file_path,
+                content=content,
+                commit_message=commit_message,
+            )
+
+            logger.info(f"Updated PR #{pr_number} with new content in {file_path}")
+            return commit_sha
+
+        except Exception as e:
+            logger.error(f"Failed to update PR #{pr_number}: {e}")
+            raise
