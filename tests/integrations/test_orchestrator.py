@@ -44,13 +44,13 @@ async def test_text_to_kb_simple():
     orchestrator = KBOrchestrator()
 
     text = """
-    We had an issue with API timeout errors in production. The API calls to the 
-    external service were failing after 30 seconds. 
-    
-    After investigation, we found that the default timeout was too short for 
-    large data transfers. We increased the connection timeout from 30s to 60s 
+    We had an issue with API timeout errors in production. The API calls to the
+    external service were failing after 30 seconds.
+
+    After investigation, we found that the default timeout was too short for
+    large data transfers. We increased the connection timeout from 30s to 60s
     in the config file and the issue was resolved.
-    
+
     The fix was deployed to production and we haven't seen the timeout errors since.
     """
 
@@ -98,7 +98,7 @@ async def test_text_to_kb_process():
 
     text = """
     Here's our standard procedure for deploying to production:
-    
+
     1. Create a release branch from main
     2. Run all tests locally: npm test && npm run e2e
     3. Update CHANGELOG.md with version and changes
@@ -151,10 +151,10 @@ async def test_text_to_kb_with_pii():
     text = """
     John Doe (john.doe@company.com) reported an issue with the database connection.
     His employee ID is D123456 and he can be reached at 555-1234.
-    
-    The issue was related to his local environment setup. Sarah Smith helped him 
+
+    The issue was related to his local environment setup. Sarah Smith helped him
     configure the connection string properly, and the issue was resolved.
-    
+
     Contact: sarah.smith@company.com if you have similar issues.
     Phone: +1-555-5678
     """
@@ -223,16 +223,16 @@ async def test_decision_documentation():
 
     text = """
     We discussed whether to use PostgreSQL or MongoDB for our new analytics service.
-    
+
     After evaluating both options, we decided to go with PostgreSQL because:
     1. Better support for complex queries and joins
     2. ACID compliance for data consistency
     3. Team has more experience with SQL
     4. Better tooling and monitoring options
-    
+
     MongoDB was considered for its flexibility with schema changes, but we felt
     the benefits of PostgreSQL outweighed this advantage for our use case.
-    
+
     This decision applies to all new analytics services going forward.
     """
 
