@@ -2,7 +2,6 @@
 Integration panel component for GitHub, Slack, and Teams configurations.
 """
 import streamlit as st
-from utils.validators import validate_github_url, validate_github_token
 
 
 def render_integration_buttons():
@@ -126,26 +125,36 @@ def render_github_config():
     # Connect/Disconnect button
     if is_connected:
         if st.button("🔌 Disconnect", key="github_disconnect", use_container_width=True, type="secondary"):
-            # Clear configuration
-            st.session_state.github_connected = False
-            st.session_state.github_url = ""
-            st.session_state.github_token = ""
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": "Disconnected from GitHub."
-            })
-            st.rerun()
+            with st.spinner("Disconnecting from GitHub..."):
+                from services.api_client import disconnect_github
+                result = disconnect_github(st.session_state.get("github_url", ""))
+            if result["success"]:
+                st.session_state.github_connected = False
+                st.session_state.github_url = ""
+                st.session_state.github_token = ""
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": result["message"],
+                })
+                st.rerun()
+            else:
+                st.error(result["message"])
     else:
         connect_enabled = github_url and github_token
         if st.button("🔗 Connect", key="github_connect", use_container_width=True,
                     type="primary", disabled=not connect_enabled):
-            # Set connected state
-            st.session_state.github_connected = True
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": f"Successfully connected to GitHub repository: `{github_url}`"
-            })
-            st.rerun()
+            with st.spinner("Verifying GitHub connection..."):
+                from services.api_client import connect_github
+                result = connect_github(github_url, github_token)
+            if result["success"]:
+                st.session_state.github_connected = True
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": f"Successfully connected to GitHub repository `{result.get('repo_full_name', github_url)}`"
+                })
+                st.rerun()
+            else:
+                st.error(result["message"])
 
 
 def render_slack_config():
@@ -181,25 +190,36 @@ def render_slack_config():
     # Connect/Disconnect button
     if is_connected:
         if st.button("🔌 Disconnect", key="slack_disconnect", use_container_width=True, type="secondary"):
-            # Clear configuration
-            st.session_state.slack_connected = False
-            st.session_state.slack_channel_id = ""
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": "Disconnected from Slack."
-            })
-            st.rerun()
+            with st.spinner("Disconnecting from Slack..."):
+                from services.api_client import disconnect_slack
+                result = disconnect_slack(st.session_state.get("slack_channel_id", ""))
+            if result["success"]:
+                st.session_state.slack_connected = False
+                st.session_state.slack_channel_id = ""
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": result["message"],
+                })
+                st.rerun()
+            else:
+                st.error(result["message"])
     else:
         connect_enabled = channel_is_valid
         if st.button("🔗 Connect", key="slack_connect", use_container_width=True,
                     type="primary", disabled=not connect_enabled):
-            # Set connected state
-            st.session_state.slack_connected = True
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": f"Successfully connected to Slack channel: `{slack_channel_id}`"
-            })
-            st.rerun()
+            with st.spinner("Verifying Slack connection..."):
+                from services.api_client import connect_slack
+                result = connect_slack(slack_channel_id)
+            if result["success"]:
+                st.session_state.slack_connected = True
+                st.session_state.slack_channel_name = result.get("channel_name", slack_channel_id)
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": f"Successfully connected to Slack channel `{result.get('channel_name', slack_channel_id)}`"
+                })
+                st.rerun()
+            else:
+                st.error(result["message"])
 
 
 def render_teams_config():

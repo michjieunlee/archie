@@ -115,18 +115,18 @@ def render_chat_section():
         st.session_state.pending_files = []
 
     # ── scrollable chat history ────────────────────────────────────────
-    # height is viewport-relative via CSS override below; the Python value
-    # is just an initial fallback.
-    chat_container = st.container(height=500, border=False)
+    # Use a plain container with a key so CSS can target it via
+    # .st-key-chat_history, then set height + overflow-y
+    chat_container = st.container(border=False, key="chat_history")
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
                 if "files" in message and message["files"]:
-                    st.markdown("**📎 Attached Files:**")
+                    st.markdown("**Attached Files:**")
                     for fi in message["files"]:
                         st.caption(
-                            f"{fi['name']} ({fi['size']/(1024*1024):.2f} MB)"
+                            f"📄 {fi['name']} ({fi['size']/(1024*1024):.2f} MB)"
                         )
 
         # Welcome message
@@ -148,11 +148,27 @@ def render_chat_section():
     # CSS: make the chat container fill available vertical space
     st.markdown(f"""
         <style>
-        /* Override the fixed-height container so it stretches dynamically */
-        [data-testid="stVerticalBlockBorderWrapper"] {{
+        /* Suppress the outer page scroll */
+        [data-testid="stMain"] {{
+            overflow-y: hidden !important;
+        }}
+        /* Force the main vertical block to fill its parent (100vh container) */
+        [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] {{
+            height: 100% !important;
+        }}
+        /* Chat scroll area: the keyed container is the scroll region.
+           min-height:0 overrides flex default (min-height:auto) so the
+           container can be smaller than its content and trigger scroll.
+           max-height caps it so flex-grow cannot stretch it beyond bounds. */
+        .st-key-chat_history {{
             height: calc(100vh - {_INPUT_BAR_HEIGHT + 140}px) !important;
-            max-height: none !important;
-            min-height: 200px !important;
+            max-height: calc(100vh - {_INPUT_BAR_HEIGHT + 140}px) !important;
+            min-height: 0 !important;
+            overflow-y: auto !important;
+        }}
+        /* Prevent flex children from shrinking — let them overflow to trigger scroll */
+        .st-key-chat_history > * {{
+            flex-shrink: 0 !important;
         }}
         </style>
     """, unsafe_allow_html=True)
@@ -218,41 +234,114 @@ def render_chat_section():
         st.rerun()
 
 
+def _build_system_prompt() -> str:
+    """Build the system prompt with current connection states."""
+    github_connected = st.session_state.get("github_connected", False)
+    slack_connected = st.session_state.get("slack_connected", False)
+    github_url = st.session_state.get("github_url", "")
+    slack_channel = st.session_state.get(
+        "slack_channel_name", st.session_state.get("slack_channel_id", "")
+    )
+
+    connection_lines = ""
+    if github_connected:
+        connection_lines += f"- GitHub: Connected to `{github_url}`\n"
+    else:
+        connection_lines += "- GitHub: NOT connected\n"
+    if slack_connected:
+        connection_lines += f"- Slack: Connected to #{slack_channel}\n"
+    else:
+        connection_lines += "- Slack: NOT connected\n"
+
+    system_prompt = f"""
+    You are Archie, an AI Knowledge Base Assistant.
+
+    Your capabilities:
+    - Help users manage and query their knowledge base
+    - Analyze GitHub repositories for knowledge extraction
+    - Retrieve and summarize Slack conversations
+    - Answer general questions about the knowledge base workflow
+
+    Current integration status:
+    {connection_lines}
+    Rules:
+    - If the user asks about Slack functionality and Slack is NOT connected, tell them to connect Slack from the Integrations panel on the left sidebar first.
+    - If the user asks about GitHub functionality and GitHub is NOT connected, tell them to connect GitHub from the Integrations panel on the left sidebar first.
+    - Be concise, helpful, and professional.
+    - When you don't know something, say so clearly.
+    - Format responses in Markdown for readability.
+    """
+
+    return system_prompt
+
+
+def _build_history_messages() -> list:
+    """Convert recent session_state messages to LangChain message objects."""
+    from langchain_core.messages import HumanMessage, AIMessage
+
+    history = []
+    recent = st.session_state.get("messages", [])[-10:]
+    for msg in recent:
+        if msg["role"] == "user":
+            history.append(HumanMessage(content=msg["content"]))
+        elif msg["role"] == "assistant":
+            history.append(AIMessage(content=msg["content"]))
+    return history
+
+
+def _get_llm():
+    """
+    Get or create the ChatOpenAI LLM instance, cached in session_state.
+    Reuses the same instance across chat turns to avoid repeated initialization.
+    """
+    if "llm" not in st.session_state:
+        from gen_ai_hub.proxy.core.proxy_clients import get_proxy_client
+        from gen_ai_hub.proxy.langchain.openai import ChatOpenAI
+
+        proxy_client = get_proxy_client("gen-ai-hub")
+        st.session_state.llm = ChatOpenAI(
+            proxy_model_name="gpt-4o",
+            proxy_client=proxy_client,
+            temperature=0.3,
+            max_tokens=1024,
+        )
+    return st.session_state.llm
+
+
 def generate_chat_response(user_input: str, files: list = None) -> str:
     """
-    Generate a mock chat response based on user input and optional files.
-    Will be replaced with actual AI responses in Phase 2.
+    Generate a chat response using SAP GenAI SDK (ChatOpenAI with proxy_client).
+    Falls back to a simple error message if the SDK is unavailable.
     """
-    response = ""
+    try:
+        from langchain_core.messages import SystemMessage, HumanMessage
+    except ImportError:
+        return (
+            "AI service is not available (gen_ai_hub SDK not installed). "
+            "Please contact your administrator."
+        )
 
+    # Build user message text (include file info if present)
+    user_message_text = user_input
     if files:
-        response += f"I've received {len(files)} file(s):\n\n"
-        for f in files:
-            response += f"- **{f['name']}** ({f['size'] / (1024 * 1024):.2f}MB)\n"
-        response += "\n📝 **Note:** File analysis will be fully implemented in the next phase.\n\n"
-        response += f"Regarding your message: \"{user_input}\"\n\n"
+        file_list = ", ".join(f["name"] for f in files)
+        user_message_text = (
+            f"[User attached {len(files)} file(s): {file_list}]\n\n{user_input}"
+        )
 
-    query = user_input.lower()
+    try:
+        llm = _get_llm()
+        system_prompt = _build_system_prompt()
+        history = _build_history_messages()
 
-    if "help" in query:
-        response += ("**Here's how I can help:**\n\n"
-                     "1. **General Chat:** Ask me questions about anything\n"
-                     "2. **Repository Analysis:** Configure GitHub settings and I'll analyze repositories\n"
-                     f"3. **File Upload:** Attach up to {MAX_FILES_COUNT} files for analysis\n\n"
-                     "What would you like to do?")
-    elif any(w in query for w in ["hello", "hi", "hey"]):
-        response += "Hello! How can I assist you today? Feel free to ask me anything, upload files, or configure GitHub settings to connect your knowledgebase."
-    elif any(w in query for w in ["github", "repository", "repo"]):
-        if st.session_state.github_url:
-            response += f"I see you have configured: `{st.session_state.github_url}`. Click 'Start Processing' on the left to analyze this repository."
-        else:
-            response += "To analyze GitHub repositories, configure the GitHub URL and token in the sidebar, then click 'Connect'."
-    elif any(w in query for w in ["file", "upload", "attach"]):
-        response += (f"You can attach up to **{MAX_FILES_COUNT}** files (max **{MAX_FILE_SIZE_MB}MB** each) "
-                     "using the **ATTACH FILES** button below the chat input.")
-    else:
-        response += (f"I understand you said: \"{user_input}\"\n\n"
-                     "I'm a knowledge base assistant focused on analyzing GitHub repositories. "
-                     "Would you like to analyze a repository, upload files, or ask me something specific?")
+        messages = (
+            [SystemMessage(content=system_prompt)]
+            + history
+            + [HumanMessage(content=user_message_text)]
+        )
 
-    return response
+        response = llm.invoke(messages)
+        return response.content
+
+    except Exception as e:
+        return f"I encountered an error generating a response: {str(e)}"

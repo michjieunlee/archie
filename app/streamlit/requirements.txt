@@ -1,10 +1,9 @@
 # Streamlit Application Dependencies
-# Phase 1: Basic Interface with Mock API
 
 # Core Streamlit
 streamlit>=1.37.0
 
-# HTTP requests (for future real API integration)
+# HTTP requests (for backend API integration)
 requests==2.31.0
 
 # Environment variables
@@ -13,8 +12,12 @@ python-dotenv==1.0.0
 # Data handling
 pandas==2.2.0
 
-# Document processing (for future file upload support)
+# Document processing (for file upload support)
 python-docx==1.1.0
 
 # WebSocket support (for future real-time updates)
 websockets==12.0
+
+# SAP GenAI SDK (for AI chat)
+sap-ai-sdk-gen>=6.1.2
+langchain-core>=0.1.0

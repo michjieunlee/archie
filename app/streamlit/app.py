@@ -37,8 +37,11 @@ def main():
         /* Main container adjustments */
         .block-container {
             padding-top: 1rem;
-            padding-bottom: 12rem;
+            padding-bottom: 0;
             max-width: 100%;
+            overflow: hidden;
+            height: 100vh;
+            box-sizing: border-box;
         }
 
         /* Header styling */
