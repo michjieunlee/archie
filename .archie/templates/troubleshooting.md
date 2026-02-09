@@ -4,7 +4,9 @@ category: "troubleshooting"
 tags: [{tags}]
 difficulty: "intermediate"
 source_type: "{source_type}"
-source_threads: [{source_threads}]
+history_from: "{history_from}"
+history_to: "{history_to}"
+message_limit: {message_limit}
 ai_confidence: {ai_confidence}
 ai_reasoning: "{ai_reasoning}"
 created_date: "{created_date}"

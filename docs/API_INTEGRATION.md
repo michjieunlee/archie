@@ -1,6 +1,8 @@
 # Archie API Integration Guide
 
-This document provides comprehensive API interfaces and data models for team integration, particularly for the AI Core team (③) and GitHub integration components.
+This document provides comprehensive API interfaces and data models for team integration, particularly for the AI Core team (②) and GitHub integration components.
+
+> **Note:** This document describes the planned API design. For current implementation status, see the actual endpoint implementations in `app/api/routes/`.
 
 ## Data Models
 
@@ -16,6 +18,15 @@ class SourceType(str, Enum):
     SLACK = "slack"
     FILE = "file"
     TEXT = "text"
+
+class Source(BaseModel):
+    """Source information for a conversation."""
+    type: SourceType                      # Source platform type
+    channel_id: str                       # Channel/context identifier
+    channel_name: Optional[str] = None    # Channel display name
+    history_from: Optional[datetime] = None  # Start time of conversation history
+    history_to: Optional[datetime] = None    # End time of conversation history
+    message_limit: Optional[int] = None      # Maximum number of messages retrieved
 
 class StandardizedMessage(BaseModel):
     """Platform-agnostic message format."""
@@ -33,10 +44,7 @@ class StandardizedMessage(BaseModel):
 class StandardizedConversation(BaseModel):
     """Platform-agnostic conversation format."""
     id: str                          # Unique conversation identifier
-    source: SourceType               # Input source (slack, file, text)
-    source_url: Optional[str] = None # Original URL (for Slack conversations)
-    channel_id: str                  # Channel/context identifier
-    channel_name: Optional[str] = None
+    source: Source                   # Source information (type, channel, time range)
     messages: List[StandardizedMessage]
     participant_count: int           # Number of unique participants
     created_at: datetime            # Conversation start time

@@ -25,6 +25,7 @@ from typing import List
 from app.models.thread import (
     StandardizedConversation,
     StandardizedMessage,
+    Source,
     SourceType,
 )
 from app.ai_core.masking.pii_masker import PIIMasker, MaskingError
@@ -36,10 +37,11 @@ def create_sample_conversations() -> List[StandardizedConversation]:
     # conversation 1: Email discussion with 3 participants
     conversation1 = StandardizedConversation(
         id="conversation_001",
-        source=SourceType.SLACK,
-        source_url="https://example.slack.com/archives/C123/p123456",
-        channel_id="C123",
-        channel_name="general",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C123",
+            channel_name="general",
+        ),
         messages=[
             StandardizedMessage(
                 idx=0,
@@ -80,10 +82,11 @@ def create_sample_conversations() -> List[StandardizedConversation]:
     # conversation 2: Support conversation
     conversation2 = StandardizedConversation(
         id="conversation_002",
-        source=SourceType.SLACK,
-        source_url="https://example.slack.com/archives/C456/p789012",
-        channel_id="C456",
-        channel_name="support",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C456",
+            channel_name="support",
+        ),
         messages=[
             StandardizedMessage(
                 idx=0,
@@ -114,10 +117,11 @@ def create_sample_conversations() -> List[StandardizedConversation]:
     # conversation 3: Slack-specific IDs
     conversation3 = StandardizedConversation(
         id="conversation_003",
-        source=SourceType.SLACK,
-        source_url="https://example.slack.com/archives/C1A2B3C4D5E/p999999",
-        channel_id="C1A2B3C4D5E",
-        channel_name="tech-support",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C1A2B3C4D5E",
+            channel_name="tech-support",
+        ),
         messages=[
             StandardizedMessage(
                 idx=0,
@@ -145,7 +149,7 @@ def print_divider(char="=", length=80):
 
 def print_conversation(conversation: StandardizedConversation, title: str):
     """Print conversation details."""
-    print(f"\n🔹 {title}: {conversation.id} ({conversation.channel_name})")
+    print(f"\n🔹 {title}: {conversation.id} ({conversation.source.channel_name})")
     print(f"   Messages: {len(conversation.messages)}")
     for msg in conversation.messages:
         masked_flag = "✓" if msg.is_masked else "✗"
@@ -216,7 +220,9 @@ async def test_masking():
 
         # Check 1: All messages masked
         all_masked = all(
-            msg.is_masked for conversation in masked_conversations for msg in conversation.messages
+            msg.is_masked
+            for conversation in masked_conversations
+            for msg in conversation.messages
         )
         status1 = "✅" if all_masked else "❌"
         print(f"{status1} All messages marked as masked: {all_masked}")
@@ -242,7 +248,8 @@ async def test_masking():
 
         # Check 4: Content changed (masking applied)
         content_changed = any(
-            conversations[i].messages[j].content != masked_conversations[i].messages[j].content
+            conversations[i].messages[j].content
+            != masked_conversations[i].messages[j].content
             for i in range(len(conversations))
             for j in range(len(conversations[i].messages))
         )
@@ -384,9 +391,11 @@ async def test_single_conversation():
     # Create a simple single conversation
     conversation = StandardizedConversation(
         id="test_conversation",
-        source=SourceType.TEXT,
-        channel_id="test",
-        channel_name="test",
+        source=Source(
+            type=SourceType.TEXT,
+            channel_id="test",
+            channel_name="test",
+        ),
         messages=[
             StandardizedMessage(
                 idx=0,
@@ -405,7 +414,9 @@ async def test_single_conversation():
     )
 
     print("Original message:")
-    print(f"  {conversation.messages[0].author_name}: {conversation.messages[0].content}")
+    print(
+        f"  {conversation.messages[0].author_name}: {conversation.messages[0].content}"
+    )
     print()
 
     try:

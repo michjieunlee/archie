@@ -34,8 +34,8 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
 1. Fetch Slack messages with automatic thread expansion
 2. Mask PII data using SAP GenAI Orchestration V2
 3. Extract KB using AI (categorization + structured extraction)
-4. Match against existing KB (TODO: not yet implemented)
-5. Generate KB document (TODO: not yet implemented)
+4. Match against existing KB (STUB: always returns CREATE)
+5. Generate KB document using templates
 6. Create GitHub PR (TODO: not yet implemented)
 
 **Response Model**: `KBProcessingResponse`
@@ -46,10 +46,10 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
   "messages_fetched": 87,
   "kb_article_title": "Database Connection Troubleshooting",
   "kb_category": "troubleshooting",
+  "kb_summary": "This article describes how to troubleshoot database connection timeouts by adjusting pool size and connection settings.",
   "ai_confidence": 0.85,
   "ai_reasoning": "This conversation contains...",
   "pr_url": null,
-  "file_path": null
 }
 ```
 
@@ -86,8 +86,8 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
 1. Convert text to StandardizedConversation format
 2. Mask PII data using SAP GenAI Orchestration V2
 3. Extract KB using AI (categorization + structured extraction)
-4. Match against existing KB (TODO: not yet implemented)
-5. Generate KB document (TODO: not yet implemented)
+4. Match against existing KB (STUB: always returns CREATE)
+5. Generate KB document using templates
 6. Create GitHub PR (TODO: not yet implemented)
 
 **Response Model**: `KBProcessingResponse`
@@ -98,10 +98,10 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
   "text_length": 142,
   "kb_article_title": "API Timeout Resolution",
   "kb_category": "troubleshooting",
+  "kb_summary": "This article describes how to troubleshoot database connection timeouts by adjusting pool size and connection settings.",
   "ai_confidence": 0.92,
   "ai_reasoning": "Clear problem-solution structure...",
   "pr_url": null,
-  "file_path": null
 }
 ```
 
@@ -121,13 +121,11 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
 ```json
 {
   "query": "How do I fix API timeout errors?",
-  "max_results": 5
 }
 ```
 
 **Parameters**:
 - `query` (required): User's question about the knowledge base
-- `max_results` (optional, default=5, range=1-20): Maximum number of results to return
 
 **Pipeline**:
 1. Parse and understand the query
@@ -148,7 +146,6 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
       "category": "troubleshooting",
       "excerpt": "To fix API timeout errors, increase the connection timeout...",
       "relevance_score": 0.95,
-      "file_path": "troubleshooting/api-timeout.md",
       "github_url": "https://github.com/.../troubleshooting/api-timeout.md"
     }
   ],
@@ -198,12 +195,12 @@ Used by both `/from-slack` and `/from-text` endpoints.
   // KB article info
   kb_article_title?: string
   kb_category?: string
+  kb_summary?: string
   ai_confidence?: number  // 0.0 - 1.0
   ai_reasoning?: string
   
   // GitHub PR info
   pr_url?: string
-  file_path?: string
   
   // Metadata
   messages_fetched?: number  // For Slack
@@ -234,7 +231,6 @@ Individual search result in query response.
   category: string
   excerpt: string
   relevance_score: number  // 0.0 - 1.0
-  file_path: string
   github_url: string
 }
 ```
@@ -291,7 +287,6 @@ curl -X POST "http://localhost:8000/api/kb/query" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "How to fix database issues?",
-    "max_results": 3
   }'
 ```
 
@@ -308,12 +303,13 @@ Navigate to: `http://localhost:8000/docs`
 - Slack conversation fetching with thread expansion
 - PII masking with SAP GenAI Orchestration V2
 - KB extraction with AI (categorization + structured extraction)
+- KB document generation (markdown with templates)
+- LLM-based article summary generation
 - Request/response models
 - Error handling
 
 🚧 **TODO** (marked in code):
-- KB matching against existing documents
-- KB document generation (markdown with templates)
+- KB matching against existing documents (stub: always returns CREATE)
 - GitHub PR creation
 - KB search implementation (for Q&A)
 - LLM-based answer generation (for Q&A)

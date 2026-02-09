@@ -122,10 +122,13 @@ class KBExtractor:
 
         # Step 3: Build complete KnowledgeArticle with metadata
         metadata = ExtractionMetadata(
-            source_type=conversation.source.value,
+            source_type=conversation.source.type.value,
             source_id=conversation.id,
-            channel_id=conversation.channel_id,
-            channel_name=conversation.channel_name or "unknown",
+            channel_id=conversation.source.channel_id,
+            channel_name=conversation.source.channel_name or "unknown",
+            history_from=conversation.source.history_from,
+            history_to=conversation.source.history_to,
+            message_limit=conversation.source.message_limit,
             participants=[msg.author_id for msg in conversation.messages],
             message_count=len(conversation.messages),
         )
@@ -314,7 +317,7 @@ class KBExtractor:
         Returns:
             Formatted conversation content
         """
-        channel_name = conversation.channel_name or "unknown-channel"
+        channel_name = conversation.source.channel_name or "unknown-channel"
         formatted = f"### Conversation from #{channel_name}\n\n"
 
         for msg in conversation.messages:

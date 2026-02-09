@@ -123,7 +123,15 @@ class KBGenerator:
             "title": extraction.title,
             "tags": ", ".join([f'"{tag}"' for tag in extraction.tags]),
             "source_type": metadata.source_type,
-            "source_threads": f'"{metadata.source_id}"' if metadata.source_id else "",
+            "history_from": (
+                metadata.history_from.isoformat() if metadata.history_from else ""
+            ),
+            "history_to": (
+                metadata.history_to.isoformat() if metadata.history_to else ""
+            ),
+            "message_limit": (
+                metadata.message_limit if metadata.message_limit is not None else ""
+            ),
             "ai_confidence": f"{extraction.ai_confidence:.2f}",
             "ai_reasoning": extraction.ai_reasoning,
             "created_date": article.created_at.strftime("%Y-%m-%d"),
