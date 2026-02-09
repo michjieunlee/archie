@@ -12,7 +12,7 @@ You are a technical writer creating knowledge base documentation.
 {task_type}  # "Create new document" or "Update existing document"
 
 ## Source Thread
-{thread_content}
+{conversation_content}
 
 ## Extracted Information
 Title: {title}

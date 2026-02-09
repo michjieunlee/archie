@@ -78,6 +78,59 @@ def sample_troubleshooting_conversation():
 
 
 @pytest.fixture
+def sample_threaded_conversation():
+    """Create a sample conversation with thread structure (parent_idx)."""
+    now = datetime.now(timezone.utc)
+    return StandardizedConversation(
+        id="1234567893.123456",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C01234567",
+            channel_name="support",
+        ),
+        participant_count=3,
+        created_at=now,
+        last_activity_at=now,
+        messages=[
+            StandardizedMessage(
+                idx=0,
+                id="msg1",
+                author_id="U008",
+                author_name="USER_1",
+                content="How do I reset my password?",
+                timestamp=now,
+            ),
+            StandardizedMessage(
+                idx=1,
+                parent_idx=0,
+                id="msg2",
+                author_id="U009",
+                author_name="USER_2",
+                content="Go to Settings > Security > Reset Password",
+                timestamp=now,
+            ),
+            StandardizedMessage(
+                idx=2,
+                parent_idx=0,
+                id="msg3",
+                author_id="U010",
+                author_name="USER_3",
+                content="You can also use the password reset link sent to your email",
+                timestamp=now,
+            ),
+            StandardizedMessage(
+                idx=3,
+                id="msg4",
+                author_id="U008",
+                author_name="USER_1",
+                content="Thanks! That worked.",
+                timestamp=now,
+            ),
+        ],
+    )
+
+
+@pytest.fixture
 def sample_process_thread():
     """Create a sample process/workflow thread."""
     now = datetime.now(timezone.utc)
@@ -177,6 +230,64 @@ def sample_decision_thread():
             ),
         ],
     )
+
+
+def test_format_conversation_structure(sample_threaded_conversation):
+    """Test that _format_conversation_for_extraction produces correct structure."""
+    extractor = KBExtractor()
+
+    # Format the conversation
+    formatted = extractor._format_conversation_for_extraction(
+        sample_threaded_conversation
+    )
+
+    print("\n" + "=" * 80)
+    print("FORMATTED CONVERSATION OUTPUT")
+    print("=" * 80)
+    print(formatted)
+    print("=" * 80)
+
+    # Verify structure
+    assert "### Conversation from #support" in formatted
+
+    # Check sequential numbering (1., 2., 3., 4.)
+    assert "1. [USER_1]" in formatted
+    assert "2. [USER_2]" in formatted
+    assert "3. [USER_3]" in formatted
+    assert "4. [USER_1]" in formatted
+
+    # Check idx labeling
+    assert "(idx:0)" in formatted
+    assert "(idx:1)" in formatted
+    assert "(idx:2)" in formatted
+    assert "(idx:3)" in formatted
+
+    # Check thread structure for replies
+    assert "└─ Reply to message index 0" in formatted
+
+    # Count occurrences of reply marker (should be 2: idx 1 and 2 both reply to idx 0)
+    reply_count = formatted.count("└─ Reply to message index")
+    assert reply_count == 2, f"Expected 2 replies, found {reply_count}"
+
+    # Verify content is included
+    assert "How do I reset my password?" in formatted
+    assert "Go to Settings > Security > Reset Password" in formatted
+    assert "You can also use the password reset link" in formatted
+    assert "Thanks! That worked." in formatted
+
+    # Verify timestamp format (YYYY-MM-DD HH:MM:SS)
+    import re
+
+    timestamp_pattern = r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"
+    timestamps = re.findall(timestamp_pattern, formatted)
+    assert len(timestamps) == 4, f"Expected 4 timestamps, found {len(timestamps)}"
+
+    print("\n✅ All format checks passed!")
+    print(f"   - Sequential numbering: ✓")
+    print(f"   - idx labeling: ✓")
+    print(f"   - Thread structure: ✓ ({reply_count} replies)")
+    print(f"   - Timestamp format: ✓ ({len(timestamps)} timestamps)")
+    print(f"   - Content preservation: ✓")
 
 
 @pytest.mark.asyncio

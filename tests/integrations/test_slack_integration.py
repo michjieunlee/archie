@@ -216,7 +216,7 @@ class TestOutputFormatter:
             )
 
             if msg.parent_idx is not None:
-                print(f"       └─ Reply to message {msg.parent_idx}")
+                print(f"       └─ Reply to message index {msg.parent_idx}")
 
         print(f"\n🔒 USER MAPPING:")
         for real_id, display_id in user_mapping.items():

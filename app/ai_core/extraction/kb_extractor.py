@@ -166,7 +166,7 @@ class KBExtractor:
             )
 
             prompt = CATEGORY_CLASSIFICATION_PROMPT.format(
-                thread_content=conversation_content
+                conversation_content=conversation_content
             )
 
             messages = [HumanMessage(content=prompt)]
@@ -229,7 +229,7 @@ class KBExtractor:
 
             user_prompt = EXTRACTION_USER_PROMPT_TEMPLATE.format(
                 category=category.value,
-                thread_content=conversation_content,
+                conversation_content=conversation_content,
                 additional_context=context_str,
             )
 
@@ -315,20 +315,27 @@ class KBExtractor:
             conversation: The standardized conversation
 
         Returns:
-            Formatted conversation content
+            Formatted conversation content with idx and thread structure
         """
         channel_name = conversation.source.channel_name or "unknown-channel"
         formatted = f"### Conversation from #{channel_name}\n\n"
 
-        for msg in conversation.messages:
-            # Format timestamp
+        for i, msg in enumerate(conversation.messages, 1):
+            # Format timestamp (full datetime)
             timestamp = msg.timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
-            # Format user
-            user = msg.author_name or msg.author_id or "Unknown User"
+            # Use author_name (already masked as USER_1, USER_2, etc.)
+            user = msg.author_name or "Unknown User"
 
-            # Format message
-            formatted += f"**{user}** ({timestamp}):\n{msg.content}\n\n"
+            # Format with sequential number, user, timestamp, idx, and content
+            # i:3d since max 100 conversations could fetched
+            formatted += (
+                f"{i:3d}. [{user}] {timestamp} (idx:{msg.idx}): {msg.content}\n"
+            )
+
+            # Show thread structure if this is a reply
+            if msg.parent_idx is not None:
+                formatted += f"     └─ Reply to message index {msg.parent_idx}\n"
 
         return formatted
 

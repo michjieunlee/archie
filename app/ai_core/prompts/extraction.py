@@ -26,7 +26,7 @@ CATEGORY_CLASSIFICATION_PROMPT = dedent(
     Return ONLY the category name (troubleshooting, processes, or decisions).
 
     **Conversation:**
-    {thread_content}
+    {conversation_content}
     """
 ).strip()
 
@@ -111,7 +111,7 @@ EXTRACTION_USER_PROMPT_TEMPLATE = dedent(
     **Category**: {category}
 
     **Conversation:**
-    {thread_content}
+    {conversation_content}
 
     {additional_context}
 
