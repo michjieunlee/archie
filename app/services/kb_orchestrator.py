@@ -37,7 +37,6 @@ from app.models.api_responses import (
     KBQueryResponse,
     KBActionType,
 )
-from app.models.knowledge import KnowledgeArticle
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -284,7 +283,25 @@ class KBOrchestrator:
 
         # Step 3: Match against existing KB
         logger.info("Matching against existing KB...")
-        existing_kb_docs = []  # TODO: Fetch from GitHub repo
+        # Fetch existing KB articles from GitHub repository
+        try:
+            all_kb_docs = await self.github_client.read_kb_repository()
+            # Filter by category for more focused matching
+            existing_kb_docs = [
+                doc
+                for doc in all_kb_docs
+                if doc.get("category") == kb_article.category.value
+            ]
+            logger.info(
+                f"Fetched {len(all_kb_docs)} total KB articles from GitHub, "
+                f"{len(existing_kb_docs)} in category '{kb_article.category.value}'"
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch existing KB articles from GitHub: {e}. Proceeding with empty list."
+            )
+            existing_kb_docs = []
+
         match_result = await self.matcher.match(kb_article, existing_kb_docs)
         logger.info(
             f"Match result: {match_result.action.value} (confidence: {match_result.confidence_score})"

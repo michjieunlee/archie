@@ -130,7 +130,7 @@ KnowledgeExtractionOutput = Union[
 ]
 
 
-class KnowledgeArticle(BaseModel):
+class KBArticle(BaseModel):
     """
     A structured knowledge base article extracted from conversations.
     Complete model including LLM output + system-generated metadata.
@@ -215,7 +215,7 @@ class KnowledgeArticle(BaseModel):
         return self.model_dump()
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "KnowledgeArticle":
+    def from_dict(cls, data: Dict[str, Any]) -> "KBArticle":
         """
         Create article from dictionary.
 
@@ -223,17 +223,17 @@ class KnowledgeArticle(BaseModel):
             data: Dictionary with article data
 
         Returns:
-            KnowledgeArticle instance
+            KBArticle instance
         """
         return cls(**data)
 
 
-class KnowledgeSearchResult(BaseModel):
+class KBSearchResult(BaseModel):
     """
     Result from knowledge base search.
     """
 
-    article: KnowledgeArticle
+    article: KBArticle
     relevance_score: float = Field(..., description="Relevance score (0-1)")
     matched_fields: List[str] = Field(
         default_factory=list, description="Fields that matched the search"
@@ -241,7 +241,7 @@ class KnowledgeSearchResult(BaseModel):
     snippet: Optional[str] = Field(None, description="Relevant snippet from article")
 
 
-class KnowledgeStats(BaseModel):
+class KBStats(BaseModel):
     """
     Statistics about the knowledge base.
     """

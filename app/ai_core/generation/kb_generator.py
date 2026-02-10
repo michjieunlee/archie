@@ -1,14 +1,14 @@
 """
 Knowledge Base Generator Module
 
-This module handles generation of markdown files from KnowledgeArticles using templates.
+This module handles generation of markdown files from KBArticles using templates.
 """
 
 import logging
 from pathlib import Path
 from typing import Optional
 
-from app.models.knowledge import KnowledgeArticle, KBCategory
+from app.models.knowledge import KBArticle, KBCategory
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class KBGenerator:
         if not self.templates_dir.exists():
             logger.warning(f"Templates directory not found: {self.templates_dir}")
 
-    def generate_markdown(self, article: KnowledgeArticle) -> str:
+    def generate_markdown(self, article: KBArticle) -> str:
         """
         Generate markdown file content for the knowledge article using templates.
 
@@ -105,7 +105,7 @@ class KBGenerator:
             logger.error(f"Error loading template {template_file}: {e}")
             return None
 
-    def _prepare_template_variables(self, article: KnowledgeArticle) -> dict:
+    def _prepare_template_variables(self, article: KBArticle) -> dict:
         """
         Prepare variables for template filling.
 
@@ -143,7 +143,7 @@ class KBGenerator:
 
         return variables
 
-    def _fallback_markdown(self, article: KnowledgeArticle) -> str:
+    def _fallback_markdown(self, article: KBArticle) -> str:
         """
         Generate basic markdown as fallback if template fails.
 
@@ -166,7 +166,7 @@ class KBGenerator:
 
         return md
 
-    def generate_filename(self, article: KnowledgeArticle) -> str:
+    def generate_filename(self, article: KBArticle) -> str:
         """
         Generate a filename for the article.
 
