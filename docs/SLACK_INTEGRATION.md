@@ -94,8 +94,8 @@ masked_conversations = await pii_masker.mask_conversations([conversation])
 messages = [
     {idx: 0, parent_idx: None, content: "Main message 1"},
     {idx: 1, parent_idx: None, content: "Main message 2"},
-    {idx: 2, parent_idx: 1, content: "Reply to message 2"},
-    {idx: 3, parent_idx: 1, content: "Another reply to message 2"},
+    {idx: 2, parent_idx: 1, content: "Reply to message index 2"},
+    {idx: 3, parent_idx: 1, content: "Another reply to message index 2"},
     {idx: 4, parent_idx: None, content: "Main message 3"}
 ]
 ```
