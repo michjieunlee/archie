@@ -2,13 +2,13 @@
 
 ## Overview
 
-The KBMatcher component has been fully implemented with structured output (Pydantic models) and template-based content formatting. It uses a value-addition-first approach to determine whether new content should CREATE, UPDATE, or IGNORE KB articles.
+The KBMatcher component has been fully implemented with structured output (Pydantic models) and template-based content formatting. It uses a value-addition-first approach to determine whether new content should CREATE, UPDATE, or IGNORE KB documents.
 
 ## Core Principle
 
 **VALUE ADDITION OVER TOPIC SIMILARITY**
 
-Even if two topics are not highly similar, new content should UPDATE an existing article if it provides:
+Even if two topics are not highly similar, new content should UPDATE an existing document if it provides:
 - Supporting information, examples, or edge cases
 - Latest updates or recent findings
 - Complementary details (different angle on same problem)
@@ -29,12 +29,12 @@ class MatchResult(BaseModel):
     value_addition_assessment: str
     
     # Unified fields for both UPDATE and CREATE
-    article_path: Optional[str]  # Path of article (matched for UPDATE, suggested for CREATE)
-    article_title: Optional[str]  # Title of article
+    document_path: Optional[str]  # Path of document (matched for UPDATE, suggested for CREATE)
+    document_title: Optional[str]  # Title of document
     category: Optional[str]  # One of: troubleshooting, processes, or decisions
 ```
 
-**Note:** The current implementation uses **unified fields** (`article_path`, `article_title`, `category`) instead of separate fields for UPDATE and CREATE actions.
+**Note:** The current implementation uses **unified fields** (`document_path`, `document_title`, `category`) instead of separate fields for UPDATE and CREATE actions.
 
 **Benefits:**
 - No manual JSON parsing or error handling
@@ -87,7 +87,7 @@ else:
 1. Truly independent topic
 2. Different problem domain
 3. Substantial standalone value
-4. Would clutter existing article if merged
+4. Would clutter existing document if merged
 
 **IGNORE criteria:**
 1. Pure duplicate
@@ -103,7 +103,7 @@ else:
 ```python
 async def match(
     self,
-    kb_article: KBArticle,
+    kb_document: KBDocument,
     existing_kb_docs: Optional[List[Dict[str, Any]]] = None,
 ) -> MatchResult
 ```
@@ -111,15 +111,15 @@ async def match(
 The `match()` method:
 1. Checks AI confidence (low confidence may recommend IGNORE)
 2. Returns CREATE if no existing docs found
-3. Finds potentially relevant articles using `_find_relevant_articles()`
+3. Finds potentially relevant documents using `_find_relevant_documents()`
 4. Uses LLM with structured output via `_llm_match_decision_structured()`
 5. Falls back to CREATE on errors
 
 **Key Supporting Methods:**
 
-- `_find_relevant_articles()`: Pre-filters articles using heuristics (category matching, tag overlap)
+- `_find_relevant_documents()`: Pre-filters documents using heuristics (category matching, tag overlap)
 - `_llm_match_decision_structured()`: Uses LLM with structured output to make the final decision
-- `_format_new_content_by_category()`: Formats KB article content according to category template
+- `_format_new_content_by_category()`: Formats KB document content according to category template
 - `_format_existing_docs()`: Formats existing docs for LLM prompt
 - `_create_result()`: Helper to create CREATE action result
 
@@ -144,9 +144,9 @@ result = await chain.ainvoke(data)  # Returns MatchResult
 The `_format_new_content_by_category()` method formats extracted content according to category templates:
 
 ```python
-def _format_new_content_by_category(self, kb_article: KBArticle) -> str:
-    extraction = kb_article.extraction_output
-    category = kb_article.category.value
+def _format_new_content_by_category(self, kb_document: KBDocument) -> str:
+    extraction = kb_document.extraction_output
+    category = kb_document.category.value
     
     if category == "troubleshooting":
         return f"""### Problem Description
@@ -181,7 +181,7 @@ The matcher works with GitHub repository data through the `read_kb_repository()`
 **Expected KB Document Structure:**
 ```python
 {
-    "title": "Article Title",
+    "title": "Document Title",
     "path": "category/filename.md",  # Note: uses 'path' field
     "category": "troubleshooting",  # One of: troubleshooting, processes, or decisions
     "tags": ["tag1", "tag2"],
@@ -198,20 +198,20 @@ The matcher reads from `existing_kb_docs` provided by the GitHub client's `read_
 The KBMatcher is integrated into `KBOrchestrator` (`app/services/kb_orchestrator.py`):
 
 ```python
-# Fetch existing KB articles from GitHub repository
+# Fetch existing KB documents from GitHub repository
 try:
     all_kb_docs = await self.github_client.read_kb_repository()
     # Filter by category for more focused matching
     existing_kb_docs = [
         doc for doc in all_kb_docs 
-        if doc.get("category") == kb_article.category.value
+        if doc.get("category") == kb_document.category.value
     ]
 except Exception as e:
-    logger.warning(f"Failed to fetch KB articles: {e}")
+    logger.warning(f"Failed to fetch KB documents: {e}")
     existing_kb_docs = []
 
 # Match against existing KB
-match_result = await self.matcher.match(kb_article, existing_kb_docs)
+match_result = await self.matcher.match(kb_document, existing_kb_docs)
 ```
 
 **Orchestrator Flow:**
@@ -228,7 +228,7 @@ Required in `.env`:
 - `OPENAI_MODEL`: Model to use (configured in app settings, e.g., "gpt-5")
 
 ### Matching Parameters
-- **AI confidence check**: Articles with `ai_confidence < 0.6` may be recommended for IGNORE
+- **AI confidence check**: Documents with `ai_confidence < 0.6` may be recommended for IGNORE
 - **Temperature**: Set to 0.0 for deterministic matching decisions
 - **Model**: Configured via `config.py` - uses SAP GenAI Hub proxy (no API key needed)
 
@@ -238,26 +238,26 @@ Required in `.env`:
 # Initialize matcher
 matcher = KBMatcher()
 
-# Fetch existing KB articles from GitHub
+# Fetch existing KB documents from GitHub
 all_kb_docs = await github_client.read_kb_repository()
 existing_kb_docs = [
     doc for doc in all_kb_docs 
-    if doc.get("category") == kb_article.category.value
+    if doc.get("category") == kb_document.category.value
 ]
 
 # Match with structured output
-match_result = await matcher.match(kb_article, existing_kb_docs)
+match_result = await matcher.match(kb_document, existing_kb_docs)
 
 # Use the result
 if match_result.action == MatchAction.UPDATE:
-    file_path = match_result.article_path
-    title = match_result.article_title
+    file_path = match_result.document_path
+    title = match_result.document_title
     logger.info(f"UPDATE: {title} at {file_path}")
     
 elif match_result.action == MatchAction.CREATE:
-    file_path = match_result.article_path
+    file_path = match_result.document_path
     category = match_result.category
-    logger.info(f"CREATE: New article at {file_path}")
+    logger.info(f"CREATE: New document at {file_path}")
     
 else:  # IGNORE
     logger.info(f"IGNORE: {match_result.reasoning}")
@@ -279,11 +279,11 @@ logger.info(f"Value assessment: {match_result.value_addition_assessment}")
    - Documents MatchResult structure for LLM
 
 3. **app/integrations/github/client.py**
-   - `read_kb_repository()` - Reads KB articles from GitHub
-   - Returns articles with `path`, `title`, `category`, `tags`, and content fields
+   - `read_kb_repository()` - Reads KB documents from GitHub
+   - Returns documents with `path`, `title`, `category`, `tags`, and content fields
 
 4. **app/services/kb_orchestrator.py**
-   - Fetches existing KB articles before matching
+   - Fetches existing KB documents before matching
    - Filters by category for focused matching
    - Handles errors with empty list fallback
 
@@ -297,7 +297,7 @@ logger.info(f"Value assessment: {match_result.value_addition_assessment}")
 
 The implementation includes comprehensive tests in `tests/integrations/test_kb_matcher.py`:
 
-1. **Mock KB articles** - Sample articles across all categories
+1. **Mock KB documents** - Sample documents across all categories
 2. **Heuristic pre-filtering** - Category and tag-based filtering
 3. **LLM-based assessment** - Structured output with Pydantic validation
 4. **Error handling** - Fallback to CREATE on LLM failures
@@ -305,8 +305,8 @@ The implementation includes comprehensive tests in `tests/integrations/test_kb_m
 6. **Real GitHub integration** - Tests with actual GitHub repository (optional)
 
 **Test Scenarios:**
-- CREATE new article when no similar articles exist
-- UPDATE existing article when relevant match found
+- CREATE new document when no similar documents exist
+- UPDATE existing document when relevant match found
 - IGNORE low quality content (low AI confidence)
 - Empty repository handling
 - All category types (troubleshooting, processes, decisions)
@@ -322,7 +322,7 @@ The implementation includes comprehensive tests in `tests/integrations/test_kb_m
 **New**: "Memory Leak Causing Database Connection Issues"  
 - Focus: Memory leak after 4 hours leading to connection failures
 
-**Decision**: **UPDATE** existing article
+**Decision**: **UPDATE** existing document
 - **Reason**: Identifies additional root cause for connection problems
 - **Value**: Enhances troubleshooting with new failure mode
 - **Merge**: Add to "Root Cause" section
@@ -335,7 +335,7 @@ The implementation includes comprehensive tests in `tests/integrations/test_kb_m
 **New**: "PostgreSQL Query Performance Optimization"
 - Focus: Optimizing slow queries with indexes
 
-**Decision**: **CREATE** new article
+**Decision**: **CREATE** new document
 - **Reason**: Different aspect of PostgreSQL management
 - **Value**: Substantial standalone content
 - **Search**: Different user intents
@@ -348,7 +348,7 @@ The implementation includes comprehensive tests in `tests/integrations/test_kb_m
 **New**: "New Security Approval Step Required (Jan 2026)"
 - Content: Security team approval now mandatory
 
-**Decision**: **UPDATE** existing article
+**Decision**: **UPDATE** existing document
 - **Reason**: Latest information on same process
 - **Value**: Keeps process documentation current
 - **Merge**: Insert as new step, update validation
@@ -357,14 +357,14 @@ The implementation includes comprehensive tests in `tests/integrations/test_kb_m
 
 The matcher includes robust error handling:
 - **No existing docs**: Returns CREATE action automatically
-- **Empty relevant articles**: Returns CREATE action
+- **Empty relevant documents**: Returns CREATE action
 - **LLM failures**: Falls back to CREATE with low confidence and error reason
 - **GitHub fetch failures**: Orchestrator catches and uses empty list
 
 ## Next Steps for Production
 
 1. **Implement embedding-based similarity** for faster pre-filtering
-2. **Add caching layer** for frequently accessed articles
+2. **Add caching layer** for frequently accessed documents
 3. **Track metrics**:
    - Action distribution (CREATE/UPDATE/IGNORE percentages)
    - Confidence score distribution

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class KBOperation(str, Enum):
     """Types of KB operations."""
+
     CREATE = "create"
     UPDATE = "update"
     APPEND = "append"
@@ -30,9 +31,13 @@ class BatchOperation(BaseModel):
 
     action: KBOperation = Field(..., description="Type of operation")
     file_path: str = Field(..., description="Path to the file in repository")
-    title: Optional[str] = Field(None, description="Title for the operation (used in commit messages)")
+    title: Optional[str] = Field(
+        None, description="Title for the operation (used in commit messages)"
+    )
     content: Optional[str] = Field(None, description="File content (for create/update)")
-    additional_content: Optional[str] = Field(None, description="Additional content (for append)")
+    additional_content: Optional[str] = Field(
+        None, description="Additional content (for append)"
+    )
     reason: Optional[str] = Field(None, description="Reason for operation (for delete)")
 
 
@@ -180,14 +185,18 @@ class GitHubKBOperations:
 
             # Read existing content
             try:
-                existing_file = self.client.repo.get_contents(file_path, ref=self.client.default_branch)
-                existing_content = existing_file.decoded_content.decode('utf-8')
+                existing_file = self.client.repo.get_contents(
+                    file_path, ref=self.client.default_branch
+                )
+                existing_content = existing_file.decoded_content.decode("utf-8")
             except Exception as e:
                 logger.error(f"Could not read existing file {file_path}: {e}")
                 raise ValueError(f"Cannot append to non-existent file: {file_path}")
 
             # Combine existing and new content
-            combined_content = existing_content.rstrip() + "\n\n" + additional_content.strip()
+            combined_content = (
+                existing_content.rstrip() + "\n\n" + additional_content.strip()
+            )
 
             # Create PR with combined content
             pr_result = await self.pr_manager.create_kb_pr(
@@ -233,7 +242,7 @@ class GitHubKBOperations:
             await self.client.create_branch(branch_name)
 
             # Delete the file
-            commit_message = f"Delete KB article: {title}"
+            commit_message = f"Delete KB document: {title}"
             await self.client.delete_file(
                 branch_name=branch_name,
                 file_path=file_path,
@@ -242,7 +251,7 @@ class GitHubKBOperations:
 
             # Create PR for deletion
             pr_title = f"Delete KB: {title}"
-            pr_body = f"## Deletion Request\n\nDeleting KB article: **{title}**\n\n"
+            pr_body = f"## Deletion Request\n\nDeleting KB document: **{title}**\n\n"
             if reason:
                 pr_body += f"**Reason**: {reason}\n\n"
             pr_body += f"**File Path**: `{file_path}`\n\n---\n\n🗑️ *This is an automated deletion request.*"
@@ -301,7 +310,7 @@ class GitHubKBOperations:
 
             # Filter by category if specified
             if category:
-                all_docs = [doc for doc in all_docs if doc.get('category') == category]
+                all_docs = [doc for doc in all_docs if doc.get("category") == category]
 
             # Simple text search in title and content_preview
             query_lower = query.lower()
@@ -311,26 +320,26 @@ class GitHubKBOperations:
                 relevance_score = 0.0
 
                 # Search in title (higher weight)
-                if query_lower in doc.get('title', '').lower():
+                if query_lower in doc.get("title", "").lower():
                     relevance_score += 0.5
 
                 # Search in content preview
-                if query_lower in doc.get('content_preview', '').lower():
+                if query_lower in doc.get("content_preview", "").lower():
                     relevance_score += 0.3
 
                 # Search in tags
-                tags = doc.get('tags', [])
+                tags = doc.get("tags", [])
                 for tag in tags:
                     if query_lower in tag.lower():
                         relevance_score += 0.2
                         break
 
                 if relevance_score > 0:
-                    doc['relevance_score'] = relevance_score
+                    doc["relevance_score"] = relevance_score
                     matching_docs.append(doc)
 
             # Sort by relevance and limit results
-            matching_docs.sort(key=lambda x: x['relevance_score'], reverse=True)
+            matching_docs.sort(key=lambda x: x["relevance_score"], reverse=True)
             results = matching_docs[:limit]
 
             logger.info(f"Found {len(results)} matching documents")
@@ -352,21 +361,23 @@ class GitHubKBOperations:
 
             # Calculate basic stats
             stats = {
-                'total_documents': len(all_docs),
-                'by_category': {},
-                'by_tags': {},
-                'recent_documents': 0,  # Would need date parsing for this
+                "total_documents": len(all_docs),
+                "by_category": {},
+                "by_tags": {},
+                "recent_documents": 0,  # Would need date parsing for this
             }
 
             # Count by category
             for doc in all_docs:
-                category = doc.get('category', 'unknown')
-                stats['by_category'][category] = stats['by_category'].get(category, 0) + 1
+                category = doc.get("category", "unknown")
+                stats["by_category"][category] = (
+                    stats["by_category"].get(category, 0) + 1
+                )
 
             # Count by tags
             for doc in all_docs:
-                for tag in doc.get('tags', []):
-                    stats['by_tags'][tag] = stats['by_tags'].get(tag, 0) + 1
+                for tag in doc.get("tags", []):
+                    stats["by_tags"][tag] = stats["by_tags"].get(tag, 0) + 1
 
             return stats
 
@@ -435,9 +446,15 @@ class GitHubKBOperations:
 
                     elif op.action == KBOperation.APPEND:
                         # Read existing content first
-                        existing_file = self.client.repo.get_contents(op.file_path, ref=self.client.default_branch)
-                        existing_content = existing_file.decoded_content.decode('utf-8')
-                        combined_content = existing_content.rstrip() + "\n\n" + (op.additional_content or "").strip()
+                        existing_file = self.client.repo.get_contents(
+                            op.file_path, ref=self.client.default_branch
+                        )
+                        existing_content = existing_file.decoded_content.decode("utf-8")
+                        combined_content = (
+                            existing_content.rstrip()
+                            + "\n\n"
+                            + (op.additional_content or "").strip()
+                        )
 
                         commit_message = f"Append to: {op.title or op.file_path}"
                         await self.client.create_or_update_file(
@@ -456,10 +473,14 @@ class GitHubKBOperations:
                         )
 
                     commit_messages.append(commit_message)
-                    logger.info(f"Completed operation {i}/{len(operations)}: {op.action.value} {op.file_path}")
+                    logger.info(
+                        f"Completed operation {i}/{len(operations)}: {op.action.value} {op.file_path}"
+                    )
 
                 except Exception as e:
-                    logger.error(f"Failed operation {i}/{len(operations)}: {op.action.value} {op.file_path}: {e}")
+                    logger.error(
+                        f"Failed operation {i}/{len(operations)}: {op.action.value} {op.file_path}: {e}"
+                    )
                     # Continue with other operations, but log the failure
                     commit_messages.append(f"Failed: {op.action.value} {op.file_path}")
 
@@ -537,7 +558,9 @@ class GitHubKBOperations:
             confidence_pct = int(ai_confidence * 100)
             metadata_parts.append(f"**AI Confidence**: {confidence_pct}%")
 
-        metadata_parts.append(f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+        metadata_parts.append(
+            f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+        )
 
         if metadata_parts:
             body_parts.append("## Metadata\n\n" + "\n".join(metadata_parts))
@@ -582,7 +605,9 @@ class GitHubKBOperations:
                 pr.add_to_labels(*valid_labels)
                 logger.info(f"Added batch labels to PR #{pr.number}: {valid_labels}")
             else:
-                logger.info(f"No matching labels found in repository for: {list(labels)}")
+                logger.info(
+                    f"No matching labels found in repository for: {list(labels)}"
+                )
 
         except Exception as e:
             logger.warning(f"Failed to add batch labels to PR #{pr.number}: {e}")

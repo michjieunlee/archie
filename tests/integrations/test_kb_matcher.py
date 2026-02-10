@@ -19,7 +19,7 @@ from datetime import datetime
 
 from app.ai_core.matching import KBMatcher, MatchAction, MatchResult
 from app.models.knowledge import (
-    KBArticle,
+    KBDocument,
     KBCategory,
     TroubleshootingExtraction,
     ProcessExtraction,
@@ -35,8 +35,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def create_sample_troubleshooting_article() -> KBArticle:
-    """Create a sample troubleshooting KB article."""
+def create_sample_troubleshooting_document() -> KBDocument:
+    """Create a sample troubleshooting KB document."""
     extraction = TroubleshootingExtraction(
         title="Database Connection Timeout in Production",
         tags=["database", "postgresql", "timeout", "production"],
@@ -59,15 +59,15 @@ def create_sample_troubleshooting_article() -> KBArticle:
         message_count=10,
     )
 
-    return KBArticle(
+    return KBDocument(
         extraction_output=extraction,
         category=KBCategory.TROUBLESHOOTING,
         extraction_metadata=metadata,
     )
 
 
-def create_sample_process_article() -> KBArticle:
-    """Create a sample process KB article."""
+def create_sample_process_document() -> KBDocument:
+    """Create a sample process KB document."""
     extraction = ProcessExtraction(
         title="Staging Deployment Process",
         tags=["deployment", "staging", "ci-cd", "process"],
@@ -87,15 +87,15 @@ def create_sample_process_article() -> KBArticle:
         message_count=15,
     )
 
-    return KBArticle(
+    return KBDocument(
         extraction_output=extraction,
         category=KBCategory.PROCESSES,
         extraction_metadata=metadata,
     )
 
 
-def create_sample_decision_article() -> KBArticle:
-    """Create a sample decision KB article."""
+def create_sample_decision_document() -> KBDocument:
+    """Create a sample decision KB document."""
     extraction = DecisionExtraction(
         title="Microservices Architecture Adoption",
         tags=["architecture", "microservices", "scalability"],
@@ -116,7 +116,7 @@ def create_sample_decision_article() -> KBArticle:
         message_count=20,
     )
 
-    return KBArticle(
+    return KBDocument(
         extraction_output=extraction,
         category=KBCategory.DECISIONS,
         extraction_metadata=metadata,
@@ -133,7 +133,7 @@ def create_mock_existing_docs() -> List[Dict[str, Any]]:
             "tags": ["database", "postgresql", "connection-pool"],
             "markdown_content": """Configuration guide for PostgreSQL connection pools.
 
-This article covers how to properly configure connection pools
+This document covers how to properly configure connection pools
 to avoid connection exhaustion and timeout issues.
 
 ## Connection Pool Settings
@@ -220,48 +220,48 @@ with proper validation and rollback capabilities.
     ]
 
 
-async def test_create_new_article():
-    """Test CREATE action when no similar articles exist."""
-    logger.info("\n=== Test 1: CREATE New Article ===")
+async def test_create_new_document():
+    """Test CREATE action when no similar documents exist."""
+    logger.info("\n=== Test 1: CREATE New Document ===")
 
     matcher = KBMatcher()
-    kb_article = create_sample_decision_article()
+    kb_document = create_sample_decision_document()
     existing_docs = create_mock_existing_docs()
 
     # None of the existing docs are about architecture decisions
-    result = await matcher.match(kb_article, existing_docs)
+    result = await matcher.match(kb_document, existing_docs)
 
     logger.info(f"Action: {result.action.value}")
     logger.info(f"Confidence: {result.confidence_score}")
-    logger.info(f"Article Path: {result.article_path}")
-    logger.info(f"Article Title: {result.article_title}")
+    logger.info(f"Document Path: {result.document_path}")
+    logger.info(f"Document Title: {result.document_title}")
     logger.info(f"Category: {result.category}")
     logger.info(f"Reasoning: {result.reasoning[:200]}...")
     logger.info(f"Value Assessment: {result.value_addition_assessment[:200]}...")
 
     assert result.action == MatchAction.CREATE, f"Expected CREATE, got {result.action}"
-    assert result.article_path is not None, "article_path should be set for CREATE"
+    assert result.document_path is not None, "document_path should be set for CREATE"
     assert result.category is not None, "category should be set for CREATE"
 
     logger.info("✅ Test 1 PASSED")
     return result
 
 
-async def test_update_existing_article():
-    """Test UPDATE action when similar article exists."""
-    logger.info("\n=== Test 2: UPDATE Existing Article ===")
+async def test_update_existing_document():
+    """Test UPDATE action when similar document exists."""
+    logger.info("\n=== Test 2: UPDATE Existing Document ===")
 
     matcher = KBMatcher()
-    kb_article = create_sample_troubleshooting_article()
+    kb_document = create_sample_troubleshooting_document()
     existing_docs = create_mock_existing_docs()
 
-    # The database connection pool article is related
-    result = await matcher.match(kb_article, existing_docs)
+    # The database connection pool document is related
+    result = await matcher.match(kb_document, existing_docs)
 
     logger.info(f"Action: {result.action.value}")
     logger.info(f"Confidence: {result.confidence_score}")
-    logger.info(f"Article Path: {result.article_path}")
-    logger.info(f"Article Title: {result.article_title}")
+    logger.info(f"Document Path: {result.document_path}")
+    logger.info(f"Document Title: {result.document_title}")
     logger.info(f"Category: {result.category}")
     logger.info(f"Reasoning: {result.reasoning[:200]}...")
     logger.info(f"Value Assessment: {result.value_addition_assessment[:200]}...")
@@ -271,7 +271,7 @@ async def test_update_existing_article():
         MatchAction.CREATE,
         MatchAction.UPDATE,
     ], f"Expected CREATE or UPDATE, got {result.action}"
-    assert result.article_path is not None, "article_path should be set"
+    assert result.document_path is not None, "document_path should be set"
     assert result.category is not None, "category should be set"
 
     logger.info(f"✅ Test 2 PASSED - Action: {result.action.value}")
@@ -284,7 +284,7 @@ async def test_ignore_low_quality():
 
     matcher = KBMatcher()
 
-    # Create article with low confidence
+    # Create document with low confidence
     extraction = TroubleshootingExtraction(
         title="Vague Issue",
         tags=["generic"],
@@ -307,14 +307,14 @@ async def test_ignore_low_quality():
         message_count=3,
     )
 
-    kb_article = KBArticle(
+    kb_document = KBDocument(
         extraction_output=extraction,
         category=KBCategory.TROUBLESHOOTING,
         extraction_metadata=metadata,
     )
 
     existing_docs = create_mock_existing_docs()
-    result = await matcher.match(kb_article, existing_docs)
+    result = await matcher.match(kb_document, existing_docs)
 
     logger.info(f"Action: {result.action.value}")
     logger.info(f"Confidence: {result.confidence_score}")
@@ -333,10 +333,10 @@ async def test_with_real_github():
         github_client = GitHubClient()
         logger.info(f"Connected to GitHub: {github_client.repo.full_name}")
 
-        # Step 1: Create and push a test article to GitHub
-        logger.info("\n--- Step 1: Pushing test article to GitHub ---")
+        # Step 1: Create and push a test document to GitHub
+        logger.info("\n--- Step 1: Pushing test document to GitHub ---")
 
-        test_article_content = """---
+        test_document_content = """---
 title: Test Redis Cache Timeout
 category: troubleshooting
 tags:
@@ -372,49 +372,49 @@ Default Redis timeout setting too conservative for network latency.
 Set appropriate timeouts based on network conditions and monitor latency.
 """
 
-        test_article_path = "troubleshooting/test-redis-cache-timeout.md"
+        test_document_path = "troubleshooting/test-redis-cache-timeout.md"
 
         try:
             # Create test branch
             test_branch = "test-kb-matcher-integration"
             await github_client.create_branch(test_branch)
 
-            # Write test article to branch
+            # Write test document to branch
             await github_client.create_or_update_file(
                 branch_name=test_branch,
-                file_path=test_article_path,
-                content=test_article_content,
-                commit_message="Test: Add test article for KB matcher integration test",
+                file_path=test_document_path,
+                content=test_document_content,
+                commit_message="Test: Add test document for KB matcher integration test",
             )
-            logger.info(f"✅ Test article pushed to branch {test_branch}")
-            logger.info(f"   File path: {test_article_path}")
-            logger.info(f"   Note: Article is in test branch, not main branch")
+            logger.info(f"✅ Test document pushed to branch {test_branch}")
+            logger.info(f"   File path: {test_document_path}")
+            logger.info(f"   Note: Document is in test branch, not main branch")
         except Exception as e:
-            logger.warning(f"Could not push test article: {e}")
-            logger.info("Proceeding with existing articles only")
+            logger.warning(f"Could not push test document: {e}")
+            logger.info("Proceeding with existing documents only")
 
-        # Step 2: Fetch all KB articles and verify our test article is there
-        logger.info("\n--- Step 2: Fetching KB articles from GitHub ---")
+        # Step 2: Fetch all KB documents and verify our test document is there
+        logger.info("\n--- Step 2: Fetching KB documents from GitHub ---")
         all_docs = await github_client.read_kb_repository()
-        logger.info(f"Fetched {len(all_docs)} real KB articles from GitHub")
+        logger.info(f"Fetched {len(all_docs)} real KB documents from GitHub")
 
         if len(all_docs) == 0:
-            logger.warning("No KB articles found in repository - skipping test")
+            logger.warning("No KB documents found in repository - skipping test")
             return None
 
-        # Check if our test article was retrieved
-        test_article_found = any(
-            doc.get("path") == test_article_path for doc in all_docs
+        # Check if our test document was retrieved
+        test_document_found = any(
+            doc.get("path") == test_document_path for doc in all_docs
         )
-        if test_article_found:
-            logger.info(f"✅ Test article found in repository: {test_article_path}")
+        if test_document_found:
+            logger.info(f"✅ Test document found in repository: {test_document_path}")
         else:
             logger.warning(
-                f"Test article not found in repository (may not have been pushed)"
+                f"Test document not found in repository (may not have been pushed)"
             )
 
         # Show sample of what we found
-        logger.info("\nSample of existing articles:")
+        logger.info("\nSample of existing documents:")
         for i, doc in enumerate(all_docs[:5], 1):
             logger.info(
                 f"  {i}. {doc.get('title')} ({doc.get('category')}) - {doc.get('path')}"
@@ -423,25 +423,25 @@ Set appropriate timeouts based on network conditions and monitor latency.
         # Step 3: Test matching with real data
         logger.info("\n--- Step 3: Testing KB matching ---")
         matcher = KBMatcher()
-        kb_article = create_sample_troubleshooting_article()
+        kb_document = create_sample_troubleshooting_document()
 
         # Filter to same category for focused test
         troubleshooting_docs = [
             doc for doc in all_docs if doc.get("category") == "troubleshooting"
         ]
         logger.info(
-            f"Testing against {len(troubleshooting_docs)} troubleshooting articles"
+            f"Testing against {len(troubleshooting_docs)} troubleshooting documents"
         )
 
-        result = await matcher.match(kb_article, troubleshooting_docs)
+        result = await matcher.match(kb_document, troubleshooting_docs)
 
         assert result.action.value == MatchAction.CREATE
 
         logger.info(f"\n✅ Match Results:")
         logger.info(f"  Action: {result.action.value}")
         logger.info(f"  Confidence: {result.confidence_score}")
-        logger.info(f"  Article Path: {result.article_path}")
-        logger.info(f"  Article Title: {result.article_title}")
+        logger.info(f"  Document Path: {result.document_path}")
+        logger.info(f"  Document Title: {result.document_title}")
         logger.info(f"  Category: {result.category}")
         logger.info(f"  Reasoning: {result.reasoning[:300]}...")
         logger.info(f"  Value Assessment: {result.value_addition_assessment[:300]}...")
@@ -462,19 +462,19 @@ async def test_empty_repository():
     logger.info("\n=== Test 5: Empty Repository ===")
 
     matcher = KBMatcher()
-    kb_article = create_sample_troubleshooting_article()
+    kb_document = create_sample_troubleshooting_document()
     existing_docs = []  # Empty repository
 
-    result = await matcher.match(kb_article, existing_docs)
+    result = await matcher.match(kb_document, existing_docs)
 
     logger.info(f"Action: {result.action.value}")
     logger.info(f"Confidence: {result.confidence_score}")
-    logger.info(f"Article Path: {result.article_path}")
+    logger.info(f"Document Path: {result.document_path}")
 
     assert (
         result.action == MatchAction.CREATE
     ), f"Expected CREATE for empty repo, got {result.action}"
-    assert result.article_path is not None, "article_path should be set"
+    assert result.document_path is not None, "document_path should be set"
 
     logger.info("✅ Test 5 PASSED")
     return result
@@ -489,20 +489,20 @@ async def test_all_categories():
 
     # Test troubleshooting
     logger.info("\n--- Testing Troubleshooting ---")
-    ts_article = create_sample_troubleshooting_article()
-    ts_result = await matcher.match(ts_article, existing_docs)
+    ts_document = create_sample_troubleshooting_document()
+    ts_result = await matcher.match(ts_document, existing_docs)
     logger.info(f"Troubleshooting: {ts_result.action.value}")
 
     # Test processes
     logger.info("\n--- Testing Processes ---")
-    proc_article = create_sample_process_article()
-    proc_result = await matcher.match(proc_article, existing_docs)
+    proc_document = create_sample_process_document()
+    proc_result = await matcher.match(proc_document, existing_docs)
     logger.info(f"Processes: {proc_result.action.value}")
 
     # Test decisions
     logger.info("\n--- Testing Decisions ---")
-    dec_article = create_sample_decision_article()
-    dec_result = await matcher.match(dec_article, existing_docs)
+    dec_document = create_sample_decision_document()
+    dec_result = await matcher.match(dec_document, existing_docs)
     logger.info(f"Decisions: {dec_result.action.value}")
 
     logger.info("✅ Test 6 PASSED - All Categories")
@@ -516,7 +516,7 @@ async def test_value_addition_assessment():
     matcher = KBMatcher()
     existing_docs = create_mock_existing_docs()
 
-    # Create article that adds new information to existing topic
+    # Create document that adds new information to existing topic
     extraction = TroubleshootingExtraction(
         title="Connection Pool Exhaustion During Peak Traffic",
         tags=["database", "postgresql", "connection-pool", "scaling"],
@@ -539,20 +539,20 @@ async def test_value_addition_assessment():
         message_count=12,
     )
 
-    kb_article = KBArticle(
+    kb_document = KBDocument(
         extraction_output=extraction,
         category=KBCategory.TROUBLESHOOTING,
         extraction_metadata=metadata,
     )
 
-    result = await matcher.match(kb_article, existing_docs)
+    result = await matcher.match(kb_document, existing_docs)
 
     logger.info(f"Action: {result.action.value}")
     logger.info(f"Confidence: {result.confidence_score}")
     logger.info(f"Value Assessment:")
     logger.info(f"  {result.value_addition_assessment}")
 
-    # This should likely UPDATE the connection pool article
+    # This should likely UPDATE the connection pool document
     logger.info(f"✅ Test 7 COMPLETED - Action: {result.action.value}")
     return result
 
@@ -566,12 +566,12 @@ async def run_all_tests(use_real_github: bool = False):
     results = []
 
     try:
-        # Test 1: CREATE new article
-        result1 = await test_create_new_article()
-        results.append(("Create New Article", result1))
+        # Test 1: CREATE new document
+        result1 = await test_create_new_document()
+        results.append(("Create New Document", result1))
 
-        # Test 2: UPDATE existing article
-        result2 = await test_update_existing_article()
+        # Test 2: UPDATE existing document
+        result2 = await test_update_existing_document()
         results.append(("Update Existing", result2))
 
         # Test 3: IGNORE low quality
@@ -634,10 +634,10 @@ async def quick_test():
     logger.info("Running quick test...")
 
     matcher = KBMatcher()
-    kb_article = create_sample_troubleshooting_article()
+    kb_document = create_sample_troubleshooting_document()
     existing_docs = create_mock_existing_docs()
 
-    result = await matcher.match(kb_article, existing_docs)
+    result = await matcher.match(kb_document, existing_docs)
 
     logger.info(
         f"Result: {result.action.value} (confidence: {result.confidence_score})"

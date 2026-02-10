@@ -10,7 +10,7 @@ The service provides three main API endpoints for knowledge base management, all
 
 **Endpoint**: `GET /api/kb/from-slack`
 
-**Description**: Fetch Slack messages from a channel, extract knowledge, and create a KB article.
+**Description**: Fetch Slack messages from a channel, extract knowledge, and create a KB document.
 
 **Query Parameters**:
 - `channel_id` (optional): Slack channel ID. If not provided, uses the configured default.
@@ -44,9 +44,9 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
   "status": "success",
   "action": "create",
   "messages_fetched": 87,
-  "kb_article_title": "Database Connection Troubleshooting",
+  "kb_document_title": "Database Connection Troubleshooting",
   "kb_category": "troubleshooting",
-  "kb_summary": "This article describes how to troubleshoot database connection timeouts by adjusting pool size and connection settings.",
+  "kb_summary": "This document describes how to troubleshoot database connection timeouts by adjusting pool size and connection settings.",
   "ai_confidence": 0.85,
   "ai_reasoning": "This conversation contains...",
   "pr_url": null,
@@ -63,7 +63,7 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
 
 **Endpoint**: `POST /api/kb/from-text`
 
-**Description**: Convert free text input into a KB article.
+**Description**: Convert free text input into a KB document.
 
 **Request Body**:
 ```json
@@ -96,9 +96,9 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
   "status": "success",
   "action": "create",
   "text_length": 142,
-  "kb_article_title": "API Timeout Resolution",
+  "kb_document_title": "API Timeout Resolution",
   "kb_category": "troubleshooting",
-  "kb_summary": "This article describes how to troubleshoot database connection timeouts by adjusting pool size and connection settings.",
+  "kb_summary": "This document describes how to troubleshoot database connection timeouts by adjusting pool size and connection settings.",
   "ai_confidence": 0.92,
   "ai_reasoning": "Clear problem-solution structure...",
   "pr_url": null,
@@ -130,7 +130,7 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
 **Pipeline**:
 1. Parse and understand the query
 2. Search KB repository using LLM-based semantic search (TODO: not yet implemented)
-3. Rank and retrieve relevant articles
+3. Rank and retrieve relevant documents
 4. Generate natural language answer using LLM
 5. Return formatted response with sources
 
@@ -192,8 +192,8 @@ Used by both `/from-slack` and `/from-text` endpoints.
   action: "create" | "update" | "ignore" | "error"
   reason?: string  // For ignore/error cases
 
-  // KB article info
-  kb_article_title?: string
+  // KB document info
+  kb_document_title?: string
   kb_category?: string
   kb_summary?: string
   ai_confidence?: number  // 0.0 - 1.0
@@ -304,7 +304,7 @@ Navigate to: `http://localhost:8000/docs`
 - PII masking with SAP GenAI Orchestration V2
 - KB extraction with AI (categorization + structured extraction)
 - KB document generation (markdown with templates)
-- LLM-based article summary generation
+- LLM-based document summary generation
 - Request/response models
 - Error handling
 

@@ -154,7 +154,7 @@ async def kb_query(request: KBQueryRequest):
     Pipeline:
     1. Parse and understand the query
     2. Search KB repository using LLM-based semantic search
-    3. Rank and retrieve relevant articles
+    3. Rank and retrieve relevant documents
     4. Generate natural language answer
     5. Return formatted response with sources
 
