@@ -208,7 +208,7 @@ class TestOutputFormatter:
             user_display = user_mapping.get(
                 msg.author_id, f"USER_{len(user_mapping) + 1}"
             )
-            timestamp_str = msg.timestamp.strftime("%H:%M:%S")
+            timestamp_str = msg.timestamp.strftime("%Y-%m-%d %H:%M:%S")
             preview = msg.content[:60] + "..." if len(msg.content) > 60 else msg.content
 
             print(
@@ -216,7 +216,7 @@ class TestOutputFormatter:
             )
 
             if msg.parent_idx is not None:
-                print(f"       └─ Reply to message {msg.parent_idx}")
+                print(f"       └─ Reply to message index {msg.parent_idx}")
 
         print(f"\n🔒 USER MAPPING:")
         for real_id, display_id in user_mapping.items():
