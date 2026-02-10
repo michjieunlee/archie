@@ -303,13 +303,13 @@ Navigate to: `http://localhost:8000/docs`
 - Slack conversation fetching with thread expansion
 - PII masking with SAP GenAI Orchestration V2
 - KB extraction with AI (categorization + structured extraction)
+- KB matching against existing documents
 - KB document generation (markdown with templates)
 - LLM-based document summary generation
 - Request/response models
 - Error handling
 
 🚧 **TODO** (marked in code):
-- KB matching against existing documents (stub: always returns CREATE)
 - GitHub PR creation
 - KB search implementation (for Q&A)
 - LLM-based answer generation (for Q&A)
