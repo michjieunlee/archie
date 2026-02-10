@@ -4,7 +4,7 @@ Owner: ③ AI Core · Compliance · Knowledge Logic Owner
 
 Responsibilities:
 - Prompt 2: KB Matching (create / update / ignore)
-- Compare with existing KB articles
+- Compare with existing KB documents
 - Determine New vs Update
 - Focus on value addition over topic similarity
 """
@@ -16,7 +16,7 @@ from typing import Optional, List, Dict, Any
 
 from langchain_core.prompts import ChatPromptTemplate
 
-from app.models.knowledge import KBArticle
+from app.models.knowledge import KBDocument
 from app.ai_core.prompts.matching import MATCHING_SYSTEM_PROMPT
 from app.config import get_settings
 
@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 class MatchAction(str, Enum):
     """Action to take for KB candidate."""
 
-    CREATE = "create"  # Create new article
-    UPDATE = "update"  # Update existing article
+    CREATE = "create"  # Create new document
+    UPDATE = "update"  # Update existing document
     IGNORE = "ignore"  # Do not add to KB
 
 
@@ -42,7 +42,7 @@ class MatchResult(BaseModel):
     )
     reasoning: str = Field(
         ...,
-        description="Detailed explanation of the decision and how new content relates to existing articles",
+        description="Detailed explanation of the decision and how new content relates to existing documents",
     )
     value_addition_assessment: str = Field(
         ...,
@@ -50,17 +50,17 @@ class MatchResult(BaseModel):
     )
 
     # Unified fields for both UPDATE and CREATE
-    article_path: Optional[str] = Field(
+    document_path: Optional[str] = Field(
         None,
-        description="Path of article - for UPDATE: matched article path, for CREATE: suggested path",
+        description="Path of document - for UPDATE: matched document path, for CREATE: suggested path",
     )
-    article_title: Optional[str] = Field(
+    document_title: Optional[str] = Field(
         None,
-        description="Title of article - for UPDATE: matched article title, for CREATE: suggested title",
+        description="Title of document - for UPDATE: matched document title, for CREATE: suggested title",
     )
     category: Optional[str] = Field(
         None,
-        description="Category of article: troubleshooting, processes, or decisions",
+        description="Category of document: troubleshooting, processes, or decisions",
     )
 
 
@@ -69,7 +69,7 @@ class KBMatcher:
     Matches KB candidates against existing knowledge base.
 
     Uses LLM with structured output (Pydantic models) to determine whether new content
-    should create a new article, update an existing one, or be ignored.
+    should create a new document, update an existing one, or be ignored.
 
     Key principle: Prioritize value addition over topic similarity.
     """
@@ -97,7 +97,7 @@ class KBMatcher:
 
     async def match(
         self,
-        kb_article: KBArticle,
+        kb_document: KBDocument,
         existing_kb_docs: Optional[List[Dict[str, Any]]] = None,
     ) -> MatchResult:
         """
@@ -106,17 +106,17 @@ class KBMatcher:
         Uses LLM with structured output (Pydantic) to assess value addition and make decisions.
 
         Decision logic:
-        1. Find potentially relevant existing articles (broader search)
+        1. Find potentially relevant existing documents (broader search)
         2. Use LLM with structured output to assess value addition
         3. If high value addition found (score > 0.6), return UPDATE
         4. If no substantial value addition but content is valuable, return CREATE
         5. If content is low quality or duplicate, return IGNORE
 
         Args:
-            kb_article: Extracted KB article
-            existing_kb_docs: List of existing KB articles from GitHub with structure:
+            kb_document: Extracted KB document
+            existing_kb_docs: List of existing KB documents from GitHub with structure:
                 {
-                    "title": "Article Title",
+                    "title": "Document Title",
                     "path": "category/filename.md",
                     "category": "troubleshooting|processes|decisions",
                     "tags": ["tag1", "tag2"],
@@ -128,33 +128,35 @@ class KBMatcher:
         Returns:
             MatchResult with action and reasoning (structured output)
         """
-        logger.info(f"Matching KB article: {kb_article.title}")
+        logger.info(f"Matching KB document: {kb_document.title}")
 
         # Check AI confidence - if too low, consider ignoring
-        if kb_article.ai_confidence < 0.6:
+        if kb_document.ai_confidence < 0.6:
             logger.info(
-                f"Low AI confidence ({kb_article.ai_confidence}), may recommend IGNORE"
+                f"Low AI confidence ({kb_document.ai_confidence}), may recommend IGNORE"
             )
 
         # If no existing docs, always CREATE
         if not existing_kb_docs or len(existing_kb_docs) == 0:
             logger.info("No existing KB docs found, returning CREATE")
-            return self._create_result(kb_article)
+            return self._create_result(kb_document)
 
-        # Find potentially relevant existing articles
-        relevant_articles = self._find_relevant_articles(kb_article, existing_kb_docs)
+        # Find potentially relevant existing documents
+        relevant_documents = self._find_relevant_documents(
+            kb_document, existing_kb_docs
+        )
         logger.info(
-            f"Found {len(relevant_articles)} potentially relevant existing articles"
+            f"Found {len(relevant_documents)} potentially relevant existing documents"
         )
 
-        if not relevant_articles:
-            logger.info("No relevant existing articles found, returning CREATE")
-            return self._create_result(kb_article)
+        if not relevant_documents:
+            logger.info("No relevant existing documents found, returning CREATE")
+            return self._create_result(kb_document)
 
         # Use LLM with structured output to make comprehensive matching decision
         try:
             match_result = await self._llm_match_decision_structured(
-                kb_article, relevant_articles
+                kb_document, relevant_documents
             )
 
             logger.info(
@@ -166,29 +168,29 @@ class KBMatcher:
         except Exception as e:
             logger.error(f"Error in LLM match decision: {e}", exc_info=True)
             # Fallback to CREATE with low confidence
-            return self._create_result(kb_article, fallback_reason=str(e))
+            return self._create_result(kb_document, fallback_reason=str(e))
 
-    def _find_relevant_articles(
+    def _find_relevant_documents(
         self,
-        kb_article: KBArticle,
+        kb_document: KBDocument,
         existing_kb_docs: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """
-        Find potentially relevant existing articles using heuristic filtering.
+        Find potentially relevant existing documents using heuristic filtering.
 
         Uses category and tag overlap to identify candidates. This is a preliminary
         filter before LLM-based value addition assessment.
 
         Args:
-            kb_article: New KB article
-            existing_kb_docs: All existing KB articles
+            kb_document: New KB document
+            existing_kb_docs: All existing KB documents
 
         Returns:
-            List of potentially relevant articles
+            List of potentially relevant documents
         """
         relevant = []
-        kb_tags = set(kb_article.tags)
-        kb_category = kb_article.category.value
+        kb_tags = set(kb_document.tags)
+        kb_category = kb_document.category.value
 
         for doc in existing_kb_docs:
             doc_tags = set(doc.get("tags", []))
@@ -204,7 +206,7 @@ class KBMatcher:
                 relevant.append(doc)
                 continue
 
-            # Include articles from related categories
+            # Include documents from related categories
             # (value can be added across categories)
             relevant.append(doc)
 
@@ -218,28 +220,28 @@ class KBMatcher:
             return score
 
         relevant.sort(key=relevance_score, reverse=True)
-        return relevant  # Return all relevant articles
+        return relevant  # Return all relevant documents
 
     async def _llm_match_decision_structured(
         self,
-        kb_article: KBArticle,
-        relevant_articles: List[Dict[str, Any]],
+        kb_document: KBDocument,
+        relevant_documents: List[Dict[str, Any]],
     ) -> MatchResult:
         """
         Use LLM with structured output to make comprehensive matching decision.
 
         Args:
-            kb_article: New KB article
-            relevant_articles: Pre-filtered relevant articles
+            kb_document: New KB document
+            relevant_documents: Pre-filtered relevant documents
 
         Returns:
             MatchResult (Pydantic model from structured output)
         """
         # Format new content based on category template structure
-        new_content_formatted = self._format_new_content_by_category(kb_article)
+        new_content_formatted = self._format_new_content_by_category(kb_document)
 
         # Format existing docs
-        existing_docs_text = self._format_existing_docs(relevant_articles)
+        existing_docs_text = self._format_existing_docs(relevant_documents)
 
         # Build prompt
         prompt = ChatPromptTemplate.from_messages(
@@ -262,7 +264,7 @@ AI Confidence: {candidate_confidence}
 
 ## Task
 
-Determine if this new content should CREATE a new article, UPDATE an existing one, or be IGNORED.
+Determine if this new content should CREATE a new document, UPDATE an existing one, or be IGNORED.
 Provide your response as structured output matching the MatchResult model.""",
                 ),
             ]
@@ -274,10 +276,10 @@ Provide your response as structured output matching the MatchResult model.""",
         # Invoke with data
         result = await chain.ainvoke(
             {
-                "candidate_title": kb_article.title,
-                "candidate_category": kb_article.category.value,
-                "candidate_tags": ", ".join(kb_article.tags),
-                "candidate_confidence": kb_article.ai_confidence,
+                "candidate_title": kb_document.title,
+                "candidate_category": kb_document.category.value,
+                "candidate_tags": ", ".join(kb_document.tags),
+                "candidate_confidence": kb_document.ai_confidence,
                 "new_content_formatted": new_content_formatted,
                 "existing_docs": existing_docs_text,
             }
@@ -286,14 +288,14 @@ Provide your response as structured output matching the MatchResult model.""",
         logger.info(f"Structured output received: {result.action}")
         return result
 
-    def _format_new_content_by_category(self, kb_article: KBArticle) -> str:
+    def _format_new_content_by_category(self, kb_document: KBDocument) -> str:
         """
         Format new content based on category template structure.
 
         Uses the same structure as the templates to present content consistently.
         """
-        extraction = kb_article.extraction_output
-        category = kb_article.category.value
+        extraction = kb_document.extraction_output
+        category = kb_document.category.value
 
         if category == "troubleshooting":
             return f"""### Problem Description
@@ -397,30 +399,30 @@ Provide your response as structured output matching the MatchResult model.""",
         return "\n".join(formatted)
 
     def _create_result(
-        self, kb_article: KBArticle, fallback_reason: Optional[str] = None
+        self, kb_document: KBDocument, fallback_reason: Optional[str] = None
     ) -> MatchResult:
         """Create a CREATE action result."""
         suggested_path = (
-            f"{kb_article.category.value}/"
-            f"{kb_article.title.lower().replace(' ', '-').replace('/', '-')}.md"
+            f"{kb_document.category.value}/"
+            f"{kb_document.title.lower().replace(' ', '-').replace('/', '-')}.md"
         )
 
         reasoning = (
-            "No relevant existing articles found. This content deserves its own article."
+            "No relevant existing documents found. This content deserves its own document."
             if not fallback_reason
             else f"Fallback to CREATE due to error: {fallback_reason}"
         )
 
         return MatchResult(
             action=MatchAction.CREATE,
-            confidence_score=kb_article.ai_confidence if not fallback_reason else 0.5,
+            confidence_score=kb_document.ai_confidence if not fallback_reason else 0.5,
             reasoning=reasoning,
             value_addition_assessment=(
-                "New independent content that warrants its own article."
+                "New independent content that warrants its own document."
                 if not fallback_reason
                 else "Unable to assess value addition due to processing error."
             ),
-            article_path=suggested_path,
-            article_title=kb_article.title,
-            category=kb_article.category.value,
+            document_path=suggested_path,
+            document_title=kb_document.title,
+            category=kb_document.category.value,
         )

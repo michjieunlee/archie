@@ -399,11 +399,11 @@ class GitHubClient:
 
     def generate_branch_name(self, title: str) -> str:
         """
-        Generate a branch name from article title.
+        Generate a branch name from document title.
         Format: kb/{sanitized-title}
 
         Args:
-            title: Article title
+            title: Document title
 
         Returns:
             Sanitized branch name

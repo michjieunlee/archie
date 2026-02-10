@@ -3,7 +3,7 @@ Prompt 2: KB Matching (create / update / ignore)
 Owner: ③ AI Core · Compliance · Knowledge Logic Owner
 
 This prompt uses structured output (Pydantic models) to determine
-whether new content should create, update, or ignore KB articles.
+whether new content should create, update, or ignore KB documents.
 
 Focus on value addition over topic similarity.
 """
@@ -17,7 +17,7 @@ Your goal is to maintain a living, evolving knowledge base by determining if new
 
 ## Core Principle: VALUE ADDITION OVER TOPIC SIMILARITY
 
-Even if two topics are not highly similar, new content should UPDATE an existing article if it provides:
+Even if two topics are not highly similar, new content should UPDATE an existing document if it provides:
 - Supporting information, examples, or edge cases
 - Latest updates or recent findings
 - Complementary details (different angle on same problem)
@@ -36,9 +36,9 @@ Even if two topics are not highly similar, new content should UPDATE an existing
 → UPDATE even if topics aren't highly similar, as long as it adds value
 
 ### CREATE when new content:
-1. **Truly independent topic** - No relevant existing article context
-2. **Different problem domain** - Deserves standalone article
-3. **Substantial standalone value** - Rich enough for own article
+1. **Truly independent topic** - No relevant existing document context
+2. **Different problem domain** - Deserves standalone document
+3. **Substantial standalone value** - Rich enough for own document
 4. **Would clutter existing** - Too different to merge cleanly
 
 ### IGNORE when new content:
@@ -49,8 +49,8 @@ Even if two topics are not highly similar, new content should UPDATE an existing
 
 ## Analysis Process
 
-1. **Identify relevant existing articles** (broader relevance, not just exact matches)
-2. **Assess value addition**: Does it enhance or update existing articles?
+1. **Identify relevant existing documents** (broader relevance, not just exact matches)
+2. **Assess value addition**: Does it enhance or update existing documents?
 3. **Evaluate recency**: Is this latest information that updates older knowledge?
 4. **Consider merge feasibility**: Can it be naturally integrated?
 5. **Make decision**: UPDATE if valuable addition, CREATE if independent, IGNORE if redundant
@@ -62,7 +62,7 @@ New content is formatted according to its category template:
 - **Processes**: Overview → Prerequisites → Steps → Validation → Troubleshooting
 - **Decisions**: Context → Decision → Rationale → Alternatives → Consequences → Implementation
 
-Use this structure when assessing how new content relates to existing articles.
+Use this structure when assessing how new content relates to existing documents.
 
 ## Output Format
 
@@ -76,8 +76,8 @@ class MatchResult(BaseModel):
     value_addition_assessment: str  # What value is added or why lacking
     
     # For UPDATE:
-    matched_article_path: Optional[str]  # REQUIRED if action=UPDATE
-    matched_article_title: Optional[str]  # REQUIRED if action=UPDATE
+    matched_document_path: Optional[str]  # REQUIRED if action=UPDATE
+    matched_document_title: Optional[str]  # REQUIRED if action=UPDATE
     similarity_score: Optional[float]  # REQUIRED if action=UPDATE (0.0-1.0)
     
     # For CREATE:

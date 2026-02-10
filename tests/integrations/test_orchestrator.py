@@ -63,7 +63,7 @@ async def test_text_to_kb_simple():
     print(f"\n✅ Result:")
     print(f"  Status: {result.status}")
     print(f"  Action: {result.action}")
-    print(f"  Title: {result.kb_article_title}")
+    print(f"  Title: {result.kb_document_title}")
     print(f"  Category: {result.kb_category}")
     print(f"  Confidence: {result.ai_confidence}")
     print(f"  Summary: {result.kb_summary}")
@@ -76,7 +76,7 @@ async def test_text_to_kb_simple():
     ], f"Expected CREATE or IGNORE, got {result.action}"
 
     if result.action == KBActionType.CREATE:
-        assert result.kb_article_title is not None, "Title should not be None"
+        assert result.kb_document_title is not None, "Title should not be None"
         assert result.kb_category == "troubleshooting", "Should be troubleshooting"
         assert (
             result.kb_summary is not None and len(result.kb_summary) > 0
@@ -120,7 +120,7 @@ async def test_text_to_kb_process():
     print(f"\n✅ Result:")
     print(f"  Status: {result.status}")
     print(f"  Action: {result.action}")
-    print(f"  Title: {result.kb_article_title}")
+    print(f"  Title: {result.kb_document_title}")
     print(f"  Category: {result.kb_category}")
     print(f"  Confidence: {result.ai_confidence}")
     print(f"  Summary: {result.kb_summary}")
@@ -168,7 +168,7 @@ async def test_text_to_kb_with_pii():
     print(f"\n✅ Result:")
     print(f"  Status: {result.status}")
     print(f"  Action: {result.action}")
-    print(f"  Title: {result.kb_article_title}")
+    print(f"  Title: {result.kb_document_title}")
     print(f"  Category: {result.kb_category}")
     print(f"  Confidence: {result.ai_confidence}")
 
@@ -245,7 +245,7 @@ async def test_decision_documentation():
     print(f"\n✅ Result:")
     print(f"  Status: {result.status}")
     print(f"  Action: {result.action}")
-    print(f"  Title: {result.kb_article_title}")
+    print(f"  Title: {result.kb_document_title}")
     print(f"  Category: {result.kb_category}")
     print(f"  Confidence: {result.ai_confidence}")
     print(f"  Summary: {result.kb_summary}")
