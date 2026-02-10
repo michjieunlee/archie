@@ -2,6 +2,8 @@
 Chat section component for the Streamlit app.
 Provides a centered chat interface with sticky input bar and file upload dialog.
 """
+import re
+
 import streamlit as st
 import streamlit.components.v1 as components
 from config.settings import MAX_FILE_SIZE_MB, MAX_FILES_COUNT
@@ -121,7 +123,11 @@ def render_chat_section():
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+                content = message["content"]
+                if message["role"] == "user":
+                    # Preserve single newlines as hard line breaks in Markdown.
+                    content = re.sub(r'(?<!\n)\n(?!\n)', '  \n', content)
+                st.markdown(content)
                 if "files" in message and message["files"]:
                     st.markdown("**Attached Files:**")
                     for fi in message["files"]:
@@ -231,6 +237,7 @@ def render_chat_section():
         # Clear pending files and reset input field
         st.session_state.pending_files = []
         st.session_state.chat_input_key += 1
+        st.session_state.scroll_to_bottom = True
         st.rerun()
 
 
