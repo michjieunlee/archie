@@ -5,7 +5,7 @@ This module handles the extraction of knowledge from Slack threads into structur
 It uses a 3-step process:
 1. Classify the conversation category (troubleshooting, process, or decision)
 2. Extract structured data using category-specific models
-3. Create KnowledgeArticle with extraction output and metadata
+3. Create KBArticle with extraction output and metadata
 """
 
 import logging
@@ -16,7 +16,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.models.thread import StandardizedConversation
 from app.models.knowledge import (
-    KnowledgeArticle,
+    KBArticle,
     KBCategory,
     KnowledgeExtractionOutput,
     TroubleshootingExtraction,
@@ -84,7 +84,7 @@ class KBExtractor:
         self,
         conversation: StandardizedConversation,
         context: Optional[Dict[str, Any]] = None,
-    ) -> Optional[KnowledgeArticle]:
+    ) -> Optional[KBArticle]:
         """
         Extract knowledge from a standardized conversation using 3-step process.
 
@@ -93,7 +93,7 @@ class KBExtractor:
             context: Optional additional context (e.g., related code, documentation)
 
         Returns:
-            KnowledgeArticle if extraction successful,
+            KBArticle if extraction successful,
             None if conversation has no sufficient content
 
         Raises:
@@ -120,7 +120,7 @@ class KBExtractor:
         )
         logger.info(f"Successfully extracted: {extraction_output.title}")
 
-        # Step 3: Build complete KnowledgeArticle with metadata
+        # Step 3: Build complete KBArticle with metadata
         metadata = ExtractionMetadata(
             source_type=conversation.source.type.value,
             source_id=conversation.id,
@@ -133,7 +133,7 @@ class KBExtractor:
             message_count=len(conversation.messages),
         )
 
-        knowledge_article = KnowledgeArticle(
+        knowledge_article = KBArticle(
             extraction_output=extraction_output,
             category=category,
             extraction_metadata=metadata,
@@ -365,7 +365,7 @@ class KBExtractor:
         self,
         conversations: List[StandardizedConversation],
         context: Optional[Dict[str, Any]] = None,
-    ) -> List[KnowledgeArticle]:
+    ) -> List[KBArticle]:
         """
         Extract knowledge from multiple conversations.
 
