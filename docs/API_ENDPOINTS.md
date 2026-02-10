@@ -191,17 +191,17 @@ Used by both `/from-slack` and `/from-text` endpoints.
   status: "success" | "error"
   action: "create" | "update" | "ignore" | "error"
   reason?: string  // For ignore/error cases
-  
+
   // KB article info
   kb_article_title?: string
   kb_category?: string
   kb_summary?: string
   ai_confidence?: number  // 0.0 - 1.0
   ai_reasoning?: string
-  
+
   // GitHub PR info
   pr_url?: string
-  
+
   // Metadata
   messages_fetched?: number  // For Slack
   text_length?: number       // For text input
