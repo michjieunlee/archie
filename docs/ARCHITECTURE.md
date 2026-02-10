@@ -21,7 +21,7 @@ This document provides visual architecture diagrams and system design overview f
 │ └─────────────────┘ │    │ │      ↓          │ │    │ └─────────────────┘ │
 │                     │    │ │ StandardizedConversation │                   │
 │ ┌─────────────────┐ │    │ │ + ExistingKB    │ │    │ ┌─────────────────┐ │
-│ │ File Upload     │ │────▶│ └─────────────────┘ │    │ │ Joule Interface │ │
+│ │ File Upload     │ │────▶│ └─────────────────┘ │    │ │ Streamlit Interface │ │
 │ │ • JSON Export   │ │    │                     │────▶│ │ • Status        │ │
 │ │ • CSV Format    │ │    │ ┌─────────────────┐ │    │ │ • Progress      │ │
 │ │ • Plain Text    │ │    │ │ LIVING KB       │ │    │ │ • Results       │ │
