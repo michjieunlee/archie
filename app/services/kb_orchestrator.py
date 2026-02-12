@@ -37,7 +37,6 @@ from app.models.api_responses import (
     KBQueryResponse,
     KBActionType,
 )
-from app.models.knowledge import KnowledgeArticle
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -188,7 +187,7 @@ class KBOrchestrator:
         Pipeline:
         1. Parse and understand query
         2. Search KB repository
-        3. Rank and retrieve relevant articles
+        3. Rank and retrieve relevant documents
         4. Generate natural language answer
         5. Return formatted response
 
@@ -258,9 +257,9 @@ class KBOrchestrator:
         # Step 2: Extract KB
         try:
             logger.info("Extracting knowledge...")
-            kb_article = await self.extractor.extract_knowledge(masked_conversation)
+            kb_document = await self.extractor.extract_knowledge(masked_conversation)
 
-            if not kb_article:
+            if not kb_document:
                 # Insufficient content - this is not an error, just not KB-worthy
                 return KBProcessingResponse(
                     status="success",
@@ -270,7 +269,7 @@ class KBOrchestrator:
                     text_length=text_length,
                 )
 
-            logger.info(f"Extracted KB article: {kb_article.title}")
+            logger.info(f"Extracted KB document: {kb_document.title}")
 
         except CategoryClassificationError as e:
             # LLM failed to classify the conversation - system error (500)
@@ -284,16 +283,34 @@ class KBOrchestrator:
 
         # Step 3: Match against existing KB
         logger.info("Matching against existing KB...")
-        existing_kb_docs = []  # TODO: Fetch from GitHub repo
-        match_result = await self.matcher.match(kb_article, existing_kb_docs)
+        # Fetch existing KB documents from GitHub repository
+        try:
+            all_kb_docs = await self.github_client.read_kb_repository()
+            # Filter by category for more focused matching
+            existing_kb_docs = [
+                doc
+                for doc in all_kb_docs
+                if doc.get("category") == kb_document.category.value
+            ]
+            logger.info(
+                f"Fetched {len(all_kb_docs)} total KB documents from GitHub, "
+                f"{len(existing_kb_docs)} in category '{kb_document.category.value}'"
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch existing KB documents from GitHub: {e}. Proceeding with empty list."
+            )
+            existing_kb_docs = []
+
+        match_result = await self.matcher.match(kb_document, existing_kb_docs)
         logger.info(
             f"Match result: {match_result.action.value} (confidence: {match_result.confidence_score})"
         )
 
         # Step 4: Generate KB document and summary
         logger.info("Generating KB document and summary...")
-        markdown_content = self.generator.generate_markdown(kb_article)
-        kb_summary = self._generate_article_summary(markdown_content)
+        markdown_content = self.generator.generate_markdown(kb_document)
+        kb_summary = self._generate_document_summary(markdown_content)
 
         # Step 5: Create GitHub PR (TODO: implement)
         logger.info("GitHub PR creation skipped (not yet implemented)")
@@ -301,11 +318,11 @@ class KBOrchestrator:
         return KBProcessingResponse(
             status="success",
             action=KBActionType(match_result.action.value),
-            kb_article_title=kb_article.title,
-            kb_category=kb_article.category.value,
+            kb_document_title=kb_document.title,
+            kb_category=kb_document.category.value,
             kb_summary=kb_summary,
-            ai_confidence=kb_article.ai_confidence,
-            ai_reasoning=kb_article.ai_reasoning,
+            ai_confidence=kb_document.ai_confidence,
+            ai_reasoning=kb_document.ai_reasoning,
             pr_url=None,  # TODO: add when PR creation is implemented
             messages_fetched=messages_fetched,
             text_length=text_length,
@@ -364,21 +381,21 @@ class KBOrchestrator:
 
         return conversation
 
-    def _generate_article_summary(self, markdown_content: str) -> str:
+    def _generate_document_summary(self, markdown_content: str) -> str:
         """
-        Generate a concise summary of the KB article using LLM.
+        Generate a concise summary of the KB document using LLM.
 
         Args:
-            markdown_content: The markdown content of the article
+            markdown_content: The markdown content of the document
 
         Returns:
-            A brief summary (2-3 sentences) of the article
+            A brief summary (2-3 sentences) of the document
         """
         try:
             prompt = dedent(
                 f"""
-                Generate a brief, user-friendly summary (2-3 sentences) of this knowledge base article. 
-                The summary should give readers a quick overview of what the article covers and its main purpose.
+                Generate a brief, user-friendly summary (2-3 sentences) of this knowledge base document. 
+                The summary should give readers a quick overview of what the document covers and its main purpose.
                 
                 {markdown_content}
                 
@@ -395,6 +412,6 @@ class KBOrchestrator:
             return summary
 
         except Exception as e:
-            logger.error(f"Error generating article summary: {str(e)}", exc_info=True)
+            logger.error(f"Error generating document summary: {str(e)}", exc_info=True)
             # Fallback to a simple summary
             return "Unable to generate summary at this time."

@@ -32,11 +32,13 @@ class KBProcessingResponse(BaseModel):
         None, description="Reason for the action (especially for ignore/error)"
     )
 
-    # KB article information (if created/updated)
-    kb_article_title: Optional[str] = Field(None, description="Title of the KB article")
-    kb_category: Optional[str] = Field(None, description="Category of the KB article")
+    # KB document information (if created/updated)
+    kb_document_title: Optional[str] = Field(
+        None, description="Title of the KB document"
+    )
+    kb_category: Optional[str] = Field(None, description="Category of the KB document")
     kb_summary: Optional[str] = Field(
-        None, description="Summary of the generated KB article"
+        None, description="Summary of the generated KB document"
     )
     ai_confidence: Optional[float] = Field(
         None, description="AI confidence score (0.0-1.0)"
@@ -60,12 +62,12 @@ class KBProcessingResponse(BaseModel):
 class KBSearchSource(BaseModel):
     """Individual search result source."""
 
-    title: str = Field(..., description="Article title")
-    category: str = Field(..., description="Article category")
-    excerpt: str = Field(..., description="Relevant excerpt from the article")
+    title: str = Field(..., description="Document title")
+    category: str = Field(..., description="Document category")
+    excerpt: str = Field(..., description="Relevant excerpt from the document")
     relevance_score: float = Field(..., description="Relevance score (0.0-1.0)")
     file_path: str = Field(..., description="Path to the file in KB repository")
-    github_url: str = Field(..., description="GitHub URL to view the article")
+    github_url: str = Field(..., description="GitHub URL to view the document")
 
 
 class KBQueryResponse(BaseModel):
@@ -79,7 +81,7 @@ class KBQueryResponse(BaseModel):
         None, description="Natural language answer generated from KB"
     )
     sources: List[KBSearchSource] = Field(
-        default_factory=list, description="Relevant KB articles"
+        default_factory=list, description="Relevant KB documents"
     )
     total_sources: int = Field(0, description="Total number of relevant sources found")
     reason: Optional[str] = Field(None, description="Error reason if status is error")

@@ -2,6 +2,7 @@
 Chat section component for the Streamlit app.
 Provides a centered chat interface with sticky input bar and file upload dialog.
 """
+
 import re
 
 import streamlit as st
@@ -16,7 +17,9 @@ _INPUT_BAR_HEIGHT = 200
 @st.dialog("Attach Text Files")
 def file_upload_dialog():
     """Pop-up dialog for attaching text files."""
-    st.markdown(f"Upload up to **{MAX_FILES_COUNT}** text files (max **{MAX_FILE_SIZE_MB} MB** each).")
+    st.markdown(
+        f"Upload up to **{MAX_FILES_COUNT}** text files (max **{MAX_FILE_SIZE_MB} MB** each)."
+    )
 
     if "file_uploader_key" not in st.session_state:
         st.session_state.file_uploader_key = 0
@@ -126,33 +129,34 @@ def render_chat_section():
                 content = message["content"]
                 if message["role"] == "user":
                     # Preserve single newlines as hard line breaks in Markdown.
-                    content = re.sub(r'(?<!\n)\n(?!\n)', '  \n', content)
+                    content = re.sub(r"(?<!\n)\n(?!\n)", "  \n", content)
                 st.markdown(content)
                 if "files" in message and message["files"]:
                     st.markdown("**Attached Files:**")
                     for fi in message["files"]:
-                        st.caption(
-                            f"📄 {fi['name']} ({fi['size']/(1024*1024):.2f} MB)"
-                        )
+                        st.caption(f"📄 {fi['name']} ({fi['size']/(1024*1024):.2f} MB)")
 
         # Welcome message
         if not st.session_state.messages:
             with st.chat_message("assistant"):
-                st.markdown("""
+                st.markdown(
+                    """
                 👋 **Welcome to Archie!**
 
                 I'm your AI Knowledge Base Assistant. Here's what I can help you with:
 
                 - 💬 **Chat:** Ask me anything, request summaries, or seek clarifications
-                - 📊 **Connect KnowledgeBase repository:** Connect GitHub to extract knowledge base articles
+                - 📊 **Connect KnowledgeBase repository:** Connect GitHub to extract knowledge base documents
                 - 📊 **Connect Slack channel:** Connect Slack to extract messages
                 - 📎 **Upload files:** Attach text files
 
                 Connect your GitHub repository and Slack channel on the left, then get started!
-                """)
+                """
+                )
 
     # CSS: make the chat container fill available vertical space
-    st.markdown(f"""
+    st.markdown(
+        f"""
         <style>
         /* Suppress the outer page scroll */
         [data-testid="stMain"] {{
@@ -177,7 +181,9 @@ def render_chat_section():
             flex-shrink: 0 !important;
         }}
         </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # ── input bar (will be pinned to bottom by JS) ─────────────────────
     input_bar = st.container()
@@ -206,11 +212,16 @@ def render_chat_section():
 
         with col_btns:
             send_clicked = st.button(
-                "SEND", key="send_btn", use_container_width=True, type="primary", 
+                "SEND",
+                key="send_btn",
+                use_container_width=True,
+                type="primary",
                 # help="Send message",
             )
             attach_clicked = st.button(
-                "ATTACH FILES", key="attach_btn", use_container_width=True,
+                "ATTACH FILES",
+                key="attach_btn",
+                use_container_width=True,
                 # help="Attach text files",
             )
 

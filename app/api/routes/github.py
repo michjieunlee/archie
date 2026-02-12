@@ -19,6 +19,7 @@ router = APIRouter()
 # Lazy initialization to avoid import-time GitHub API calls
 _github_ops = None
 
+
 def get_github_ops() -> GitHubKBOperations:
     """Get GitHubKBOperations instance with lazy initialization."""
     global _github_ops
@@ -29,15 +30,22 @@ def get_github_ops() -> GitHubKBOperations:
 
 # Request/Response Models
 
+
 class KBDocumentRequest(BaseModel):
     """Request to create/update a KB document."""
 
     title: str = Field(..., description="Document title")
     content: str = Field(..., description="Markdown content")
-    file_path: str = Field(..., description="Path in KB repo (e.g., 'troubleshooting/api-timeout.md')")
+    file_path: str = Field(
+        ..., description="Path in KB repo (e.g., 'troubleshooting/api-timeout.md')"
+    )
     summary: Optional[str] = Field(None, description="Brief summary for PR description")
-    source_url: Optional[str] = Field(None, description="Source URL (e.g., Slack thread)")
-    ai_confidence: Optional[float] = Field(None, description="AI confidence score (0.0-1.0)")
+    source_url: Optional[str] = Field(
+        None, description="Source URL (e.g., Slack thread)"
+    )
+    ai_confidence: Optional[float] = Field(
+        None, description="AI confidence score (0.0-1.0)"
+    )
 
 
 class AppendRequest(BaseModel):
@@ -47,8 +55,12 @@ class AppendRequest(BaseModel):
     file_path: str = Field(..., description="Path to existing file in repository")
     additional_content: str = Field(..., description="Content to append")
     summary: Optional[str] = Field(None, description="Brief summary for PR description")
-    source_url: Optional[str] = Field(None, description="Source URL (e.g., Slack thread)")
-    ai_confidence: Optional[float] = Field(None, description="AI confidence score (0.0-1.0)")
+    source_url: Optional[str] = Field(
+        None, description="Source URL (e.g., Slack thread)"
+    )
+    ai_confidence: Optional[float] = Field(
+        None, description="AI confidence score (0.0-1.0)"
+    )
 
 
 class DeleteRequest(BaseModel):
@@ -63,10 +75,16 @@ class BatchRequest(BaseModel):
     """Request to perform multiple KB operations in one PR."""
 
     title: str = Field(..., description="Overall PR title")
-    operations: List[BatchOperation] = Field(..., description="List of operations to perform")
+    operations: List[BatchOperation] = Field(
+        ..., description="List of operations to perform"
+    )
     summary: Optional[str] = Field(None, description="Brief summary for PR description")
-    source_url: Optional[str] = Field(None, description="Source URL (e.g., Slack thread)")
-    ai_confidence: Optional[float] = Field(None, description="AI confidence score (0.0-1.0)")
+    source_url: Optional[str] = Field(
+        None, description="Source URL (e.g., Slack thread)"
+    )
+    ai_confidence: Optional[float] = Field(
+        None, description="AI confidence score (0.0-1.0)"
+    )
 
 
 class PRResponse(BaseModel):
@@ -87,6 +105,7 @@ class KBStatsResponse(BaseModel):
 
 
 # API Endpoints
+
 
 @router.get("/kb/documents", response_model=List[dict])
 async def list_kb_documents():
@@ -127,7 +146,7 @@ async def create_kb_document(request: KBDocumentRequest):
         return PRResponse(
             status="success",
             pr_url=pr_url,
-            message=f"Successfully created KB document PR: {request.title}"
+            message=f"Successfully created KB document PR: {request.title}",
         )
 
     except Exception as e:
@@ -157,7 +176,7 @@ async def update_kb_document(request: KBDocumentRequest):
         return PRResponse(
             status="success",
             pr_url=pr_url,
-            message=f"Successfully created update PR: {request.title}"
+            message=f"Successfully created update PR: {request.title}",
         )
 
     except Exception as e:
@@ -187,7 +206,7 @@ async def append_to_kb_document(request: AppendRequest):
         return PRResponse(
             status="success",
             pr_url=pr_url,
-            message=f"Successfully created append PR: {request.title}"
+            message=f"Successfully created append PR: {request.title}",
         )
 
     except Exception as e:
@@ -214,7 +233,7 @@ async def delete_kb_document(request: DeleteRequest):
         return PRResponse(
             status="success",
             pr_url=pr_url,
-            message=f"Successfully created deletion PR: {request.title}"
+            message=f"Successfully created deletion PR: {request.title}",
         )
 
     except Exception as e:
@@ -226,7 +245,7 @@ async def delete_kb_document(request: DeleteRequest):
 async def search_kb_documents(
     query: str = Query(..., description="Search query"),
     category: Optional[str] = Query(None, description="Filter by category"),
-    limit: int = Query(10, description="Maximum results to return", ge=1, le=50)
+    limit: int = Query(10, description="Maximum results to return", ge=1, le=50),
 ):
     """
     Search existing KB documents.
@@ -296,7 +315,9 @@ async def create_batch_pr(request: BatchRequest):
     which is more efficient for related changes.
     """
     try:
-        logger.info(f"Creating batch PR: {request.title} with {len(request.operations)} operations")
+        logger.info(
+            f"Creating batch PR: {request.title} with {len(request.operations)} operations"
+        )
 
         pr_url = await get_github_ops().create_batch_pr(
             title=request.title,
@@ -309,11 +330,9 @@ async def create_batch_pr(request: BatchRequest):
         return PRResponse(
             status="success",
             pr_url=pr_url,
-            message=f"Successfully created batch PR: {request.title}"
+            message=f"Successfully created batch PR: {request.title}",
         )
 
     except Exception as e:
         logger.error(f"Error creating batch PR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-

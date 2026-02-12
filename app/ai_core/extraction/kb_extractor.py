@@ -1,11 +1,11 @@
 """
 Knowledge Base Extraction Module
 
-This module handles the extraction of knowledge from Slack threads into structured KB articles.
+This module handles the extraction of knowledge from Slack threads into structured KB documents.
 It uses a 3-step process:
 1. Classify the conversation category (troubleshooting, process, or decision)
 2. Extract structured data using category-specific models
-3. Create KnowledgeArticle with extraction output and metadata
+3. Create KBDocument with extraction output and metadata
 """
 
 import logging
@@ -16,7 +16,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.models.thread import StandardizedConversation
 from app.models.knowledge import (
-    KnowledgeArticle,
+    KBDocument,
     KBCategory,
     KnowledgeExtractionOutput,
     TroubleshootingExtraction,
@@ -84,7 +84,7 @@ class KBExtractor:
         self,
         conversation: StandardizedConversation,
         context: Optional[Dict[str, Any]] = None,
-    ) -> Optional[KnowledgeArticle]:
+    ) -> Optional[KBDocument]:
         """
         Extract knowledge from a standardized conversation using 3-step process.
 
@@ -93,7 +93,7 @@ class KBExtractor:
             context: Optional additional context (e.g., related code, documentation)
 
         Returns:
-            KnowledgeArticle if extraction successful,
+            KBDocument if extraction successful,
             None if conversation has no sufficient content
 
         Raises:
@@ -120,7 +120,7 @@ class KBExtractor:
         )
         logger.info(f"Successfully extracted: {extraction_output.title}")
 
-        # Step 3: Build complete KnowledgeArticle with metadata
+        # Step 3: Build complete KBDocument with metadata
         metadata = ExtractionMetadata(
             source_type=conversation.source.type.value,
             source_id=conversation.id,
@@ -133,17 +133,17 @@ class KBExtractor:
             message_count=len(conversation.messages),
         )
 
-        knowledge_article = KnowledgeArticle(
+        kb_document = KBDocument(
             extraction_output=extraction_output,
             category=category,
             extraction_metadata=metadata,
         )
 
         logger.info(
-            f"Successfully created KB article: {knowledge_article.title} "
-            f"(confidence: {knowledge_article.ai_confidence:.2f})"
+            f"Successfully created KB document: {kb_document.title} "
+            f"(confidence: {kb_document.ai_confidence:.2f})"
         )
-        return knowledge_article
+        return kb_document
 
     async def _classify_category(
         self, conversation: StandardizedConversation
@@ -355,7 +355,7 @@ class KBExtractor:
             context_str += context["documentation"]
 
         if "previous_kb" in context:
-            context_str += "\n\n### Related KB Articles:\n"
+            context_str += "\n\n### Related KB Documents:\n"
             for kb in context["previous_kb"]:
                 context_str += f"- {kb.get('title')}: {kb.get('summary')}\n"
 
@@ -365,7 +365,7 @@ class KBExtractor:
         self,
         conversations: List[StandardizedConversation],
         context: Optional[Dict[str, Any]] = None,
-    ) -> List[KnowledgeArticle]:
+    ) -> List[KBDocument]:
         """
         Extract knowledge from multiple conversations.
 
@@ -374,16 +374,16 @@ class KBExtractor:
             context: Optional shared context
 
         Returns:
-            List of extracted knowledge articles
+            List of extracted knowledge documents
         """
-        articles = []
+        documents = []
 
         for conversation in conversations:
-            article = await self.extract_knowledge(conversation, context)
-            if article:
-                articles.append(article)
+            document = await self.extract_knowledge(conversation, context)
+            if document:
+                documents.append(document)
 
         logger.info(
-            f"Batch extraction complete: {len(articles)}/{len(conversations)} successful"
+            f"Batch extraction complete: {len(documents)}/{len(conversations)} successful"
         )
-        return articles
+        return documents
