@@ -1,21 +1,21 @@
 """
 Knowledge Base Generator Module
 
-This module handles generation of markdown files from KnowledgeArticles using templates.
+This module handles generation of markdown files from KBDocuments using templates.
 """
 
 import logging
 from pathlib import Path
 from typing import Optional
 
-from app.models.knowledge import KnowledgeArticle, KBCategory
+from app.models.knowledge import KBDocument, KBCategory
 
 logger = logging.getLogger(__name__)
 
 
 class KBGenerator:
     """
-    Generates markdown files from knowledge articles using templates.
+    Generates markdown files from knowledge documents using templates.
     """
 
     def __init__(self, templates_dir: Optional[str] = None):
@@ -36,26 +36,26 @@ class KBGenerator:
         if not self.templates_dir.exists():
             logger.warning(f"Templates directory not found: {self.templates_dir}")
 
-    def generate_markdown(self, article: KnowledgeArticle) -> str:
+    def generate_markdown(self, document: KBDocument) -> str:
         """
-        Generate markdown file content for the knowledge article using templates.
+        Generate markdown file content for the knowledge document using templates.
 
         Args:
-            article: The knowledge article to convert
+            document: The knowledge document to convert
 
         Returns:
-            Markdown formatted article content
+            Markdown formatted document content
         """
         # Load the appropriate template
-        template_file = self._get_template_file(article.category)
+        template_file = self._get_template_file(document.category)
         template_content = self._load_template(template_file)
 
         if not template_content:
-            logger.error(f"Failed to load template for category: {article.category}")
-            return self._fallback_markdown(article)
+            logger.error(f"Failed to load template for category: {document.category}")
+            return self._fallback_markdown(document)
 
         # Prepare template variables
-        variables = self._prepare_template_variables(article)
+        variables = self._prepare_template_variables(document)
 
         # Fill the template
         try:
@@ -63,14 +63,14 @@ class KBGenerator:
             return markdown
         except KeyError as e:
             logger.error(f"Missing template variable: {e}")
-            return self._fallback_markdown(article)
+            return self._fallback_markdown(document)
 
     def _get_template_file(self, category: KBCategory) -> str:
         """
         Get the template filename for a category.
 
         Args:
-            category: The article category
+            category: The document category
 
         Returns:
             Template filename
@@ -105,18 +105,18 @@ class KBGenerator:
             logger.error(f"Error loading template {template_file}: {e}")
             return None
 
-    def _prepare_template_variables(self, article: KnowledgeArticle) -> dict:
+    def _prepare_template_variables(self, document: KBDocument) -> dict:
         """
         Prepare variables for template filling.
 
         Args:
-            article: The knowledge article
+            document: The knowledge document
 
         Returns:
             Dictionary of template variables
         """
-        extraction = article.extraction_output
-        metadata = article.extraction_metadata
+        extraction = document.extraction_output
+        metadata = document.extraction_metadata
 
         # Common variables
         variables = {
@@ -134,8 +134,8 @@ class KBGenerator:
             ),
             "ai_confidence": f"{extraction.ai_confidence:.2f}",
             "ai_reasoning": extraction.ai_reasoning,
-            "created_date": article.created_at.strftime("%Y-%m-%d"),
-            "last_updated": article.updated_at.strftime("%Y-%m-%d"),
+            "created_date": document.created_at.strftime("%Y-%m-%d"),
+            "last_updated": document.updated_at.strftime("%Y-%m-%d"),
         }
 
         # Category-specific variables
@@ -143,20 +143,20 @@ class KBGenerator:
 
         return variables
 
-    def _fallback_markdown(self, article: KnowledgeArticle) -> str:
+    def _fallback_markdown(self, document: KBDocument) -> str:
         """
         Generate basic markdown as fallback if template fails.
 
         Args:
-            article: The knowledge article
+            document: The knowledge document
 
         Returns:
             Basic markdown content
         """
-        extraction = article.extraction_output
+        extraction = document.extraction_output
 
         md = f"# {extraction.title}\n\n"
-        md += f"**Category**: {article.category.value}\n\n"
+        md += f"**Category**: {document.category.value}\n\n"
         md += f"**Tags**: {', '.join(extraction.tags)}\n\n"
         md += f"**Confidence**: {extraction.ai_confidence:.2f}\n\n"
         md += f"**Reasoning**: {extraction.ai_reasoning}\n\n"
@@ -166,18 +166,18 @@ class KBGenerator:
 
         return md
 
-    def generate_filename(self, article: KnowledgeArticle) -> str:
+    def generate_filename(self, document: KBDocument) -> str:
         """
-        Generate a filename for the article.
+        Generate a filename for the document.
 
         Args:
-            article: The knowledge article
+            document: The knowledge document
 
         Returns:
             Filename with .md extension
         """
         # Convert title to kebab-case filename
-        filename = article.title.lower()
+        filename = document.title.lower()
         filename = filename.replace(" ", "-")
         filename = "".join(c for c in filename if c.isalnum() or c == "-")
         filename = filename.strip("-")
@@ -193,7 +193,7 @@ class KBGenerator:
         Get the directory name for a category.
 
         Args:
-            category: The article category
+            category: The document category
 
         Returns:
             Directory name

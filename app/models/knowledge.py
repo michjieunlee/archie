@@ -1,7 +1,7 @@
 """
 Knowledge Base Models
 
-This module defines the data models for knowledge articles and related metadata.
+This module defines the data models for knowledge documents and related metadata.
 """
 
 from datetime import datetime, timezone
@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 
 class KBCategory(str, Enum):
-    """Knowledge Base article categories."""
+    """Knowledge Base document categories."""
 
     TROUBLESHOOTING = "troubleshooting"  # Problem-solving guides
     PROCESSES = "processes"  # Standard procedures
@@ -55,7 +55,7 @@ class ExtractionMetadata(BaseModel):
 
 
 class TroubleshootingExtraction(BaseModel):
-    """Extraction output for troubleshooting articles."""
+    """Extraction output for troubleshooting documents."""
 
     title: str = Field(..., description="Clear, descriptive title")
     tags: List[str] = Field(..., description="3-5 relevant tags")
@@ -79,7 +79,7 @@ class TroubleshootingExtraction(BaseModel):
 
 
 class ProcessExtraction(BaseModel):
-    """Extraction output for process articles."""
+    """Extraction output for process documents."""
 
     title: str = Field(..., description="Clear, descriptive title")
     tags: List[str] = Field(..., description="3-5 relevant tags")
@@ -98,7 +98,7 @@ class ProcessExtraction(BaseModel):
 
 
 class DecisionExtraction(BaseModel):
-    """Extraction output for decision articles."""
+    """Extraction output for decision documents."""
 
     title: str = Field(..., description="Clear, descriptive title")
     tags: List[str] = Field(..., description="3-5 relevant tags")
@@ -130,9 +130,9 @@ KnowledgeExtractionOutput = Union[
 ]
 
 
-class KnowledgeArticle(BaseModel):
+class KBDocument(BaseModel):
     """
-    A structured knowledge base article extracted from conversations.
+    A structured knowledge base document extracted from conversations.
     Complete model including LLM output + system-generated metadata.
     """
 
@@ -142,7 +142,7 @@ class KnowledgeArticle(BaseModel):
     )
 
     # Category (derived from extraction output)
-    category: KBCategory = Field(..., description="Article category")
+    category: KBCategory = Field(..., description="Document category")
 
     # Extraction metadata (system-generated)
     extraction_metadata: ExtractionMetadata = Field(
@@ -152,16 +152,16 @@ class KnowledgeArticle(BaseModel):
     # Timestamps
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        description="When article was created",
+        description="When document was created",
     )
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        description="When article was last updated",
+        description="When document was last updated",
     )
 
     # KB repository info (populated when stored)
     kb_file_path: Optional[str] = Field(
-        None, description="Path in KB repository where article is stored"
+        None, description="Path in KB repository where document is stored"
     )
     kb_commit_sha: Optional[str] = Field(
         None, description="Git commit SHA when stored in KB"
@@ -196,18 +196,18 @@ class KnowledgeArticle(BaseModel):
 
     def to_markdown(self) -> str:
         """
-        Convert the article to markdown using template filling.
+        Convert the document to markdown using template filling.
         This will be handled by kb_generator.py using actual template files.
 
         Returns:
-            Markdown formatted article with YAML frontmatter
+            Markdown formatted document with YAML frontmatter
         """
         # This method will be replaced by template-based generation in kb_generator
         raise NotImplementedError("Use kb_generator.generate_markdown() instead")
 
     def to_dict(self) -> Dict[str, Any]:
         """
-        Convert article to dictionary.
+        Convert document to dictionary.
 
         Returns:
             Dictionary representation
@@ -215,43 +215,43 @@ class KnowledgeArticle(BaseModel):
         return self.model_dump()
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "KnowledgeArticle":
+    def from_dict(cls, data: Dict[str, Any]) -> "KBDocument":
         """
-        Create article from dictionary.
+        Create document from dictionary.
 
         Args:
-            data: Dictionary with article data
+            data: Dictionary with document data
 
         Returns:
-            KnowledgeArticle instance
+            KBDocument instance
         """
         return cls(**data)
 
 
-class KnowledgeSearchResult(BaseModel):
+class KBSearchResult(BaseModel):
     """
     Result from knowledge base search.
     """
 
-    article: KnowledgeArticle
+    document: KBDocument
     relevance_score: float = Field(..., description="Relevance score (0-1)")
     matched_fields: List[str] = Field(
         default_factory=list, description="Fields that matched the search"
     )
-    snippet: Optional[str] = Field(None, description="Relevant snippet from article")
+    snippet: Optional[str] = Field(None, description="Relevant snippet from document")
 
 
-class KnowledgeStats(BaseModel):
+class KBStats(BaseModel):
     """
     Statistics about the knowledge base.
     """
 
-    total_articles: int = Field(0, description="Total number of articles")
+    total_documents: int = Field(0, description="Total number of documents")
     by_tag: Dict[str, int] = Field(
-        default_factory=dict, description="Article count by tag"
+        default_factory=dict, description="Document count by tag"
     )
     by_channel: Dict[str, int] = Field(
-        default_factory=dict, description="Article count by source channel"
+        default_factory=dict, description="Document count by source channel"
     )
     recent_extractions: int = Field(0, description="Extractions in the last 7 days")
-    pending_review: int = Field(0, description="Articles pending review")
+    pending_review: int = Field(0, description="Documents pending review")

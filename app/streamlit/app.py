@@ -2,9 +2,13 @@
 Main Streamlit application for Archie.
 Provides a centered chat interface with integration buttons on the left.
 """
+
 import streamlit as st
 from components.chat_section import render_chat_section
-from components.integration_panel import render_integration_panel, render_integration_buttons
+from components.integration_panel import (
+    render_integration_panel,
+    render_integration_buttons,
+)
 from services.mock_api import process_github_repository
 from config.settings import PAGE_CONFIG
 
@@ -17,7 +21,8 @@ def main():
     st.set_page_config(**PAGE_CONFIG)
 
     # Apply custom CSS
-    st.markdown("""
+    st.markdown(
+        """
         <style>
         /* Hide Streamlit default elements but keep sidebar toggle */
         #MainMenu {visibility: hidden;}
@@ -108,7 +113,9 @@ def main():
             font-size: 0.85rem;
         }
         </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Initialize session state
     if "messages" not in st.session_state:
@@ -129,12 +136,15 @@ def main():
         st.session_state.slack_connected = False
 
     # App header - centered
-    st.markdown("""
+    st.markdown(
+        """
         <div class="app-header">
             <h1 class="app-title">Archie</h1>
             <p class="app-subtitle">AI Knowledge Base Assistant</p>
         </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Render integration buttons first, then config panel below
     render_integration_buttons()
@@ -157,40 +167,38 @@ def process_repository():
     """
     github_url = st.session_state.github_url
     github_token = st.session_state.github_token
-    
+
     # Call the processing service
     result = process_github_repository(github_url, github_token)
-    
+
     # Add result to chat
     if result.get("status") == "completed":
-        kb_articles = result.get("kb_articles", [])
+        kb_documents = result.get("kb_documents", [])
         prs_analyzed = result.get("prs_analyzed", 0)
         execution_time = result.get("execution_time", 0)
-        
+
         result_message = f"""✅ **Processing Complete!**
 
 **Summary:**
 - Analyzed **{prs_analyzed}** pull requests
-- Generated **{len(kb_articles)}** knowledge base articles
+- Generated **{len(kb_documents)}** knowledge base documents
 - Execution time: **{execution_time:.2f}s**
 
-**Generated Articles:**
+**Generated Documents:**
 """
-        for i, article in enumerate(kb_articles, 1):
-            result_message += f"\n{i}. {article.get('title', 'Untitled')} ({article.get('category', 'General')})"
-        
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": result_message
-        })
-    
+        for i, document in enumerate(kb_documents, 1):
+            result_message += f"\n{i}. {document.get('title', 'Untitled')} ({document.get('category', 'General')})"
+
+        st.session_state.messages.append(
+            {"role": "assistant", "content": result_message}
+        )
+
     elif result.get("status") == "error":
         error_message = result.get("error", "Unknown error")
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": f"❌ **Error:** {error_message}"
-        })
-    
+        st.session_state.messages.append(
+            {"role": "assistant", "content": f"❌ **Error:** {error_message}"}
+        )
+
     # Reset processing state
     st.session_state.processing = False
     st.rerun()

@@ -1,7 +1,7 @@
 """
 Tests for Knowledge Base Extraction
 
-Tests the 3-step extraction process: classify → extract → article creation
+Tests the 3-step extraction process: classify → extract → document creation
 """
 
 import sys
@@ -296,41 +296,41 @@ async def test_extract_troubleshooting_knowledge(sample_troubleshooting_thread):
     extractor = KBExtractor()
     generator = KBGenerator()
 
-    article = await extractor.extract_knowledge(sample_troubleshooting_thread)
+    document = await extractor.extract_knowledge(sample_troubleshooting_thread)
 
-    # Assert article was created
-    assert article is not None
-    print(f"\n✅ Extracted Title: {article.title}")
+    # Assert document was created
+    assert document is not None
+    print(f"\n✅ Extracted Title: {document.title}")
 
     # Assert category is correct
-    assert article.category == KBCategory.TROUBLESHOOTING
-    print(f"Category: {article.category.value}")
+    assert document.category == KBCategory.TROUBLESHOOTING
+    print(f"Category: {document.category.value}")
 
     # Assert extraction output has category-specific fields
-    assert hasattr(article.extraction_output, "problem_description")
-    assert hasattr(article.extraction_output, "root_cause")
-    assert hasattr(article.extraction_output, "solution_steps")
-    print(f"Problem: {article.extraction_output.problem_description[:100]}...")
+    assert hasattr(document.extraction_output, "problem_description")
+    assert hasattr(document.extraction_output, "root_cause")
+    assert hasattr(document.extraction_output, "solution_steps")
+    print(f"Problem: {document.extraction_output.problem_description[:100]}...")
 
     # Assert AI confidence and reasoning
-    assert 0.0 <= article.ai_confidence <= 1.0
-    assert article.ai_reasoning
-    print(f"AI Confidence: {article.ai_confidence:.2f}")
-    print(f"AI Reasoning: {article.ai_reasoning}")
+    assert 0.0 <= document.ai_confidence <= 1.0
+    assert document.ai_reasoning
+    print(f"AI Confidence: {document.ai_confidence:.2f}")
+    print(f"AI Reasoning: {document.ai_reasoning}")
 
     # Assert metadata
-    assert article.extraction_metadata.source_type == "slack"
-    assert article.extraction_metadata.source_id == sample_troubleshooting_thread.id
-    assert article.extraction_metadata.channel_id == "C01234567"
-    assert article.extraction_metadata.channel_name == "engineering"
-    assert article.extraction_metadata.message_count == 4
+    assert document.extraction_metadata.source_type == "slack"
+    assert document.extraction_metadata.source_id == sample_troubleshooting_thread.id
+    assert document.extraction_metadata.channel_id == "C01234567"
+    assert document.extraction_metadata.channel_name == "engineering"
+    assert document.extraction_metadata.message_count == 4
 
     # Assert tags
-    assert len(article.tags) > 0
-    print(f"Tags: {article.tags}")
+    assert len(document.tags) > 0
+    print(f"Tags: {document.tags}")
 
     # Test markdown generation
-    markdown = generator.generate_markdown(article)
+    markdown = generator.generate_markdown(document)
     assert "# " in markdown
     assert "## Problem Description" in markdown
     assert "## Root Cause" in markdown
@@ -342,24 +342,24 @@ async def test_extract_process_knowledge(sample_process_thread):
     """Test extraction of process knowledge with real LLM."""
     extractor = KBExtractor()
 
-    article = await extractor.extract_knowledge(sample_process_thread)
+    document = await extractor.extract_knowledge(sample_process_thread)
 
-    # Assert article was created
-    assert article is not None
-    print(f"\n✅ Extracted Title: {article.title}")
+    # Assert document was created
+    assert document is not None
+    print(f"\n✅ Extracted Title: {document.title}")
 
     # Assert category is correct
-    assert article.category == KBCategory.PROCESSES
-    print(f"Category: {article.category.value}")
+    assert document.category == KBCategory.PROCESSES
+    print(f"Category: {document.category.value}")
 
     # Assert extraction output has category-specific fields
-    assert hasattr(article.extraction_output, "process_overview")
-    assert hasattr(article.extraction_output, "process_steps")
-    print(f"Overview: {article.extraction_output.process_overview[:100]}...")
+    assert hasattr(document.extraction_output, "process_overview")
+    assert hasattr(document.extraction_output, "process_steps")
+    print(f"Overview: {document.extraction_output.process_overview[:100]}...")
 
     # Assert AI confidence
-    assert 0.0 <= article.ai_confidence <= 1.0
-    print(f"AI Confidence: {article.ai_confidence:.2f}")
+    assert 0.0 <= document.ai_confidence <= 1.0
+    print(f"AI Confidence: {document.ai_confidence:.2f}")
 
 
 @pytest.mark.asyncio
@@ -367,25 +367,25 @@ async def test_extract_decision_knowledge(sample_decision_thread):
     """Test extraction of decision knowledge with real LLM."""
     extractor = KBExtractor()
 
-    article = await extractor.extract_knowledge(sample_decision_thread)
+    document = await extractor.extract_knowledge(sample_decision_thread)
 
-    # Assert article was created
-    assert article is not None
-    print(f"\n✅ Extracted Title: {article.title}")
+    # Assert document was created
+    assert document is not None
+    print(f"\n✅ Extracted Title: {document.title}")
 
     # Assert category is correct
-    assert article.category == KBCategory.DECISIONS
-    print(f"Category: {article.category.value}")
+    assert document.category == KBCategory.DECISIONS
+    print(f"Category: {document.category.value}")
 
     # Assert extraction output has category-specific fields
-    assert hasattr(article.extraction_output, "decision_context")
-    assert hasattr(article.extraction_output, "decision_made")
-    assert hasattr(article.extraction_output, "reasoning")
-    print(f"Decision: {article.extraction_output.decision_made[:100]}...")
+    assert hasattr(document.extraction_output, "decision_context")
+    assert hasattr(document.extraction_output, "decision_made")
+    assert hasattr(document.extraction_output, "reasoning")
+    print(f"Decision: {document.extraction_output.decision_made[:100]}...")
 
     # Assert AI confidence
-    assert 0.0 <= article.ai_confidence <= 1.0
-    print(f"AI Confidence: {article.ai_confidence:.2f}")
+    assert 0.0 <= document.ai_confidence <= 1.0
+    print(f"AI Confidence: {document.ai_confidence:.2f}")
 
 
 if __name__ == "__main__":
@@ -449,14 +449,14 @@ if __name__ == "__main__":
         ],
     )
 
-    article1 = asyncio.run(extractor.extract_knowledge(troubleshooting))
+    document1 = asyncio.run(extractor.extract_knowledge(troubleshooting))
 
-    if article1:
+    if document1:
         print("✅ EXTRACTION SUCCESSFUL!")
-        print(f"Title: {article1.title}")
-        print(f"Category: {article1.category.value}")
-        print(f"AI Confidence: {article1.ai_confidence:.2f}")
-        print(f"Tags: {', '.join(article1.tags)}")
+        print(f"Title: {document1.title}")
+        print(f"Category: {document1.category.value}")
+        print(f"AI Confidence: {document1.ai_confidence:.2f}")
+        print(f"Tags: {', '.join(document1.tags)}")
     else:
         print("❌ EXTRACTION FAILED")
 
@@ -511,14 +511,14 @@ if __name__ == "__main__":
         ],
     )
 
-    article2 = asyncio.run(extractor.extract_knowledge(process))
+    document2 = asyncio.run(extractor.extract_knowledge(process))
 
-    if article2:
+    if document2:
         print("✅ EXTRACTION SUCCESSFUL!")
-        print(f"Title: {article2.title}")
-        print(f"Category: {article2.category.value}")
-        print(f"AI Confidence: {article2.ai_confidence:.2f}")
-        print(f"Tags: {', '.join(article2.tags)}")
+        print(f"Title: {document2.title}")
+        print(f"Category: {document2.category.value}")
+        print(f"AI Confidence: {document2.ai_confidence:.2f}")
+        print(f"Tags: {', '.join(document2.tags)}")
     else:
         print("❌ EXTRACTION FAILED")
 
@@ -573,14 +573,14 @@ if __name__ == "__main__":
         ],
     )
 
-    article3 = asyncio.run(extractor.extract_knowledge(decision))
+    document3 = asyncio.run(extractor.extract_knowledge(decision))
 
-    if article3:
+    if document3:
         print("✅ EXTRACTION SUCCESSFUL!")
-        print(f"Title: {article3.title}")
-        print(f"Category: {article3.category.value}")
-        print(f"AI Confidence: {article3.ai_confidence:.2f}")
-        print(f"Tags: {', '.join(article3.tags)}")
+        print(f"Title: {document3.title}")
+        print(f"Category: {document3.category.value}")
+        print(f"AI Confidence: {document3.ai_confidence:.2f}")
+        print(f"Tags: {', '.join(document3.tags)}")
     else:
         print("❌ EXTRACTION FAILED")
 
@@ -589,28 +589,28 @@ if __name__ == "__main__":
     print("SUMMARY")
     print("=" * 80)
 
-    successful = sum([1 for a in [article1, article2, article3] if a is not None])
-    print(f"\nSuccessfully extracted: {successful}/3 articles")
+    successful = sum([1 for a in [document1, document2, document3] if a is not None])
+    print(f"\nSuccessfully extracted: {successful}/3 documents")
 
     if successful == 3:
         print("\n🎉 All extractions completed successfully!")
-        print("\nExtracted Articles:")
-        for i, article in enumerate([article1, article2, article3], 1):
-            print(f"  {i}. {article.title}")
-            print(f"     Category: {article.category.value}")
-            print(f"     Confidence: {article.ai_confidence:.2f}")
-            print(f"     Tags: {', '.join(article.tags[:3])}...")
+        print("\nExtracted Documents:")
+        for i, document in enumerate([document1, document2, document3], 1):
+            print(f"  {i}. {document.title}")
+            print(f"     Category: {document.category.value}")
+            print(f"     Confidence: {document.ai_confidence:.2f}")
+            print(f"     Tags: {', '.join(document.tags[:3])}...")
 
         # Print full markdown outputs
         print("\n" + "=" * 80)
         print("FULL MARKDOWN OUTPUTS")
         print("=" * 80)
 
-        for i, article in enumerate([article1, article2, article3], 1):
+        for i, document in enumerate([document1, document2, document3], 1):
             print(f"\n{'=' * 80}")
-            print(f"ARTICLE {i}: {article.title}")
+            print(f"Document {i}: {document.title}")
             print(f"{'=' * 80}\n")
-            markdown = generator.generate_markdown(article)
+            markdown = generator.generate_markdown(document)
             print(markdown)
             print(f"\n{'=' * 80}\n")
     else:
