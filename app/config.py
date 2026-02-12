@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # Processing Configuration
     batch_size_masking: int = 20  # Messages per orchestration call
     orchestration_timeout: int = 30  # Seconds
+    dry_run: bool = False  # Skip GitHub PR creation when True (for testing)
 
     class Config:
         env_file = ".env"

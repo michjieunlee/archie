@@ -50,6 +50,14 @@ class KBProcessingResponse(BaseModel):
     # GitHub PR information (if created)
     pr_url: Optional[str] = Field(None, description="URL of the created GitHub PR")
 
+    # Generated KB content (populated in dry-run mode or when PR is not created)
+    kb_markdown_content: Optional[str] = Field(
+        None, description="Full generated markdown content of the KB document"
+    )
+    kb_file_path: Optional[str] = Field(
+        None, description="Suggested file path for the KB document"
+    )
+
     # Processing metadata
     messages_fetched: Optional[int] = Field(
         None, description="Number of messages processed (for Slack)"
