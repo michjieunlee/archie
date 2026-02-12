@@ -27,10 +27,8 @@ class KBGenerator:
             templates_dir: Directory containing template files. Defaults to .archie/templates
         """
         if templates_dir is None:
-            # Default to .archie/templates relative to project root
-            self.templates_dir = (
-                Path(__file__).parent.parent.parent.parent / ".archie" / "templates"
-            )
+            # Default to ai_core/templates relative to project root
+            self.templates_dir = Path("ai_core/templates")
         else:
             self.templates_dir = Path(templates_dir)
 

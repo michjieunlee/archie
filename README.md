@@ -71,8 +71,7 @@ archie/
 │   │   │   ├── extraction.py
 │   │   │   ├── matching.py
 │   │   │   └── generation.py
-│   │   └── templates/          # KB document templates
-│   │       └── kb_template.md
+│   │   └── templates/          # KB document templates (decision.md, process.md, troubleshooting.md)
 │   │
 │   ├── models/                 # Shared data models
 │   │   ├── thread.py           # StandardizedConversation
@@ -201,6 +200,7 @@ pytest tests/ -v
 - **API Integration**: `docs/API_INTEGRATION.md` - Complete API documentation and data models
 - **Implementation Plans**: `docs/IMPLEMENTATION_PLANS.md` - Team responsibilities and development guidance
 - **KB Structure**: `docs/KB_REPOSITORY_STRUCTURE.md` - Knowledge base repository organization
+- **KB Templates**: Templates are located in `ai_core/templates/` (decision.md, process.md, troubleshooting.md)
 
 ## Future Roadmap
 
