@@ -32,7 +32,12 @@ knowledge-base/
 
 ## Document Templates
 
-### `.archie/templates/troubleshooting.md`
+The KB generator uses templates located in `ai_core/templates/` directory:
+- `troubleshooting.md` - Template for troubleshooting guides
+- `process.md` - Template for process documentation
+- `decision.md` - Template for decision records
+
+### `ai_core/templates/troubleshooting.md`
 ```markdown
 ---
 title: "{TITLE}"
@@ -73,7 +78,7 @@ last_updated: "{TIMESTAMP}"
 {RELATED_LINKS}
 ```
 
-### `.archie/templates/process.md`
+### `ai_core/templates/process.md`
 ```markdown
 ---
 title: "{TITLE}"
@@ -109,7 +114,7 @@ last_updated: "{TIMESTAMP}"
 {RELATED_PROCESSES}
 ```
 
-### `.archie/templates/decision.md`
+### `ai_core/templates/decision.md`
 ```markdown
 ---
 title: "{TITLE}"
