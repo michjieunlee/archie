@@ -165,7 +165,7 @@ class KBGenerator:
             Basic markdown content
         """
         extraction = document.extraction_output
-        
+
         # Flatten tags to flat list (use shared utility)
         normalized_tags = flatten_list(extraction.tags)
 

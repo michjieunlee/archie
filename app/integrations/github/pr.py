@@ -44,6 +44,27 @@ class PRManager:
         ai_confidence: Optional[float] = None,
         max_retries: int = 5,
     ) -> PRResult:
+        """Alias for create_kb_pr for backward compatibility."""
+        return await self.create_kb_pr(
+            title=title,
+            content=content,
+            file_path=file_path,
+            summary=summary,
+            source_url=source_url,
+            ai_confidence=ai_confidence,
+            max_retries=max_retries,
+        )
+
+    async def create_kb_pr(
+        self,
+        title: str,
+        content: str,
+        file_path: str,
+        summary: Optional[str] = None,
+        source_url: Optional[str] = None,
+        ai_confidence: Optional[float] = None,
+        max_retries: int = 5,
+    ) -> PRResult:
         """
         Create a PR with a document.
 
@@ -71,7 +92,7 @@ class PRManager:
         """
         # Step 1: Generate base branch name from title
         base_branch_name = self.client.generate_branch_name(title)
-        
+
         for attempt in range(max_retries):
             try:
                 # Add suffix for retries (2, 3, 4, ...)
@@ -79,7 +100,7 @@ class PRManager:
                     branch_name = base_branch_name
                 else:
                     branch_name = f"{base_branch_name}-{attempt + 1}"
-                
+
                 logger.info(f"Attempting to create PR with branch: {branch_name} (attempt {attempt + 1}/{max_retries})")
 
                 # Step 2: Create branch
@@ -139,7 +160,7 @@ class PRManager:
             except Exception as e:
                 logger.error(f"Failed to create PR for '{title}': {e}")
                 raise
-        
+
         # All retries exhausted
         raise Exception(f"Failed to create PR for '{title}' after {max_retries} attempts - all branch names are taken")
 
