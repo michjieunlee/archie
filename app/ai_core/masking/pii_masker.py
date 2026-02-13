@@ -278,17 +278,31 @@ class PIIMasker:
         """
         Distribute masked content back to individual messages.
 
-        The masked text is split by double newlines (same separator used when combining).
+        The masking LLM receives all messages combined with '\\n\\n' separator.
+        This method splits the masked result back to individual messages.
+
+        Special handling:
+        - Single-message conversations (e.g., text input): Don't split - assign
+          the entire masked result as the message content. This prevents content
+          with multiple paragraphs from being incorrectly truncated.
+        - Multi-message conversations (e.g., Slack threads): Split by '\\n\\n'
+          and assign each part to the corresponding message.
 
         Args:
             conversation: Conversation whose messages need updating
-            masked_combined: Combined masked text
+            masked_combined: Combined masked text from LLM
 
         Raises:
             MaskingError: If content cannot be distributed properly
         """
         try:
-            # Split by double newlines (same separator used in combining)
+            # For single-message conversations, don't split - assign entire content
+            if len(conversation.messages) == 1:
+                conversation.messages[0].content = masked_combined.strip()
+                logger.debug("Single message - assigned entire masked content")
+                return
+            
+            # For multi-message conversations, split by double newlines
             masked_parts = masked_combined.split("\n\n")
 
             # Verify we got the expected number of parts

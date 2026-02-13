@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.models.knowledge import KBDocument, KBCategory
+from app.utils import flatten_list
 
 logger = logging.getLogger(__name__)
 
@@ -116,16 +117,21 @@ class KBGenerator:
         extraction = document.extraction_output
         metadata = document.extraction_metadata
 
+        # Flatten any nested lists in tags (use shared utility)
+        normalized_tags = flatten_list(extraction.tags)
+        tags_formatted = ", ".join([f'"{tag}"' for tag in normalized_tags])
+
         # Common variables
         variables = {
             "title": extraction.title,
-            "tags": ", ".join([f'"{tag}"' for tag in extraction.tags]),
+            "tags": tags_formatted,
             "source_type": metadata.source_type,
+            # Show "N/A" for history_from if not provided (e.g., when only limit is used)
             "history_from": (
-                metadata.history_from.isoformat() if metadata.history_from else ""
+                metadata.history_from.isoformat() if metadata.history_from else "N/A"
             ),
             "history_to": (
-                metadata.history_to.isoformat() if metadata.history_to else ""
+                metadata.history_to.isoformat() if metadata.history_to else "N/A"
             ),
             "message_limit": (
                 metadata.message_limit if metadata.message_limit is not None else ""
@@ -136,8 +142,13 @@ class KBGenerator:
             "last_updated": document.updated_at.strftime("%Y-%m-%d"),
         }
 
-        # Category-specific variables
-        variables.update(extraction.model_dump())
+        # Category-specific variables from extraction
+        # Get extraction data but exclude keys we've already handled
+        extraction_data = extraction.model_dump()
+        # Remove keys that we've already processed (to avoid overwriting)
+        for key in ['title', 'tags', 'ai_confidence', 'ai_reasoning']:
+            extraction_data.pop(key, None)
+        variables.update(extraction_data)
 
         return variables
 
@@ -152,10 +163,13 @@ class KBGenerator:
             Basic markdown content
         """
         extraction = document.extraction_output
+        
+        # Flatten tags to flat list (use shared utility)
+        normalized_tags = flatten_list(extraction.tags)
 
         md = f"# {extraction.title}\n\n"
         md += f"**Category**: {document.category.value}\n\n"
-        md += f"**Tags**: {', '.join(extraction.tags)}\n\n"
+        md += f"**Tags**: {', '.join(normalized_tags)}\n\n"
         md += f"**Confidence**: {extraction.ai_confidence:.2f}\n\n"
         md += f"**Reasoning**: {extraction.ai_reasoning}\n\n"
 

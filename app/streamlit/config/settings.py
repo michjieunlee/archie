@@ -10,16 +10,9 @@ PAGE_CONFIG = {
     "initial_sidebar_state": "expanded"
 }
 
-# API Configuration (for Phase 2)
-API_BASE_URL = "http://localhost:8000"  # Backend API URL
+# API Configuration
+API_BASE_URL = "http://localhost:8001"  # Backend API URL
 API_TIMEOUT = 30  # seconds
-
-# Mock data settings
-MOCK_MODE = True  # Set to False when backend API is ready
-
-# UI Settings
-MAX_CHAT_HISTORY = 50  # Maximum number of messages to keep in chat history
-PROCESSING_ANIMATION_SPEED = 0.5  # seconds between status updates
 
 # File Upload Settings
 MAX_FILE_SIZE_MB = 10  # Maximum file size in MB

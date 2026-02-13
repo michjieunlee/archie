@@ -37,6 +37,7 @@ from app.models.api_responses import (
     KBQueryResponse,
     KBActionType,
 )
+from app.ai_core.matching.kb_matcher import MatchAction
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -93,11 +94,16 @@ class KBOrchestrator:
         """
         Use case 1: Process Slack messages into KB.
 
+        Default values:
+        - to_datetime: current datetime if not provided
+        - from_datetime: None if not provided (kept empty)
+        - limit: 100 if not provided (max)
+
         Args:
             channel_id: Slack channel ID (optional, uses config default)
-            from_datetime: Start time for messages
-            to_datetime: End time for messages
-            limit: Maximum messages to fetch (max 100)
+            from_datetime: Start time for messages (optional, kept as None if not provided)
+            to_datetime: End time for messages (optional, defaults to current datetime)
+            limit: Maximum messages to fetch (max 100, default 100)
 
         Returns:
             KBProcessingResponse with processing results
@@ -106,11 +112,15 @@ class KBOrchestrator:
             logger.info("Starting Slack message processing pipeline")
 
             # Step 1: Fetch conversation from Slack
+            # Default values applied inline:
+            # - to_datetime: current datetime if not provided
+            # - from_datetime: kept as None if not provided  
+            # - limit: capped at 100
             logger.info("Fetching Slack conversation...")
             conversation = await fetch_slack_conversation(
                 channel_id=channel_id,
                 from_datetime=from_datetime,
-                to_datetime=to_datetime,
+                to_datetime=to_datetime or datetime.now(),
                 limit=min(limit, 100),
             )
 
@@ -312,8 +322,82 @@ class KBOrchestrator:
         markdown_content = self.generator.generate_markdown(kb_document)
         kb_summary = self._generate_document_summary(markdown_content)
 
-        # Step 5: Create GitHub PR (TODO: implement)
-        logger.info("GitHub PR creation skipped (not yet implemented)")
+        # Step 5: Create GitHub PR
+        config = get_settings()
+        pr_url = None
+
+        # Check if action requires PR creation (CREATE or UPDATE)
+        if match_result.action == MatchAction.IGNORE:
+            logger.info("Match result is IGNORE, skipping PR creation")
+            return KBProcessingResponse(
+                status="success",
+                action=KBActionType.IGNORE,
+                reason=match_result.reasoning,
+                kb_document_title=kb_document.title,
+                kb_category=kb_document.category.value,
+                kb_summary=kb_summary,
+                ai_confidence=kb_document.ai_confidence,
+                ai_reasoning=kb_document.ai_reasoning,
+                pr_url=None,
+                messages_fetched=messages_fetched,
+                text_length=text_length,
+            )
+
+        # Compute file path for both dry-run and actual PR creation
+        file_path = match_result.document_path
+        if not file_path:
+            # Fallback: generate path from category and title
+            sanitized_title = kb_document.title.lower().replace(" ", "-").replace("/", "-")
+            file_path = f"{kb_document.category.value}/{sanitized_title}.md"
+            logger.info(f"Generated file path: {file_path}")
+
+        # Check dry_run mode
+        if config.dry_run:
+            logger.info("Dry-run mode enabled, skipping PR creation")
+            self._print_extraction_summary(
+                kb_document=kb_document,
+                match_result=match_result,
+                markdown_content=markdown_content,
+                kb_summary=kb_summary,
+            )
+            return KBProcessingResponse(
+                status="success",
+                action=KBActionType(match_result.action.value),
+                reason="Dry-run mode: PR creation skipped",
+                kb_document_title=kb_document.title,
+                kb_category=kb_document.category.value,
+                kb_summary=kb_summary,
+                ai_confidence=kb_document.ai_confidence,
+                ai_reasoning=kb_document.ai_reasoning,
+                pr_url=None,
+                kb_markdown_content=markdown_content,
+                kb_file_path=file_path,
+                messages_fetched=messages_fetched,
+                text_length=text_length,
+            )
+
+        # Create PR for CREATE or UPDATE actions
+        logger.info(f"Creating GitHub PR for action: {match_result.action.value}")
+
+        # Construct source URL from conversation metadata
+        source_url = self._construct_source_url(conversation)
+
+        # Build PR title with KB prefix and action indicator
+        action_prefix = "[UPDATE]" if match_result.action == MatchAction.UPDATE else "[NEW]"
+        pr_title = f"KB {action_prefix}: {kb_document.title}"
+
+        # Create the PR
+        pr_result = await self.pr_manager.create_pr(
+            title=pr_title,
+            content=markdown_content,
+            file_path=file_path,
+            summary=kb_summary,
+            source_url=source_url,
+            ai_confidence=kb_document.ai_confidence,
+        )
+
+        pr_url = pr_result.pr_url
+        logger.info(f"Created PR: {pr_url}")
 
         return KBProcessingResponse(
             status="success",
@@ -323,7 +407,7 @@ class KBOrchestrator:
             kb_summary=kb_summary,
             ai_confidence=kb_document.ai_confidence,
             ai_reasoning=kb_document.ai_reasoning,
-            pr_url=None,  # TODO: add when PR creation is implemented
+            pr_url=pr_url,
             messages_fetched=messages_fetched,
             text_length=text_length,
         )
@@ -415,3 +499,96 @@ class KBOrchestrator:
             logger.error(f"Error generating document summary: {str(e)}", exc_info=True)
             # Fallback to a simple summary
             return "Unable to generate summary at this time."
+
+    def _construct_source_url(self, conversation: StandardizedConversation) -> Optional[str]:
+        """
+        Construct source URL from conversation metadata.
+
+        For Slack conversations, constructs a Slack thread URL.
+        For text input, returns None.
+
+        Args:
+            conversation: The conversation to get source URL for
+
+        Returns:
+            Source URL string or None if not applicable
+        """
+        # Check source type
+        if conversation.source.type == SourceType.TEXT:
+            return None
+
+        if conversation.source.type == SourceType.SLACK:
+            channel_id = conversation.source.channel_id
+            if not channel_id:
+                return None
+
+            # Try to get the first message timestamp for thread URL
+            thread_ts = None
+            if conversation.messages:
+                first_message = conversation.messages[0]
+                # Get timestamp - either from message id or metadata
+                if hasattr(first_message, 'id') and first_message.id:
+                    # Slack message IDs often contain the timestamp
+                    thread_ts = first_message.id
+                elif first_message.metadata and 'ts' in first_message.metadata:
+                    thread_ts = first_message.metadata['ts']
+
+            # Construct Slack URL
+            # Format: https://slack.com/app_redirect?channel=CHANNEL_ID&message_ts=TIMESTAMP
+            if thread_ts:
+                return f"https://slack.com/app_redirect?channel={channel_id}&message_ts={thread_ts}"
+            else:
+                # Just link to the channel if no specific message
+                return f"https://slack.com/app_redirect?channel={channel_id}"
+
+        return None
+
+    def _print_extraction_summary(
+        self,
+        kb_document,
+        match_result,
+        markdown_content: str,
+        kb_summary: str,
+    ) -> None:
+        """
+        Print a summary of the extraction results for dry-run mode.
+
+        Args:
+            kb_document: The extracted KB document
+            match_result: The match result from the matcher
+            markdown_content: The generated markdown content
+            kb_summary: The generated summary
+        """
+        separator = "=" * 80
+
+        print(f"\n{separator}")
+        print("🔍 DRY-RUN MODE - KB EXTRACTION SUMMARY")
+        print(separator)
+
+        print(f"\n📋 DOCUMENT INFO:")
+        print(f"   Title:      {kb_document.title}")
+        print(f"   Category:   {kb_document.category.value}")
+        print(f"   Tags:       {', '.join(kb_document.tags)}")
+        print(f"   Confidence: {kb_document.ai_confidence:.1%}")
+
+        print(f"\n🎯 MATCH RESULT:")
+        print(f"   Action:     {match_result.action.value.upper()}")
+        print(f"   Confidence: {match_result.confidence_score:.1%}")
+        print(f"   File Path:  {match_result.document_path or 'Not specified'}")
+        print(f"   Reasoning:  {match_result.reasoning[:200]}..." if len(match_result.reasoning) > 200 else f"   Reasoning:  {match_result.reasoning}")
+
+        print(f"\n📝 SUMMARY:")
+        print(f"   {kb_summary}")
+
+        print(f"\n📄 GENERATED MARKDOWN PREVIEW (first 500 chars):")
+        print("-" * 40)
+        preview = markdown_content[:500]
+        if len(markdown_content) > 500:
+            preview += "\n... [truncated]"
+        print(preview)
+        print("-" * 40)
+
+        print(f"\n{separator}")
+        print("💡 To create a PR, set DRY_RUN=false in your environment")
+        print(separator)
+        print()
