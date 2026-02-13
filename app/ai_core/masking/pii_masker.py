@@ -301,7 +301,7 @@ class PIIMasker:
                 conversation.messages[0].content = masked_combined.strip()
                 logger.debug("Single message - assigned entire masked content")
                 return
-            
+
             # For multi-message conversations, split by double newlines
             masked_parts = masked_combined.split("\n\n")
 

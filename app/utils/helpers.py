@@ -10,7 +10,7 @@ from typing import Any, List
 def flatten_list(items: Any) -> List[str]:
     """
     Flatten a potentially nested list to a single-level list of strings.
-    
+
     Handles various formats:
     - Nested lists: [["a", "b"]] → ["a", "b"]
     - Flat lists: ["a", "b"] → ["a", "b"]
@@ -25,13 +25,13 @@ def flatten_list(items: Any) -> List[str]:
     """
     if not items:
         return []
-    
+
     if isinstance(items, str):
         return [items]
-    
+
     if not isinstance(items, list):
         return [str(items)]
-    
+
     # Flatten nested lists
     result = []
     for item in items:
@@ -45,5 +45,5 @@ def flatten_list(items: Any) -> List[str]:
             result.append(item)
         else:
             result.append(str(item))
-    
+
     return result

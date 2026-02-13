@@ -13,6 +13,7 @@ Responsibilities:
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from app.config import get_settings
+from app.services.credential_store import get_credential
 from app.models.thread import (
     StandardizedConversation,
     StandardizedMessage,
@@ -32,8 +33,19 @@ class SlackClient:
 
     def __init__(self):
         settings = get_settings()
-        self.client = WebClient(token=settings.slack_bot_token)
+
+        # Runtime credentials (from UI) override .env settings
+        bot_token = get_credential("slack_bot_token") or settings.slack_bot_token
+        channel_id = get_credential("slack_channel_id") or settings.slack_channel_id
+
+        # Validate that credentials are available
+        if not bot_token:
+            raise ValueError("Slack bot token is not configured.")
+
+        self.client = WebClient(token=bot_token)
         self.settings = settings
+        # Store effective channel_id for use in methods
+        self._channel_id = channel_id
 
     async def fetch_conversation_history_with_raw_data(
         self,
@@ -49,9 +61,9 @@ class SlackClient:
         Returns:
             List of raw message dictionaries from Slack API
         """
-        # Use configured channel if none provided
+        # Use configured channel if none provided (runtime credential takes priority)
         if channel_id is None:
-            channel_id = self.settings.slack_channel_id
+            channel_id = self._channel_id
 
         if not channel_id:
             raise ValueError(

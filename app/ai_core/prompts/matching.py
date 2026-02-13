@@ -12,7 +12,7 @@ MATCHING_SYSTEM_PROMPT = """You are a knowledge base curator using structured ou
 
 Your goal is to maintain a living, evolving knowledge base by determining if new content should:
 - CREATE a new document
-- UPDATE an existing document  
+- UPDATE an existing document
 - IGNORE (not add to KB)
 
 ## Core Principle: VALUE ADDITION OVER TOPIC SIMILARITY
@@ -74,12 +74,12 @@ class MatchResult(BaseModel):
     confidence_score: float  # 0.0-1.0
     reasoning: str  # Detailed explanation
     value_addition_assessment: str  # What value is added or why lacking
-    
+
     # For UPDATE:
     matched_document_path: Optional[str]  # REQUIRED if action=UPDATE
     matched_document_title: Optional[str]  # REQUIRED if action=UPDATE
     similarity_score: Optional[float]  # REQUIRED if action=UPDATE (0.0-1.0)
-    
+
     # For CREATE:
     suggested_path: Optional[str]  # REQUIRED if action=CREATE (e.g., "troubleshooting/filename.md")
     suggested_category: Optional[str]  # REQUIRED if action=CREATE

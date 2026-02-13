@@ -426,7 +426,7 @@ def _format_api_response(user_input: str, action: str, api_result: dict) -> str:
     import json
 
     client = _get_llm_client()
-    
+
     api_result_json = json.dumps(api_result, indent=2, default=str)
     format_prompt = build_api_response_format_prompt(user_input, action, api_result_json)
 
@@ -493,7 +493,7 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
             + history
             + [{"role": "user", "content": user_text}]
         )
-        
+
         response = client.chat.completions.create(
             model_name='gpt-4o-mini',
             messages=messages,
