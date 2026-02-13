@@ -5,12 +5,14 @@ Owner: ① Slack · GitHub Integration & Flow Owner
 Responsibilities:
 - PR creation with proper metadata
 - PR template and labeling
+- Retry with numbered branch names on PR conflicts
 """
 
 import logging
 from dataclasses import dataclass
 from typing import Optional
 from datetime import datetime
+from github import GithubException
 from app.integrations.github.client import GitHubClient
 from app.integrations.github.models import PRMetadata
 
@@ -32,7 +34,7 @@ class PRManager:
     def __init__(self, github_client: GitHubClient):
         self.client = github_client
 
-    async def create_kb_pr(
+    async def create_pr(
         self,
         title: str,
         content: str,
@@ -40,9 +42,10 @@ class PRManager:
         summary: Optional[str] = None,
         source_url: Optional[str] = None,
         ai_confidence: Optional[float] = None,
+        max_retries: int = 5,
     ) -> PRResult:
         """
-        Create a PR with knowledge base document.
+        Create a PR with a document.
 
         Steps:
         1. Generate unique branch name from title
@@ -51,68 +54,94 @@ class PRManager:
         4. Add/update markdown file
         5. Create PR with metadata
 
+        If a PR already exists for the branch, retry with numbered branch name
+        (e.g., kb/title-2, kb/title-3, etc.)
+
         Args:
-            title: KB document title (used for PR title and branch name)
+            title: PR title (used for PR title and branch name generation)
             content: Markdown content to write
-            file_path: Path in KB repo (e.g., "troubleshooting/db-issue.md")
+            file_path: Path in repo (e.g., "troubleshooting/db-issue.md")
             summary: Brief summary of the document
             source_url: Source URL (e.g., Slack thread URL)
             ai_confidence: AI confidence score
+            max_retries: Maximum number of retries for branch name conflicts
 
         Returns:
             PRResult with PR details
         """
-        try:
-            # Step 1: Generate branch name
-            branch_name = self.client.generate_branch_name(title)
-            logger.info(f"Generated branch name: {branch_name}")
+        # Step 1: Generate base branch name from title
+        base_branch_name = self.client.generate_branch_name(title)
+        
+        for attempt in range(max_retries):
+            try:
+                # Add suffix for retries (2, 3, 4, ...)
+                if attempt == 0:
+                    branch_name = base_branch_name
+                else:
+                    branch_name = f"{base_branch_name}-{attempt + 1}"
+                
+                logger.info(f"Attempting to create PR with branch: {branch_name} (attempt {attempt + 1}/{max_retries})")
 
-            # Step 2: Create branch
-            await self.client.create_branch(branch_name)
+                # Step 2: Create branch
+                await self.client.create_branch(branch_name)
 
-            # Step 3: Ensure KB folder structure exists
-            await self.client.ensure_kb_structure(branch_name)
+                # Step 3: Ensure KB folder structure exists
+                await self.client.ensure_kb_structure(branch_name)
 
-            # Step 4: Create/update the file
-            commit_message = f"Add KB document: {title}"
-            commit_sha = await self.client.create_or_update_file(
-                branch_name=branch_name,
-                file_path=file_path,
-                content=content,
-                commit_message=commit_message,
-            )
-            logger.info(f"Added/updated file {file_path} in branch {branch_name}")
+                # Step 4: Create/update the file
+                commit_message = f"Add document: {title}"
+                commit_sha = await self.client.create_or_update_file(
+                    branch_name=branch_name,
+                    file_path=file_path,
+                    content=content,
+                    commit_message=commit_message,
+                )
+                logger.info(f"Added/updated file {file_path} in branch {branch_name}")
 
-            # Step 5: Create PR
-            pr_title = f"KB: {title}"
-            pr_body = self._build_pr_body(
-                summary=summary,
-                source_url=source_url,
-                ai_confidence=ai_confidence,
-            )
+                # Step 5: Create PR
+                pr_body = self._build_pr_body(
+                    summary=summary,
+                    source_url=source_url,
+                    ai_confidence=ai_confidence,
+                )
 
-            # Create the PR
-            pr = self.client.repo.create_pull(
-                title=pr_title,
-                body=pr_body,
-                head=branch_name,
-                base=self.client.default_branch,
-            )
+                # Create the PR
+                pr = self.client.repo.create_pull(
+                    title=title,
+                    body=pr_body,
+                    head=branch_name,
+                    base=self.client.default_branch,
+                )
 
-            # Add labels to categorize the PR
-            self._add_pr_labels(pr, file_path)
+                # Add labels to categorize the PR
+                self._add_pr_labels(pr, file_path)
 
-            logger.info(f"Created PR #{pr.number}: {pr.html_url}")
+                logger.info(f"Created PR #{pr.number}: {pr.html_url}")
 
-            return PRResult(
-                pr_number=pr.number,
-                pr_url=pr.html_url,
-                branch_name=branch_name,
-            )
+                return PRResult(
+                    pr_number=pr.number,
+                    pr_url=pr.html_url,
+                    branch_name=branch_name,
+                )
 
-        except Exception as e:
-            logger.error(f"Failed to create PR for '{title}': {e}")
-            raise
+            except GithubException as e:
+                # Check if error is "PR already exists" (422 Validation Failed)
+                if e.status == 422 and "pull request already exists" in str(e.data).lower():
+                    logger.warning(f"PR already exists for branch {branch_name}, trying with suffix -{attempt + 2}")
+                    continue
+                # Check if branch already exists
+                elif e.status == 422 and "reference already exists" in str(e.data).lower():
+                    logger.warning(f"Branch {branch_name} already exists, trying with suffix -{attempt + 2}")
+                    continue
+                else:
+                    logger.error(f"Failed to create PR for '{title}': {e}")
+                    raise
+            except Exception as e:
+                logger.error(f"Failed to create PR for '{title}': {e}")
+                raise
+        
+        # All retries exhausted
+        raise Exception(f"Failed to create PR for '{title}' after {max_retries} attempts - all branch names are taken")
 
     def _build_pr_body(
         self,

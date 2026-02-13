@@ -11,13 +11,14 @@ Responsibilities:
 
 import logging
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 from datetime import datetime
 import yaml
 from github import Github
 from github.Repository import Repository
 from github.GithubException import GithubException, UnknownObjectException
 from app.config import get_settings
+from app.utils import flatten_list
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,10 @@ class GitHubClient:
             if not category and frontmatter:
                 category = frontmatter.get("category", "unknown")
 
+            # Flatten tags if nested (e.g., [["tag1", "tag2"]] -> ["tag1", "tag2"])
+            raw_tags = frontmatter.get("tags", []) if frontmatter else []
+            flattened_tags = flatten_list(raw_tags)
+
             return {
                 "title": (
                     frontmatter.get("title", file_content.name.replace(".md", ""))
@@ -129,7 +134,7 @@ class GitHubClient:
                 ),
                 "path": file_content.path,
                 "category": category,
-                "tags": frontmatter.get("tags", []) if frontmatter else [],
+                "tags": flattened_tags,
                 "content": content,  # Full content for AI matching
                 "markdown_content": markdown_content,  # Content without frontmatter
                 "frontmatter": frontmatter or {},  # All frontmatter metadata
