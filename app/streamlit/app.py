@@ -150,56 +150,6 @@ def main():
     # Render chat section in center (includes sticky input bar via components.html JS)
     render_chat_section()
 
-<<<<<<< HEAD
-    # Handle repository processing if triggered
-    if st.session_state.processing and st.session_state.github_url:
-        process_repository()
-
-
-def process_repository():
-    """
-    Process the GitHub repository in the background.
-    """
-    github_url = st.session_state.github_url
-    github_token = st.session_state.github_token
-
-    # Call the processing service
-    result = process_github_repository(github_url, github_token)
-
-    # Add result to chat
-    if result.get("status") == "completed":
-        kb_documents = result.get("kb_documents", [])
-        prs_analyzed = result.get("prs_analyzed", 0)
-        execution_time = result.get("execution_time", 0)
-
-        result_message = f"""✅ **Processing Complete!**
-
-**Summary:**
-- Analyzed **{prs_analyzed}** pull requests
-- Generated **{len(kb_documents)}** knowledge base documents
-- Execution time: **{execution_time:.2f}s**
-
-**Generated Documents:**
-"""
-        for i, document in enumerate(kb_documents, 1):
-            result_message += f"\n{i}. {document.get('title', 'Untitled')} ({document.get('category', 'General')})"
-
-        st.session_state.messages.append(
-            {"role": "assistant", "content": result_message}
-        )
-
-    elif result.get("status") == "error":
-        error_message = result.get("error", "Unknown error")
-        st.session_state.messages.append(
-            {"role": "assistant", "content": f"❌ **Error:** {error_message}"}
-        )
-
-    # Reset processing state
-    st.session_state.processing = False
-    st.rerun()
-
-=======
->>>>>>> 7b043fe (store git&slack credentials)
 
 if __name__ == "__main__":
     main()
