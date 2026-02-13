@@ -323,7 +323,7 @@ Provide your response as structured output matching the MatchResult model.""",
 ### Related Issues
 {extraction.related_links or 'None'}"""
 
-        elif category == "processes":
+        elif category == "process":
             return f"""### Overview
 {extraction.process_overview}
 
@@ -342,7 +342,7 @@ Provide your response as structured output matching the MatchResult model.""",
 ### Related Processes
 {extraction.related_processes}"""
 
-        elif category == "decisions":
+        elif category == "decision":
             return f"""### Context
 {extraction.decision_context}
 
@@ -364,6 +364,47 @@ Provide your response as structured output matching the MatchResult model.""",
 
 ### Implementation Notes
 {extraction.implementation_notes}"""
+
+        elif category == "reference":
+            return f"""### Question Context
+{extraction.question_context}
+
+### Resource Type
+{extraction.resource_type}
+
+### Primary Resource
+{extraction.primary_resource}
+
+### Additional Resources
+{extraction.additional_resources}
+
+### Resource Description
+{extraction.resource_description}
+
+### Usage Context
+{extraction.usage_context}
+
+### Access Requirements
+{extraction.access_requirements}
+
+### Related Topics
+{extraction.related_topics}"""
+
+        elif category == "general":
+            return f"""### Summary
+{extraction.summary}
+
+### Key Topics
+{extraction.key_topics}
+
+### Key Points
+{extraction.key_points}
+
+### Mentioned Resources
+{extraction.mentioned_resources}
+
+### Participants Context
+{extraction.participants_context}"""
 
         else:
             return "Content format not available for this category"

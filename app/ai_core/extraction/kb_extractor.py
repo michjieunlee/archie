@@ -22,6 +22,8 @@ from app.models.knowledge import (
     TroubleshootingExtraction,
     ProcessExtraction,
     DecisionExtraction,
+    ReferenceExtraction,
+    GeneralExtraction,
     ExtractionMetadata,
 )
 from app.ai_core.prompts.extraction import (
@@ -177,17 +179,20 @@ class KBExtractor:
             # Map to enum
             category_map = {
                 "troubleshooting": KBCategory.TROUBLESHOOTING,
-                "processes": KBCategory.PROCESSES,
-                "process": KBCategory.PROCESSES,  # Handle singular
-                "decisions": KBCategory.DECISIONS,
-                "decision": KBCategory.DECISIONS,  # Handle singular
+                "process": KBCategory.PROCESS,
+                "processes": KBCategory.PROCESS,  # Handle plural
+                "decision": KBCategory.DECISION,
+                "decisions": KBCategory.DECISION,  # Handle plural
+                "reference": KBCategory.REFERENCE,
+                "references": KBCategory.REFERENCE,  # Handle plural
+                "general": KBCategory.GENERAL,
             }
 
             category = category_map.get(category_str)
             if not category:
                 raise CategoryClassificationError(
                     f"LLM returned invalid category: '{category_str}'. "
-                    f"Expected one of: troubleshooting, processes, decisions"
+                    f"Expected one of: troubleshooting, process, decision, reference, general"
                 )
 
             return category
@@ -243,10 +248,14 @@ class KBExtractor:
                 structured_llm = self.llm.with_structured_output(
                     TroubleshootingExtraction
                 )
-            elif category == KBCategory.PROCESSES:
+            elif category == KBCategory.PROCESS:
                 structured_llm = self.llm.with_structured_output(ProcessExtraction)
-            elif category == KBCategory.DECISIONS:
+            elif category == KBCategory.DECISION:
                 structured_llm = self.llm.with_structured_output(DecisionExtraction)
+            elif category == KBCategory.REFERENCE:
+                structured_llm = self.llm.with_structured_output(ReferenceExtraction)
+            elif category == KBCategory.GENERAL:
+                structured_llm = self.llm.with_structured_output(GeneralExtraction)
             else:
                 raise KBExtractionError(f"Unknown category: {category}")
 

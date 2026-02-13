@@ -15,15 +15,16 @@ import asyncio
 import logging
 import argparse
 from typing import List, Dict, Any
-from datetime import datetime
 
-from app.ai_core.matching import KBMatcher, MatchAction, MatchResult
+from app.ai_core.matching import KBMatcher, MatchAction
 from app.models.knowledge import (
     KBDocument,
     KBCategory,
     TroubleshootingExtraction,
     ProcessExtraction,
     DecisionExtraction,
+    ReferenceExtraction,
+    GeneralExtraction,
     ExtractionMetadata,
 )
 from app.integrations.github import GitHubClient
@@ -40,6 +41,7 @@ def create_sample_troubleshooting_document() -> KBDocument:
     extraction = TroubleshootingExtraction(
         title="Database Connection Timeout in Production",
         tags=["database", "postgresql", "timeout", "production"],
+        difficulty="intermediate",
         ai_confidence=0.85,
         ai_reasoning="Clear problem description with verified solution and root cause analysis",
         problem_description="Database connection timeout after 30 seconds when connecting to production database",
@@ -71,6 +73,7 @@ def create_sample_process_document() -> KBDocument:
     extraction = ProcessExtraction(
         title="Staging Deployment Process",
         tags=["deployment", "staging", "ci-cd", "process"],
+        difficulty="intermediate",
         ai_confidence=0.90,
         ai_reasoning="Well-documented process with clear steps and validation",
         process_overview="Standard deployment process for staging environment",
@@ -89,7 +92,7 @@ def create_sample_process_document() -> KBDocument:
 
     return KBDocument(
         extraction_output=extraction,
-        category=KBCategory.PROCESSES,
+        category=KBCategory.PROCESS,
         extraction_metadata=metadata,
     )
 
@@ -99,6 +102,7 @@ def create_sample_decision_document() -> KBDocument:
     extraction = DecisionExtraction(
         title="Microservices Architecture Adoption",
         tags=["architecture", "microservices", "scalability"],
+        difficulty="advanced",
         ai_confidence=0.88,
         ai_reasoning="Well-reasoned decision with clear alternatives and consequences",
         decision_context="Need to improve application scalability as user base grows",
@@ -118,7 +122,66 @@ def create_sample_decision_document() -> KBDocument:
 
     return KBDocument(
         extraction_output=extraction,
-        category=KBCategory.DECISIONS,
+        category=KBCategory.DECISION,
+        extraction_metadata=metadata,
+    )
+
+
+def create_sample_reference_document() -> KBDocument:
+    """Create a sample reference KB document."""
+    extraction = ReferenceExtraction(
+        title="Internal API Documentation Portal",
+        tags=["documentation", "api", "reference"],
+        difficulty="beginner",
+        ai_confidence=0.92,
+        ai_reasoning="Clear resource pointer with comprehensive access details",
+        question_context="Team members asking where to find API documentation for internal services",
+        resource_type="Documentation Portal",
+        primary_resource="https://api-docs.internal.company.com",
+        additional_resources="Swagger UI: https://api.internal.company.com/swagger\nPostman Collection: https://wiki.internal.company.com/postman",
+        resource_description="Centralized portal containing documentation for all internal REST APIs, including authentication methods, endpoint descriptions, request/response examples, and rate limits",
+        usage_context="Use when integrating with internal services, debugging API issues, or understanding available endpoints",
+        access_requirements="VPN connection required. SSO credentials for authentication. Contact #platform-team for access issues.",
+        related_topics="Service Mesh Documentation, Authentication Guide, Rate Limiting Best Practices",
+    )
+
+    metadata = ExtractionMetadata(
+        source_type="slack_thread",
+        source_id="C111-p1111111111",
+        message_count=8,
+    )
+
+    return KBDocument(
+        extraction_output=extraction,
+        category=KBCategory.REFERENCE,
+        extraction_metadata=metadata,
+    )
+
+
+def create_sample_general_document() -> KBDocument:
+    """Create a sample general KB document."""
+    extraction = GeneralExtraction(
+        title="Docker Container Networking Deep Dive Discussion",
+        tags=["docker", "networking", "containers", "learning"],
+        difficulty="intermediate",
+        ai_confidence=0.78,
+        ai_reasoning="Informative technical discussion capturing team learning and shared knowledge",
+        summary="Team discussion exploring Docker container networking concepts, including bridge networks, host networks, and custom network configurations. Multiple team members shared experiences and troubleshooting tips.",
+        key_topics="Docker bridge networks, Host networking mode, Container-to-container communication, Port mapping and exposure, Network isolation and security, Custom Docker networks, DNS resolution in containers",
+        key_points="- Bridge networks are default but can cause port conflicts\n- Host networking bypasses Docker's network isolation for performance\n- Custom networks provide better isolation between app stacks\n- Container DNS names work automatically in custom networks\n- Overlay networks needed for multi-host setups",
+        mentioned_resources="Docker Networking Documentation: https://docs.docker.com/network/\nDocker Compose Networking Guide\nNetworking troubleshooting commands (docker network inspect, docker exec netstat)",
+        participants_context="Discussion initiated by DevOps team member troubleshooting container communication issues. Backend and infrastructure teams contributed insights based on production experiences. Valuable for anyone working with Docker in development or production.",
+    )
+
+    metadata = ExtractionMetadata(
+        source_type="slack_thread",
+        source_id="C222-p2222222222",
+        message_count=18,
+    )
+
+    return KBDocument(
+        extraction_output=extraction,
+        category=KBCategory.GENERAL,
         extraction_metadata=metadata,
     )
 
@@ -288,6 +351,7 @@ async def test_ignore_low_quality():
     extraction = TroubleshootingExtraction(
         title="Vague Issue",
         tags=["generic"],
+        difficulty="beginner",
         ai_confidence=0.45,
         ai_reasoning="Content lacks specific details and actionable information",
         problem_description="Something broke",
@@ -505,8 +569,20 @@ async def test_all_categories():
     dec_result = await matcher.match(dec_document, existing_docs)
     logger.info(f"Decisions: {dec_result.action.value}")
 
+    # Test reference
+    logger.info("\n--- Testing Reference ---")
+    ref_document = create_sample_reference_document()
+    ref_result = await matcher.match(ref_document, existing_docs)
+    logger.info(f"Reference: {ref_result.action.value}")
+
+    # Test general
+    logger.info("\n--- Testing General ---")
+    gen_document = create_sample_general_document()
+    gen_result = await matcher.match(gen_document, existing_docs)
+    logger.info(f"General: {gen_result.action.value}")
+
     logger.info("✅ Test 6 PASSED - All Categories")
-    return [ts_result, proc_result, dec_result]
+    return [ts_result, proc_result, dec_result, ref_result, gen_result]
 
 
 async def test_value_addition_assessment():
@@ -520,6 +596,7 @@ async def test_value_addition_assessment():
     extraction = TroubleshootingExtraction(
         title="Connection Pool Exhaustion During Peak Traffic",
         tags=["database", "postgresql", "connection-pool", "scaling"],
+        difficulty="intermediate",
         ai_confidence=0.87,
         ai_reasoning="Specific scenario with different root cause and solution",
         problem_description="PostgreSQL connection pool exhaustion during peak traffic",

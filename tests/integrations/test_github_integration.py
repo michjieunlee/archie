@@ -35,7 +35,11 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from fastapi.testclient import TestClient
 
 from app.integrations.github.client import GitHubClient
-from app.integrations.github.operations import GitHubKBOperations, BatchOperation, KBOperation
+from app.integrations.github.operations import (
+    GitHubKBOperations,
+    BatchOperation,
+    KBOperation,
+)
 from app.integrations.github.pr import PRManager
 from app.main import app
 from app.config import get_settings
@@ -49,7 +53,7 @@ MOCK_REPOSITORY_DATA = {
     "name": "test-kb-repo",
     "full_name": "test-org/test-kb-repo",
     "default_branch": "main",
-    "html_url": "https://github.com/test-org/test-kb-repo"
+    "html_url": "https://github.com/test-org/test-kb-repo",
 }
 
 MOCK_KB_DOCUMENTS = [
@@ -60,7 +64,7 @@ MOCK_KB_DOCUMENTS = [
         "tags": ["database", "connectivity"],
         "content": "# Database Connection Issues\n\nThis document covers common database connectivity problems...",
         "file_size": 1024,
-        "ai_confidence": 0.9
+        "ai_confidence": 0.9,
     },
     {
         "title": "Deployment Process",
@@ -69,7 +73,7 @@ MOCK_KB_DOCUMENTS = [
         "tags": ["deployment", "process"],
         "content": "# Deployment Process\n\nThis describes our deployment workflow...",
         "file_size": 2048,
-        "ai_confidence": 0.85
+        "ai_confidence": 0.85,
     },
     {
         "title": "API Design Decisions",
@@ -78,8 +82,8 @@ MOCK_KB_DOCUMENTS = [
         "tags": ["api", "architecture"],
         "content": "# API Design Decisions\n\nThis documents our API design choices...",
         "file_size": 1536,
-        "ai_confidence": 0.92
-    }
+        "ai_confidence": 0.92,
+    },
 ]
 
 MOCK_PR_RESPONSE = {
@@ -92,13 +96,14 @@ MOCK_PR_RESPONSE = {
     "head": {"ref": "kb/test-document"},
     "commits": 1,
     "additions": 50,
-    "deletions": 0
+    "deletions": 0,
 }
 
 
 # ============================================================================
 # Configuration and Data Classes
 # ============================================================================
+
 
 @dataclass
 class TestConfig:
@@ -110,7 +115,12 @@ class TestConfig:
     dry_run: bool = False
 
     def has_custom_settings(self) -> bool:
-        return self.verbose or self.limit != 10 or self.test_repo is not None or self.dry_run
+        return (
+            self.verbose
+            or self.limit != 10
+            or self.test_repo is not None
+            or self.dry_run
+        )
 
 
 @dataclass
@@ -134,6 +144,7 @@ class PerformanceMetrics:
 # ============================================================================
 # Utility Classes
 # ============================================================================
+
 
 class TestOutputFormatter:
     """Handles all test output formatting."""
@@ -188,10 +199,14 @@ class TestOutputFormatter:
             confidence = doc.get("ai_confidence", 0)
 
             print(f"   {i:2d}. [{category}] {title}")
-            print(f"       └─ Path: {path} | Size: {size}b | Confidence: {confidence:.0%}")
+            print(
+                f"       └─ Path: {path} | Size: {size}b | Confidence: {confidence:.0%}"
+            )
 
     @staticmethod
-    def print_api_endpoint_results(endpoint: str, status_code: int, response_data: dict):
+    def print_api_endpoint_results(
+        endpoint: str, status_code: int, response_data: dict
+    ):
         """Print API endpoint test results."""
         print(f"🌐 API ENDPOINT: {endpoint}")
         print(f"   → Status: {status_code}")
@@ -204,12 +219,17 @@ class TestOutputFormatter:
     @staticmethod
     def print_performance_breakdown(metrics: PerformanceMetrics):
         """Print concise performance metrics."""
-        print(f"\n⏱️  Performance: API {metrics.api_time:.2f}s | Operations {metrics.operations_time:.2f}s | Total {metrics.total_time:.2f}s")
+        print(
+            f"\n⏱️  Performance: API {metrics.api_time:.2f}s | Operations {metrics.operations_time:.2f}s | Total {metrics.total_time:.2f}s"
+        )
 
     @staticmethod
     def print_results_summary(results: List[TestResult]):
         """Print clean test results summary."""
-        print(f"\n📊 Results: {sum(1 for r in results if r.passed)}/{len(results)} tests passed", end="")
+        print(
+            f"\n📊 Results: {sum(1 for r in results if r.passed)}/{len(results)} tests passed",
+            end="",
+        )
 
         if all(r.passed for r in results):
             print(" ✅")
@@ -263,7 +283,7 @@ class GitHubTestClient:
         if self.operations:
             docs = await self.operations.read_existing_kb()
             if config.limit:
-                return docs[:config.limit]
+                return docs[: config.limit]
             return docs
         return []
 
@@ -288,13 +308,14 @@ class MockDataFactory:
             "repository": MOCK_REPOSITORY_DATA,
             "documents": MOCK_KB_DOCUMENTS,
             "pr_create": MOCK_PR_RESPONSE,
-            "pr_status": MOCK_PR_RESPONSE
+            "pr_status": MOCK_PR_RESPONSE,
         }
 
 
 # ============================================================================
 # Test Base Classes
 # ============================================================================
+
 
 class BaseGitHubTest:
     """Base class for GitHub integration tests."""
@@ -320,6 +341,7 @@ class BaseGitHubTest:
 # Specific Test Classes
 # ============================================================================
 
+
 class MockGitHubTest(BaseGitHubTest):
     """Tests using mock data."""
 
@@ -329,8 +351,9 @@ class MockGitHubTest(BaseGitHubTest):
             config = TestConfig()
 
         try:
-            with patch('app.integrations.github.client.Github') as mock_github, \
-                 patch('app.integrations.github.client.get_settings') as mock_get_settings:
+            with patch("app.integrations.github.client.Github") as mock_github, patch(
+                "app.integrations.github.client.get_settings"
+            ) as mock_get_settings:
 
                 # Mock settings
                 mock_settings = Mock()
@@ -371,7 +394,11 @@ class MockGitHubTest(BaseGitHubTest):
                 return TestResult(
                     "Client Functionality",
                     success,
-                    "; ".join(details) if details else "✅ Repo access, branch config, name generation"
+                    (
+                        "; ".join(details)
+                        if details
+                        else "✅ Repo access, branch config, name generation"
+                    ),
                 )
 
         except Exception as e:
@@ -383,19 +410,24 @@ class MockGitHubTest(BaseGitHubTest):
             config = TestConfig()
 
         try:
-            with patch('app.integrations.github.operations.GitHubClient') as mock_client_class, \
-                 patch('app.integrations.github.operations.PRManager') as mock_pr_manager_class:
+            with patch(
+                "app.integrations.github.operations.GitHubClient"
+            ) as mock_client_class, patch(
+                "app.integrations.github.operations.PRManager"
+            ) as mock_pr_manager_class:
 
                 # Mock client
                 mock_client = AsyncMock()
-                mock_client.read_kb_repository.return_value = MockDataFactory.create_mock_kb_documents()
+                mock_client.read_kb_repository.return_value = (
+                    MockDataFactory.create_mock_kb_documents()
+                )
                 mock_client_class.return_value = mock_client
 
                 # Mock PR manager
                 mock_pr_manager = AsyncMock()
                 mock_pr_result = Mock()
                 mock_pr_result.pr_url = "https://github.com/test/repo/pull/123"
-                mock_pr_manager.create_kb_pr.return_value = mock_pr_result
+                mock_pr_manager.create_pr.return_value = mock_pr_result
                 mock_pr_manager_class.return_value = mock_pr_manager
 
                 ops = GitHubKBOperations()
@@ -410,7 +442,7 @@ class MockGitHubTest(BaseGitHubTest):
                     title="Test Document",
                     content="# Test Content",
                     file_path="test/document.md",
-                    summary="Test summary"
+                    summary="Test summary",
                 )
 
                 # Verbose output
@@ -435,7 +467,11 @@ class MockGitHubTest(BaseGitHubTest):
                 return TestResult(
                     "KB Operations",
                     success,
-                    "; ".join(details) if details else f"✅ {len(docs)} documents, PR creation"
+                    (
+                        "; ".join(details)
+                        if details
+                        else f"✅ {len(docs)} documents, PR creation"
+                    ),
                 )
 
         except Exception as e:
@@ -450,11 +486,17 @@ class MockGitHubTest(BaseGitHubTest):
             client = TestClient(app)
 
             # Mock the GitHub operations
-            with patch('app.api.routes.github.get_github_ops') as mock_get_ops:
+            with patch("app.api.routes.github.get_github_ops") as mock_get_ops:
                 mock_ops = AsyncMock()
-                mock_ops.read_existing_kb.return_value = MockDataFactory.create_mock_kb_documents()
-                mock_ops.create_kb_document.return_value = "https://github.com/test/repo/pull/123"
-                mock_ops.get_pr_status.return_value = MockDataFactory.create_mock_pr_response()
+                mock_ops.read_existing_kb.return_value = (
+                    MockDataFactory.create_mock_kb_documents()
+                )
+                mock_ops.create_kb_document.return_value = (
+                    "https://github.com/test/repo/pull/123"
+                )
+                mock_ops.get_pr_status.return_value = (
+                    MockDataFactory.create_mock_pr_response()
+                )
                 mock_get_ops.return_value = mock_ops
 
                 # Test endpoints
@@ -466,28 +508,44 @@ class MockGitHubTest(BaseGitHubTest):
                 endpoints_tested.append(("GET /kb/documents", list_success))
 
                 if config.verbose:
-                    self.formatter.print_api_endpoint_results("GET /api/github/kb/documents", response.status_code, response.json())
+                    self.formatter.print_api_endpoint_results(
+                        "GET /api/github/kb/documents",
+                        response.status_code,
+                        response.json(),
+                    )
 
                 # Test POST /api/github/kb/documents
                 create_data = {
                     "title": "Test Document",
                     "content": "# Test Content",
-                    "file_path": "test/document.md"
+                    "file_path": "test/document.md",
                 }
                 response = client.post("/api/github/kb/documents", json=create_data)
-                create_success = response.status_code == 200 and "pr_url" in response.json()
+                create_success = (
+                    response.status_code == 200 and "pr_url" in response.json()
+                )
                 endpoints_tested.append(("POST /kb/documents", create_success))
 
                 if config.verbose:
-                    self.formatter.print_api_endpoint_results("POST /api/github/kb/documents", response.status_code, response.json())
+                    self.formatter.print_api_endpoint_results(
+                        "POST /api/github/kb/documents",
+                        response.status_code,
+                        response.json(),
+                    )
 
                 # Test GET /api/github/pr/{id}/status
                 response = client.get("/api/github/pr/123/status")
-                status_success = response.status_code == 200 and "number" in response.json()
+                status_success = (
+                    response.status_code == 200 and "number" in response.json()
+                )
                 endpoints_tested.append(("GET /pr/status", status_success))
 
                 if config.verbose:
-                    self.formatter.print_api_endpoint_results("GET /api/github/pr/123/status", response.status_code, response.json())
+                    self.formatter.print_api_endpoint_results(
+                        "GET /api/github/pr/123/status",
+                        response.status_code,
+                        response.json(),
+                    )
 
                 # Check results
                 all_passed = all(success for _, success in endpoints_tested)
@@ -496,8 +554,11 @@ class MockGitHubTest(BaseGitHubTest):
                 return TestResult(
                     "API Endpoints",
                     all_passed,
-                    f"✅ {passed_count}/{len(endpoints_tested)} endpoints working" if all_passed
-                    else f"❌ {passed_count}/{len(endpoints_tested)} endpoints working"
+                    (
+                        f"✅ {passed_count}/{len(endpoints_tested)} endpoints working"
+                        if all_passed
+                        else f"❌ {passed_count}/{len(endpoints_tested)} endpoints working"
+                    ),
                 )
 
         except Exception as e:
@@ -509,7 +570,9 @@ class MockGitHubTest(BaseGitHubTest):
             config = TestConfig()
 
         try:
-            with patch('app.integrations.github.operations.GitHubClient') as mock_client_class:
+            with patch(
+                "app.integrations.github.operations.GitHubClient"
+            ) as mock_client_class:
                 # Mock client
                 mock_client = Mock()
                 mock_client.generate_branch_name = Mock(return_value="kb/batch-test")
@@ -535,26 +598,26 @@ class MockGitHubTest(BaseGitHubTest):
                         action=KBOperation.CREATE,
                         file_path="test/new.md",
                         title="New Document",
-                        content="Content"
+                        content="Content",
                     ),
                     BatchOperation(
                         action=KBOperation.UPDATE,
                         file_path="test/existing.md",
                         title="Updated Document",
-                        content="Updated content"
+                        content="Updated content",
                     ),
                     BatchOperation(
                         action=KBOperation.DELETE,
                         file_path="test/old.md",
-                        title="Old Document"
-                    )
+                        title="Old Document",
+                    ),
                 ]
 
                 ops = GitHubKBOperations()
                 pr_url = await ops.create_batch_pr(
                     title="Test Batch",
                     operations=operations,
-                    summary="Batch test operations"
+                    summary="Batch test operations",
                 )
 
                 # Verify results
@@ -575,7 +638,7 @@ class MockGitHubTest(BaseGitHubTest):
                 return TestResult(
                     "Batch Operations",
                     success,
-                    "; ".join(details) if details else "✅ 3 operations, PR creation"
+                    "; ".join(details) if details else "✅ 3 operations, PR creation",
                 )
 
         except Exception as e:
@@ -606,7 +669,9 @@ class RealGitHubTest(BaseGitHubTest):
 
             if not documents:
                 return TestResult(
-                    "Real GitHub API Read", True, "No KB documents found (empty repository)"
+                    "Real GitHub API Read",
+                    True,
+                    "No KB documents found (empty repository)",
                 )
 
             metrics = self.tracker.finalize()
@@ -665,15 +730,13 @@ This test document can be safely deleted after testing.
                 content=test_content,
                 file_path=test_file_path,
                 summary=f"Integration test document created at {datetime.now().isoformat()}",
-                ai_confidence=0.95
+                ai_confidence=0.95,
             )
 
             # Track for potential cleanup
-            self.test_artifacts.append({
-                'type': 'pr',
-                'url': pr_url,
-                'file_path': test_file_path
-            })
+            self.test_artifacts.append(
+                {"type": "pr", "url": pr_url, "file_path": test_file_path}
+            )
 
             # Validate PR was created
             if pr_url and pr_url.startswith("https://github.com/"):
@@ -683,10 +746,14 @@ This test document can be safely deleted after testing.
                     print(f"📄 Test File: {test_file_path}")
                 return TestResult("Real Create Operation", True, success_message)
             else:
-                return TestResult("Real Create Operation", False, "Invalid PR URL returned")
+                return TestResult(
+                    "Real Create Operation", False, "Invalid PR URL returned"
+                )
 
         except Exception as e:
-            return TestResult("Real Create Operation", False, f"Create operation failed: {e}")
+            return TestResult(
+                "Real Create Operation", False, f"Create operation failed: {e}"
+            )
 
     async def test_real_update_operation(self, config: TestConfig) -> TestResult:
         """Test updating an existing KB document via PR."""
@@ -699,11 +766,15 @@ This test document can be safely deleted after testing.
             # First, check if we have any existing documents to update
             existing_docs = await operations.read_existing_kb()
             if not existing_docs:
-                return TestResult("Real Update Operation", True, "⚠️  No existing documents to update (skipped)")
+                return TestResult(
+                    "Real Update Operation",
+                    True,
+                    "⚠️  No existing documents to update (skipped)",
+                )
 
             # Use the first document for testing
             target_doc = existing_docs[0]
-            original_path = target_doc.get('path', 'unknown.md')
+            original_path = target_doc.get("path", "unknown.md")
 
             # Create updated content
             updated_content = f"""# {target_doc.get('title', 'Updated Document')}
@@ -734,16 +805,18 @@ The original content has been preserved below:
                 content=updated_content,
                 file_path=original_path,
                 summary=f"Test update of existing document at {datetime.now().isoformat()}",
-                ai_confidence=0.90
+                ai_confidence=0.90,
             )
 
             # Track for potential cleanup
-            self.test_artifacts.append({
-                'type': 'pr',
-                'url': pr_url,
-                'file_path': original_path,
-                'operation': 'update'
-            })
+            self.test_artifacts.append(
+                {
+                    "type": "pr",
+                    "url": pr_url,
+                    "file_path": original_path,
+                    "operation": "update",
+                }
+            )
 
             if pr_url and pr_url.startswith("https://github.com/"):
                 success_message = f"✅ Created update PR: {pr_url}"
@@ -752,10 +825,14 @@ The original content has been preserved below:
                     print(f"📄 Updated File: {original_path}")
                 return TestResult("Real Update Operation", True, success_message)
             else:
-                return TestResult("Real Update Operation", False, "Invalid PR URL returned")
+                return TestResult(
+                    "Real Update Operation", False, "Invalid PR URL returned"
+                )
 
         except Exception as e:
-            return TestResult("Real Update Operation", False, f"Update operation failed: {e}")
+            return TestResult(
+                "Real Update Operation", False, f"Update operation failed: {e}"
+            )
 
     async def test_real_batch_operation(self, config: TestConfig) -> TestResult:
         """Test batch operations with real GitHub API."""
@@ -779,7 +856,7 @@ This is the first document in a batch operation test.
 **Test Batch**: {self.test_timestamp}
 
 This document validates batch CREATE operations.
-"""
+""",
                 ),
                 BatchOperation(
                     action=KBOperation.CREATE,
@@ -793,8 +870,8 @@ This is the second document in a batch operation test.
 **Test Batch**: {self.test_timestamp}
 
 This document validates batch CREATE operations alongside other documents.
-"""
-                )
+""",
+                ),
             ]
 
             # Execute batch operation
@@ -802,28 +879,36 @@ This document validates batch CREATE operations alongside other documents.
                 title=f"[TEST] Batch Integration Test",
                 operations=batch_operations,
                 summary=f"Batch integration test with {len(batch_operations)} operations at {datetime.now().isoformat()}",
-                ai_confidence=0.88
+                ai_confidence=0.88,
             )
 
             # Track for cleanup
-            self.test_artifacts.append({
-                'type': 'pr',
-                'url': pr_url,
-                'operation': 'batch',
-                'file_paths': [op.file_path for op in batch_operations]
-            })
+            self.test_artifacts.append(
+                {
+                    "type": "pr",
+                    "url": pr_url,
+                    "operation": "batch",
+                    "file_paths": [op.file_path for op in batch_operations],
+                }
+            )
 
             if pr_url and pr_url.startswith("https://github.com/"):
                 success_message = f"✅ Created batch PR with {len(batch_operations)} operations: {pr_url}"
                 if config.verbose:
                     print(f"🔗 Batch PR Created: {pr_url}")
-                    print(f"📄 Files: {', '.join([op.file_path for op in batch_operations])}")
+                    print(
+                        f"📄 Files: {', '.join([op.file_path for op in batch_operations])}"
+                    )
                 return TestResult("Real Batch Operation", True, success_message)
             else:
-                return TestResult("Real Batch Operation", False, "Invalid batch PR URL returned")
+                return TestResult(
+                    "Real Batch Operation", False, "Invalid batch PR URL returned"
+                )
 
         except Exception as e:
-            return TestResult("Real Batch Operation", False, f"Batch operation failed: {e}")
+            return TestResult(
+                "Real Batch Operation", False, f"Batch operation failed: {e}"
+            )
 
     def print_cleanup_instructions(self):
         """Print instructions for cleaning up test artifacts."""
@@ -835,9 +920,9 @@ This document validates batch CREATE operations alongside other documents.
 
         for i, artifact in enumerate(self.test_artifacts, 1):
             print(f"\n   {i}. {artifact['type'].upper()}: {artifact['url']}")
-            if artifact.get('file_paths'):
+            if artifact.get("file_paths"):
                 print(f"      Files: {', '.join(artifact['file_paths'])}")
-            elif artifact.get('file_path'):
+            elif artifact.get("file_path"):
                 print(f"      File: {artifact['file_path']}")
 
         print(f"\n   💡 These test PRs are clearly marked with '[TEST]' prefix.")
@@ -848,6 +933,7 @@ This document validates batch CREATE operations alongside other documents.
 # ============================================================================
 # Test Runner
 # ============================================================================
+
 
 class GitHubTestRunner:
     """Main test runner."""
@@ -877,7 +963,9 @@ class GitHubTestRunner:
         self.formatter.print_results_summary(results)
         return results
 
-    async def _run_mock_tests(self, test_mode: str, config: TestConfig = None) -> List[TestResult]:
+    async def _run_mock_tests(
+        self, test_mode: str, config: TestConfig = None
+    ) -> List[TestResult]:
         """Run mock data tests."""
         self.formatter.print_header("Mock Data Tests")
 
@@ -889,23 +977,31 @@ class GitHubTestRunner:
 
         # Client functionality test
         client_result = await mock_test.test_client_functionality(config)
-        self.formatter.print_test_status("Client Functionality", client_result.passed, client_result.message)
+        self.formatter.print_test_status(
+            "Client Functionality", client_result.passed, client_result.message
+        )
         results.append(client_result)
 
         # KB operations test
         kb_result = await mock_test.test_kb_operations(config)
-        self.formatter.print_test_status("KB Operations", kb_result.passed, kb_result.message)
+        self.formatter.print_test_status(
+            "KB Operations", kb_result.passed, kb_result.message
+        )
         results.append(kb_result)
 
         if test_mode != "quick":
             # API endpoints test
             api_result = await mock_test.test_api_endpoints(config)
-            self.formatter.print_test_status("API Endpoints", api_result.passed, api_result.message)
+            self.formatter.print_test_status(
+                "API Endpoints", api_result.passed, api_result.message
+            )
             results.append(api_result)
 
             # Batch operations test
             batch_result = await mock_test.test_batch_operations(config)
-            self.formatter.print_test_status("Batch Operations", batch_result.passed, batch_result.message)
+            self.formatter.print_test_status(
+                "Batch Operations", batch_result.passed, batch_result.message
+            )
             results.append(batch_result)
 
         return results
@@ -919,22 +1015,30 @@ class GitHubTestRunner:
 
         # Read-only test (existing functionality)
         read_result = await real_test.test_real_integration(config)
-        self.formatter.print_test_status("Real GitHub API Read", read_result.passed, read_result.message)
+        self.formatter.print_test_status(
+            "Real GitHub API Read", read_result.passed, read_result.message
+        )
         results.append(read_result)
 
         # Create operation test (creates actual PR)
         create_result = await real_test.test_real_create_operation(config)
-        self.formatter.print_test_status("Real Create Operation", create_result.passed, create_result.message)
+        self.formatter.print_test_status(
+            "Real Create Operation", create_result.passed, create_result.message
+        )
         results.append(create_result)
 
         # Update operation test (creates actual PR)
         update_result = await real_test.test_real_update_operation(config)
-        self.formatter.print_test_status("Real Update Operation", update_result.passed, update_result.message)
+        self.formatter.print_test_status(
+            "Real Update Operation", update_result.passed, update_result.message
+        )
         results.append(update_result)
 
         # Batch operation test (creates actual PR)
         batch_result = await real_test.test_real_batch_operation(config)
-        self.formatter.print_test_status("Real Batch Operation", batch_result.passed, batch_result.message)
+        self.formatter.print_test_status(
+            "Real Batch Operation", batch_result.passed, batch_result.message
+        )
         results.append(batch_result)
 
         # Print cleanup instructions if any artifacts were created
@@ -951,7 +1055,9 @@ class GitHubTestRunner:
 
         # Only run the read-only test
         read_result = await real_test.test_real_integration(config)
-        self.formatter.print_test_status("Real GitHub API Read", read_result.passed, read_result.message)
+        self.formatter.print_test_status(
+            "Real GitHub API Read", read_result.passed, read_result.message
+        )
         results.append(read_result)
 
         return results
@@ -981,6 +1087,7 @@ class GitHubTestRunner:
 # Configuration Parser
 # ============================================================================
 
+
 class ConfigParser:
     """Parse command line arguments into test configuration."""
 
@@ -999,21 +1106,45 @@ Examples:
   %(prog)s --real --limit 25                # Real API, max 25 documents
   %(prog)s --quick                          # Quick mock test
   %(prog)s --list-repos                     # List repo config
-            """
+            """,
         )
 
         # Test mode arguments
-        parser.add_argument("--mock", action="store_true", help="Test with mock data (default)")
-        parser.add_argument("--real", action="store_true", help="Test with real GitHub API (creates PRs)")
-        parser.add_argument("--real-read-only", action="store_true", help="Real GitHub API read-only test")
-        parser.add_argument("--quick", action="store_true", help="Quick test with mock data")
-        parser.add_argument("--list-repos", action="store_true", help="List GitHub repo configuration")
+        parser.add_argument(
+            "--mock", action="store_true", help="Test with mock data (default)"
+        )
+        parser.add_argument(
+            "--real",
+            action="store_true",
+            help="Test with real GitHub API (creates PRs)",
+        )
+        parser.add_argument(
+            "--real-read-only",
+            action="store_true",
+            help="Real GitHub API read-only test",
+        )
+        parser.add_argument(
+            "--quick", action="store_true", help="Quick test with mock data"
+        )
+        parser.add_argument(
+            "--list-repos", action="store_true", help="List GitHub repo configuration"
+        )
 
         # Configuration arguments
-        parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed test output")
-        parser.add_argument("--limit", type=int, help="Maximum number of documents to fetch (default: 10)")
+        parser.add_argument(
+            "--verbose", "-v", action="store_true", help="Show detailed test output"
+        )
+        parser.add_argument(
+            "--limit",
+            type=int,
+            help="Maximum number of documents to fetch (default: 10)",
+        )
         parser.add_argument("--test-repo", help="Test repository (owner/repo format)")
-        parser.add_argument("--dry-run", action="store_true", help="Show what would be created without actually creating PRs")
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Show what would be created without actually creating PRs",
+        )
 
         args = parser.parse_args()
 
@@ -1045,7 +1176,7 @@ Examples:
             config.test_repo = args.test_repo
 
         # Add dry_run flag to config
-        config.dry_run = getattr(args, 'dry_run', False)
+        config.dry_run = getattr(args, "dry_run", False)
 
         return config
 
@@ -1053,6 +1184,7 @@ Examples:
 # ============================================================================
 # Main Function
 # ============================================================================
+
 
 async def main():
     """Main test execution function."""
@@ -1065,13 +1197,25 @@ async def main():
 
     # Print usage examples
     print(f"\n💡 Test mode examples:")
-    print(f"   python {sys.argv[0]} --mock                           # Mock data testing (safe)")
-    print(f"   python {sys.argv[0]} --real-read-only --verbose       # Real API, read-only (safe)")
-    print(f"   python {sys.argv[0]} --real --verbose                 # Real API, creates PRs ⚠️")
-    print(f"   python {sys.argv[0]} --real --limit 5                 # Real API, limit docs")
+    print(
+        f"   python {sys.argv[0]} --mock                           # Mock data testing (safe)"
+    )
+    print(
+        f"   python {sys.argv[0]} --real-read-only --verbose       # Real API, read-only (safe)"
+    )
+    print(
+        f"   python {sys.argv[0]} --real --verbose                 # Real API, creates PRs ⚠️"
+    )
+    print(
+        f"   python {sys.argv[0]} --real --limit 5                 # Real API, limit docs"
+    )
     print(f"   python {sys.argv[0]} --quick                          # Quick mock test")
-    print(f"   python {sys.argv[0]} --list-repos                     # List repo config")
-    print(f"   python {sys.argv[0]} --dry-run                        # Show what would be done\n")
+    print(
+        f"   python {sys.argv[0]} --list-repos                     # List repo config"
+    )
+    print(
+        f"   python {sys.argv[0]} --dry-run                        # Show what would be done\n"
+    )
 
 
 if __name__ == "__main__":

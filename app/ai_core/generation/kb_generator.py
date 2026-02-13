@@ -24,11 +24,12 @@ class KBGenerator:
         Initialize the KB Generator.
 
         Args:
-            templates_dir: Directory containing template files. Defaults to .archie/templates
+            templates_dir: Directory containing template files. Defaults to app/ai_core/templates
         """
         if templates_dir is None:
-            # Default to ai_core/templates relative to project root
-            self.templates_dir = Path("ai_core/templates")
+            # Default to templates dir relative to this module
+            module_dir = Path(__file__).parent.parent  # ai_core directory
+            self.templates_dir = module_dir / "templates"
         else:
             self.templates_dir = Path(templates_dir)
 
@@ -76,10 +77,12 @@ class KBGenerator:
         """
         template_map = {
             KBCategory.TROUBLESHOOTING: "troubleshooting.md",
-            KBCategory.PROCESSES: "process.md",
-            KBCategory.DECISIONS: "decision.md",
+            KBCategory.PROCESS: "process.md",
+            KBCategory.DECISION: "decision.md",
+            KBCategory.REFERENCE: "reference.md",
+            KBCategory.GENERAL: "general.md",
         }
-        return template_map.get(category, "troubleshooting.md")
+        return template_map.get(category, "general.md")
 
     def _load_template(self, template_file: str) -> Optional[str]:
         """
@@ -125,6 +128,7 @@ class KBGenerator:
         variables = {
             "title": extraction.title,
             "tags": tags_formatted,
+            "difficulty": extraction.difficulty,
             "source_type": metadata.source_type,
             # Show "N/A" for history_from if not provided (e.g., when only limit is used)
             "history_from": (
@@ -146,7 +150,7 @@ class KBGenerator:
         # Get extraction data but exclude keys we've already handled
         extraction_data = extraction.model_dump()
         # Remove keys that we've already processed (to avoid overwriting)
-        for key in ['title', 'tags', 'ai_confidence', 'ai_reasoning']:
+        for key in ["title", "tags", "difficulty", "ai_confidence", "ai_reasoning"]:
             extraction_data.pop(key, None)
         variables.update(extraction_data)
 
@@ -163,13 +167,14 @@ class KBGenerator:
             Basic markdown content
         """
         extraction = document.extraction_output
-        
+
         # Flatten tags to flat list (use shared utility)
         normalized_tags = flatten_list(extraction.tags)
 
         md = f"# {extraction.title}\n\n"
         md += f"**Category**: {document.category.value}\n\n"
         md += f"**Tags**: {', '.join(normalized_tags)}\n\n"
+        md += f"**Difficulty**: {extraction.difficulty}\n\n"
         md += f"**Confidence**: {extraction.ai_confidence:.2f}\n\n"
         md += f"**Reasoning**: {extraction.ai_reasoning}\n\n"
 
@@ -208,6 +213,14 @@ class KBGenerator:
             category: The document category
 
         Returns:
-            Directory name
+            Directory name in plural form
         """
-        return category.value
+        # Map singular category values to plural directory names
+        category_dir_map = {
+            KBCategory.TROUBLESHOOTING: "troubleshooting",
+            KBCategory.PROCESS: "processes",
+            KBCategory.DECISION: "decisions",
+            KBCategory.REFERENCE: "references",
+            KBCategory.GENERAL: "general",
+        }
+        return category_dir_map.get(category, category.value)
