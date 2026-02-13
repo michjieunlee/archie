@@ -5,11 +5,7 @@ Provides a centered chat interface with integration buttons on the left.
 
 import streamlit as st
 from components.chat_section import render_chat_section
-from components.integration_panel import (
-    render_integration_panel,
-    render_integration_buttons,
-)
-from services.mock_api import process_github_repository
+from components.integration_panel import render_integration_panel, render_integration_buttons
 from config.settings import PAGE_CONFIG
 
 
@@ -120,8 +116,6 @@ def main():
     # Initialize session state
     if "messages" not in st.session_state:
         st.session_state.messages = []
-    if "processing" not in st.session_state:
-        st.session_state.processing = False
     if "active_integration" not in st.session_state:
         st.session_state.active_integration = None
     if "github_url" not in st.session_state:
@@ -156,6 +150,7 @@ def main():
     # Render chat section in center (includes sticky input bar via components.html JS)
     render_chat_section()
 
+<<<<<<< HEAD
     # Handle repository processing if triggered
     if st.session_state.processing and st.session_state.github_url:
         process_repository()
@@ -203,6 +198,8 @@ def process_repository():
     st.session_state.processing = False
     st.rerun()
 
+=======
+>>>>>>> 7b043fe (store git&slack credentials)
 
 if __name__ == "__main__":
     main()

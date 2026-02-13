@@ -252,114 +252,291 @@ def render_chat_section():
         st.rerun()
 
 
+def _get_connection_status() -> dict:
+    """Return current integration connection status."""
+    return {
+        "github_connected": st.session_state.get("github_connected", False),
+        "slack_connected": st.session_state.get("slack_connected", False),
+        "github_url": st.session_state.get("github_url", ""),
+        "slack_channel_id": st.session_state.get("slack_channel_id", ""),
+        "slack_channel_name": st.session_state.get(
+            "slack_channel_name", st.session_state.get("slack_channel_id", "")
+        ),
+    }
+
+
 def _build_system_prompt() -> str:
     """Build the system prompt with current connection states."""
-    github_connected = st.session_state.get("github_connected", False)
-    slack_connected = st.session_state.get("slack_connected", False)
-    github_url = st.session_state.get("github_url", "")
-    slack_channel = st.session_state.get(
-        "slack_channel_name", st.session_state.get("slack_channel_id", "")
-    )
+    status = _get_connection_status()
 
     connection_lines = ""
-    if github_connected:
-        connection_lines += f"- GitHub: Connected to `{github_url}`\n"
+    if status["github_connected"]:
+        connection_lines += f"- GitHub: Connected to `{status['github_url']}`\n"
     else:
         connection_lines += "- GitHub: NOT connected\n"
-    if slack_connected:
-        connection_lines += f"- Slack: Connected to #{slack_channel}\n"
+    if status["slack_connected"]:
+        connection_lines += f"- Slack: Connected to #{status['slack_channel_name']}\n"
     else:
         connection_lines += "- Slack: NOT connected\n"
 
     system_prompt = f"""
-    You are Archie, an AI Knowledge Base Assistant.
+        You are Archie, an AI Knowledge Base Assistant.
+        Your capabilities:
+        - Help users manage and query their knowledge base
+        - Analyze GitHub repositories for knowledge extraction
+        - Retrieve and summarize Slack conversations
+        - Answer general questions about the knowledge base workflow
 
-    Your capabilities:
-    - Help users manage and query their knowledge base
-    - Analyze GitHub repositories for knowledge extraction
-    - Retrieve and summarize Slack conversations
-    - Answer general questions about the knowledge base workflow
-
-    Current integration status:
-    {connection_lines}
-    Rules:
-    - If the user asks about Slack functionality and Slack is NOT connected, tell them to connect Slack from the Integrations panel on the left sidebar first.
-    - If the user asks about GitHub functionality and GitHub is NOT connected, tell them to connect GitHub from the Integrations panel on the left sidebar first.
-    - Be concise, helpful, and professional.
-    - When you don't know something, say so clearly.
-    - Format responses in Markdown for readability.
+        Current integration status:
+        {connection_lines}
+        Rules:
+        - If the user asks about Slack functionality and Slack is NOT connected, tell them to connect Slack from the Integrations panel on the left sidebar first.
+        - If the user asks about GitHub functionality and GitHub is NOT connected, tell them to connect GitHub from the Integrations panel on the left sidebar first.
+        - Be concise, helpful, and professional.
+        - When you don't know something, say so clearly.
+        - Format responses in Markdown for readability.
     """
-
     return system_prompt
 
 
-def _build_history_messages() -> list:
-    """Convert recent session_state messages to LangChain message objects."""
-    from langchain_core.messages import HumanMessage, AIMessage
+_INTENT_SYSTEM_PROMPT = """
+    You are a request classifier for Archie, an AI Knowledge Base Assistant.
 
+    Given the user's message, decide which backend action is most appropriate.
+
+    Available actions:
+    1. "kb_from_slack" — Fetch recent Slack messages and extract a KB article from them. Use when the user asks to import, sync, or process Slack conversations into the knowledge base.
+    2. "kb_from_text" — Create or update a KB article from text the user provides directly (or from attached files). Use when the user pastes content or uploads files to add to the knowledge base.
+    3. "kb_query" — Search and query the existing knowledge base. Use when the user asks a question that should be answered from existing KB articles, or asks to summarise / look up existing knowledge.
+    4. "chat_only" — General conversation, greetings, help questions, or anything that does not need a backend call.
+
+    Respond with ONLY a JSON object. No markdown fences, no explanation.
+    {"action": "<action_name>", "query": "<search query or text to process, if applicable>"}
+"""
+
+# Map each action to the integrations it requires.
+_ACTION_REQUIREMENTS = {
+    "kb_from_slack": ["slack"],
+    "kb_from_text":  ["github"],
+    "kb_query":      ["github"],
+}
+
+
+def _build_history_messages() -> list:
+    """Convert recent session_state messages to OpenAI message format."""
     history = []
     recent = st.session_state.get("messages", [])[-10:]
     for msg in recent:
-        if msg["role"] == "user":
-            history.append(HumanMessage(content=msg["content"]))
-        elif msg["role"] == "assistant":
-            history.append(AIMessage(content=msg["content"]))
+        if msg["role"] in ("user", "assistant"):
+            history.append({"role": msg["role"], "content": msg["content"]})
     return history
 
 
-def _get_llm():
+def _get_llm_client():
     """
-    Get or create the ChatOpenAI LLM instance, cached in session_state.
-    Reuses the same instance across chat turns to avoid repeated initialization.
+    Get or create the OpenAI client instance, cached in session_state.
+
+    Uses gen_ai_hub native SDK (not LangChain wrapper).
     """
-    if "llm" not in st.session_state:
+    if "llm_client" not in st.session_state:
         from gen_ai_hub.proxy.core.proxy_clients import get_proxy_client
-        from gen_ai_hub.proxy.langchain.openai import ChatOpenAI
+        from gen_ai_hub.proxy.native.openai import OpenAI
 
         proxy_client = get_proxy_client("gen-ai-hub")
-        st.session_state.llm = ChatOpenAI(
-            proxy_model_name="gpt-4o",
-            proxy_client=proxy_client,
-            temperature=0.3,
-            max_tokens=1024,
-        )
-    return st.session_state.llm
+        st.session_state.llm_client = OpenAI(proxy_client=proxy_client)
+    return st.session_state.llm_client
+
+
+# ── Intent classification ─────────────────────────────────────────────
+
+
+def _classify_intent(user_input: str, files: list | None = None) -> dict:
+    """
+    Ask the LLM to classify the user's message into an action.
+
+    Returns:
+        {"action": str, "query": str}
+    """
+    import json
+
+    client = _get_llm_client()
+
+    user_text = user_input
+    if files:
+        file_list = ", ".join(f["name"] for f in files)
+        user_text = f"[User attached {len(files)} file(s): {file_list}]\n\n{user_input}"
+
+    messages = [
+        {"role": "system", "content": _INTENT_SYSTEM_PROMPT},
+        {"role": "user", "content": user_text},
+    ]
+
+    response = client.chat.completions.create(
+        model_name='gpt-4o-mini',
+        messages=messages,
+        temperature=0.3,
+        max_tokens=512
+    )
+    raw = response.choices[0].message.content.strip()
+
+    # Strip markdown fences if the model wraps the JSON anyway
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+    try:
+        parsed = json.loads(raw)
+        action = parsed.get("action", "chat_only")
+        query = parsed.get("query", "")
+        if action not in ("kb_from_slack", "kb_from_text", "kb_query", "chat_only"):
+            action = "chat_only"
+        return {"action": action, "query": query}
+    except (json.JSONDecodeError, AttributeError):
+        return {"action": "chat_only", "query": ""}
+
+
+def _check_prerequisites(action: str) -> str | None:
+    """
+    Return a user-facing message if a required integration is missing,
+    or None if everything is connected.
+    """
+    required = _ACTION_REQUIREMENTS.get(action, [])
+    status = _get_connection_status()
+    missing = []
+
+    if "slack" in required and not status["slack_connected"]:
+        missing.append("**Slack** — connect a channel from the Integrations panel in the left sidebar")
+    if "github" in required and not status["github_connected"]:
+        missing.append("**GitHub** — connect a repository from the Integrations panel in the left sidebar")
+
+    if missing:
+        lines = "\n".join(f"- {m}" for m in missing)
+        return f"To do that I need the following integration(s) configured first:\n\n{lines}\n\nPlease connect them and try again."
+    return None
+
+
+# ── API dispatch ──────────────────────────────────────────────────────
+
+
+def _execute_action(action: str, query: str, user_input: str, files: list | None) -> dict | None:
+    """
+    Call the appropriate backend API and return the raw result dict,
+    or None if the action is chat_only.
+    """
+    from services.api_client import kb_from_slack, kb_from_text, kb_query
+
+    if action == "kb_from_slack":
+        channel_id = st.session_state.get("slack_channel_id") or None
+        return kb_from_slack(channel_id=channel_id)
+
+    elif action == "kb_from_text":
+        text = query or user_input
+        if files:
+            file_texts = []
+            for f in files:
+                try:
+                    file_texts.append(f["content"].decode("utf-8", errors="replace"))
+                except Exception:
+                    file_texts.append(str(f["content"]))
+            text = "\n\n".join([text] + file_texts) if text else "\n\n".join(file_texts)
+        return kb_from_text(text=text)
+
+    elif action == "kb_query":
+        return kb_query(query=query or user_input)
+
+    return None
+
+
+def _format_api_response(user_input: str, action: str, api_result: dict) -> str:
+    """
+    Use the LLM to turn a raw API response into a human-friendly message.
+    """
+    import json
+
+    client = _get_llm_client()
+
+    format_prompt = f"""
+        You are Archie, an AI Knowledge Base Assistant.
+        The user asked: "{user_input}"
+        You executed the backend action "{action}" and received this result:
+
+        {json.dumps(api_result, indent=2, default=str)}
+
+        Summarise this result in a clear, helpful Markdown response for the user.
+        If the result indicates an error, explain it simply and suggest next steps.
+        Be concise.
+    """
+
+    messages = [
+        {"role": "system", "content": format_prompt},
+        {"role": "user", "content": "Please summarise the result."},
+    ]
+
+    response = client.chat.completions.create(
+        model_name='gpt-4o-mini',
+        messages=messages,
+        temperature=0.3,
+        max_tokens=1024
+    )
+    return response.choices[0].message.content
+
+
+# ── Main entry point ──────────────────────────────────────────────────
 
 
 def generate_chat_response(user_input: str, files: list = None) -> str:
     """
-    Generate a chat response using SAP GenAI SDK (ChatOpenAI with proxy_client).
-    Falls back to a simple error message if the SDK is unavailable.
+    Generate a chat response.
+
+    Flow:
+    1. LLM classifies the user's intent into one of four actions.
+    2. If the action needs Slack / GitHub and those aren't connected,
+       return a message asking the user to connect them.
+    3. If prerequisites are met, call the backend API.
+    4. Feed the API result back to the LLM for a human-friendly summary.
+    5. For chat_only, fall through to a regular LLM conversation.
     """
     try:
-        from langchain_core.messages import SystemMessage, HumanMessage
-    except ImportError:
-        return (
-            "AI service is not available (gen_ai_hub SDK not installed). "
-            "Please contact your administrator."
-        )
+        # Step 1 — classify intent
+        intent = _classify_intent(user_input, files)
+        action = intent["action"]
+        query = intent["query"]
 
-    # Build user message text (include file info if present)
-    user_message_text = user_input
-    if files:
-        file_list = ", ".join(f["name"] for f in files)
-        user_message_text = (
-            f"[User attached {len(files)} file(s): {file_list}]\n\n{user_input}"
-        )
+        # Step 2 — check prerequisites
+        if action != "chat_only":
+            prereq_msg = _check_prerequisites(action)
+            if prereq_msg:
+                return prereq_msg
 
-    try:
-        llm = _get_llm()
+        # Step 3 — execute API action (if any)
+        api_result = _execute_action(action, query, user_input, files)
+
+        if api_result is not None:
+            # Step 4 — LLM summarises the API result
+            return _format_api_response(user_input, action, api_result)
+
+        # Step 5 — chat_only: regular conversation
+        client = _get_llm_client()
         system_prompt = _build_system_prompt()
         history = _build_history_messages()
 
-        messages = (
-            [SystemMessage(content=system_prompt)]
-            + history
-            + [HumanMessage(content=user_message_text)]
-        )
+        user_text = user_input
+        if files:
+            file_list = ", ".join(f["name"] for f in files)
+            user_text = f"[User attached {len(files)} file(s): {file_list}]\n\n{user_input}"
 
-        response = llm.invoke(messages)
-        return response.content
+        messages = (
+            [{"role": "system", "content": system_prompt}]
+            + history
+            + [{"role": "user", "content": user_text}]
+        )
+        
+        response = client.chat.completions.create(
+            model_name='gpt-4o-mini',
+            messages=messages,
+            temperature=0.3,
+            max_tokens=1024
+        )
+        return response.choices[0].message.content
 
     except Exception as e:
-        return f"I encountered an error generating a response: {str(e)}"
+        return f"Encountered an error generating a response: {str(e)}"
