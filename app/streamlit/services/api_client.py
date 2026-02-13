@@ -156,13 +156,15 @@ def disconnect_slack(channel_id: str) -> dict:
 
 
 # ── KB endpoints ──────────────────────────────────────────────────────
-
+# Main entrypoint with three use case endpoints:
+# 1. GET /api/kb/from-slack - Update KB from Slack messages
+# 2. POST /api/kb/from-text - Update KB from free text
+# 3. POST /api/kb/query - Query knowledge base (Q&A)
 
 def kb_from_slack(
-    channel_id: str | None = None,
     from_datetime: str | None = None,
     to_datetime: str | None = None,
-    limit: int = 100,
+    limit: int = 50,
 ) -> dict:
     """
     Process Slack messages into a KB article.
@@ -173,8 +175,8 @@ def kb_from_slack(
         The KBProcessingResponse dict from the backend.
     """
     params = {"limit": limit}
-    if channel_id:
-        params["channel_id"] = channel_id
+    # if channel_id:
+    #     params["channel_id"] = channel_id
     if from_datetime:
         params["from_datetime"] = from_datetime
     if to_datetime:
@@ -253,107 +255,3 @@ def kb_query(query: str) -> dict:
         return {"status": "error", "query": query, "answer": None, "sources": [], "total_sources": 0, "reason": detail}
     except Exception as e:
         return {"status": "error", "query": query, "answer": None, "sources": [], "total_sources": 0, "reason": str(e)}
-
-
-# ── Slack fetch endpoint ──────────────────────────────────────────────
-
-
-def fetch_slack_conversations(
-    channel_id: str | None = None,
-    from_datetime: str | None = None,
-    to_datetime: str | None = None,
-    limit: int = 100,
-) -> dict:
-    """
-    Fetch raw Slack conversations.
-
-    Calls: GET /api/slack/fetch
-
-    Returns:
-        The conversation response dict from the backend.
-    """
-    params = {"limit": limit}
-    if channel_id:
-        params["channel_id"] = channel_id
-    if from_datetime:
-        params["from_datetime"] = from_datetime
-    if to_datetime:
-        params["to_datetime"] = to_datetime
-
-    try:
-        resp = _api_get("/api/slack/fetch", params=params)
-        resp.raise_for_status()
-        return resp.json()
-    except requests.ConnectionError:
-        return {"success": False, "message": "Cannot connect to backend API"}
-    except requests.HTTPError as e:
-        detail = ""
-        try:
-            detail = e.response.json().get("detail", str(e))
-        except Exception:
-            detail = str(e)
-        return {"success": False, "message": detail}
-    except Exception as e:
-        return {"success": False, "message": str(e)}
-
-
-# ── GitHub PR endpoints ───────────────────────────────────────────────
-
-
-def create_github_pr(title: str, content: str, file_path: str, source_thread_url: str) -> dict:
-    """
-    Create a GitHub PR with KB content.
-
-    Calls: POST /api/github/pr
-
-    Returns:
-        The PRResponse dict from the backend.
-    """
-    payload = {
-        "title": title,
-        "content": content,
-        "file_path": file_path,
-        "source_thread_url": source_thread_url,
-    }
-
-    try:
-        resp = _api_post("/api/github/pr", json=payload)
-        resp.raise_for_status()
-        return resp.json()
-    except requests.ConnectionError:
-        return {"error": "Cannot connect to backend API"}
-    except requests.HTTPError as e:
-        detail = ""
-        try:
-            detail = e.response.json().get("detail", str(e))
-        except Exception:
-            detail = str(e)
-        return {"error": detail}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-def get_pr_status(pr_number: int) -> dict:
-    """
-    Get the status of a GitHub PR.
-
-    Calls: GET /api/github/pr/{pr_number}/status
-
-    Returns:
-        The PR status dict from the backend.
-    """
-    try:
-        resp = _api_get(f"/api/github/pr/{pr_number}/status")
-        resp.raise_for_status()
-        return resp.json()
-    except requests.ConnectionError:
-        return {"error": "Cannot connect to backend API"}
-    except requests.HTTPError as e:
-        detail = ""
-        try:
-            detail = e.response.json().get("detail", str(e))
-        except Exception:
-            detail = str(e)
-        return {"error": detail}
-    except Exception as e:
-        return {"error": str(e)}

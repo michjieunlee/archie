@@ -8,6 +8,11 @@ import re
 import streamlit as st
 import streamlit.components.v1 as components
 from config.settings import MAX_FILE_SIZE_MB, MAX_FILES_COUNT
+from prompts import (
+    build_system_prompt,
+    build_api_response_format_prompt,
+    INTENT_CLASSIFICATION_PROMPT,
+)
 
 # Height of the sticky input bar (px) – used to calculate chat container height
 _INPUT_BAR_HEIGHT = 200
@@ -279,40 +284,7 @@ def _build_system_prompt() -> str:
     else:
         connection_lines += "- Slack: NOT connected\n"
 
-    system_prompt = f"""
-        You are Archie, an AI Knowledge Base Assistant.
-        Your capabilities:
-        - Help users manage and query their knowledge base
-        - Analyze GitHub repositories for knowledge extraction
-        - Retrieve and summarize Slack conversations
-        - Answer general questions about the knowledge base workflow
-
-        Current integration status:
-        {connection_lines}
-        Rules:
-        - If the user asks about Slack functionality and Slack is NOT connected, tell them to connect Slack from the Integrations panel on the left sidebar first.
-        - If the user asks about GitHub functionality and GitHub is NOT connected, tell them to connect GitHub from the Integrations panel on the left sidebar first.
-        - Be concise, helpful, and professional.
-        - When you don't know something, say so clearly.
-        - Format responses in Markdown for readability.
-    """
-    return system_prompt
-
-
-_INTENT_SYSTEM_PROMPT = """
-    You are a request classifier for Archie, an AI Knowledge Base Assistant.
-
-    Given the user's message, decide which backend action is most appropriate.
-
-    Available actions:
-    1. "kb_from_slack" — Fetch recent Slack messages and extract a KB article from them. Use when the user asks to import, sync, or process Slack conversations into the knowledge base.
-    2. "kb_from_text" — Create or update a KB article from text the user provides directly (or from attached files). Use when the user pastes content or uploads files to add to the knowledge base.
-    3. "kb_query" — Search and query the existing knowledge base. Use when the user asks a question that should be answered from existing KB articles, or asks to summarise / look up existing knowledge.
-    4. "chat_only" — General conversation, greetings, help questions, or anything that does not need a backend call.
-
-    Respond with ONLY a JSON object. No markdown fences, no explanation.
-    {"action": "<action_name>", "query": "<search query or text to process, if applicable>"}
-"""
+    return build_system_prompt(connection_lines)
 
 # Map each action to the integrations it requires.
 _ACTION_REQUIREMENTS = {
@@ -367,7 +339,7 @@ def _classify_intent(user_input: str, files: list | None = None) -> dict:
         user_text = f"[User attached {len(files)} file(s): {file_list}]\n\n{user_input}"
 
     messages = [
-        {"role": "system", "content": _INTENT_SYSTEM_PROMPT},
+        {"role": "system", "content": INTENT_CLASSIFICATION_PROMPT},
         {"role": "user", "content": user_text},
     ]
 
@@ -426,7 +398,8 @@ def _execute_action(action: str, query: str, user_input: str, files: list | None
 
     if action == "kb_from_slack":
         channel_id = st.session_state.get("slack_channel_id") or None
-        return kb_from_slack(channel_id=channel_id)
+        #TODO process query to date / limit
+        return kb_from_slack()
 
     elif action == "kb_from_text":
         text = query or user_input
@@ -453,22 +426,13 @@ def _format_api_response(user_input: str, action: str, api_result: dict) -> str:
     import json
 
     client = _get_llm_client()
-
-    format_prompt = f"""
-        You are Archie, an AI Knowledge Base Assistant.
-        The user asked: "{user_input}"
-        You executed the backend action "{action}" and received this result:
-
-        {json.dumps(api_result, indent=2, default=str)}
-
-        Summarise this result in a clear, helpful Markdown response for the user.
-        If the result indicates an error, explain it simply and suggest next steps.
-        Be concise.
-    """
+    
+    api_result_json = json.dumps(api_result, indent=2, default=str)
+    format_prompt = build_api_response_format_prompt(user_input, action, api_result_json)
 
     messages = [
         {"role": "system", "content": format_prompt},
-        {"role": "user", "content": "Please summarise the result."},
+        {"role": "user", "content": "Transform the API response into a user-friendly message."},
     ]
 
     response = client.chat.completions.create(
