@@ -188,8 +188,9 @@ class SlackClient:
                 logger.info("No messages found")
                 # Return empty StandardizedConversation
                 actual_channel_id = channel_id or self.settings.slack_channel_id
+                now = datetime.now()
                 return StandardizedConversation(
-                    id=f"slack_conversation_{actual_channel_id}_{int(datetime.now().timestamp())}",
+                    id=f"slack_conversation_{actual_channel_id}_{int(now.timestamp())}",
                     source=Source(
                         type=SourceType.SLACK,
                         channel_id=actual_channel_id,
@@ -200,8 +201,8 @@ class SlackClient:
                     ),
                     messages=[],
                     participant_count=0,
-                    created_at=datetime.now(),
-                    last_activity_at=datetime.now(),
+                    created_at=now,
+                    last_activity_at=now,
                     metadata={"threads_expanded": False, "total_messages": 0},
                 )
 

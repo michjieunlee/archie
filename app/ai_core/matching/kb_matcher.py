@@ -19,6 +19,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from app.models.knowledge import KBDocument
 from app.ai_core.prompts.matching import MATCHING_SYSTEM_PROMPT
 from app.config import get_settings
+from app.utils import flatten_list
 
 logger = logging.getLogger(__name__)
 
@@ -189,11 +190,11 @@ class KBMatcher:
             List of potentially relevant documents
         """
         relevant = []
-        kb_tags = set(kb_document.tags)
+        kb_tags = set(flatten_list(kb_document.tags))
         kb_category = kb_document.category.value
 
         for doc in existing_kb_docs:
-            doc_tags = set(doc.get("tags", []))
+            doc_tags = set(flatten_list(doc.get("tags", [])))
             doc_category = doc.get("category", "")
 
             # Same category gets higher priority
@@ -215,7 +216,8 @@ class KBMatcher:
             score = 0
             if doc.get("category") == kb_category:
                 score += 10
-            overlap = len(set(doc.get("tags", [])) & kb_tags)
+            doc_tags = set(flatten_list(doc.get("tags", [])))
+            overlap = len(doc_tags & kb_tags)
             score += overlap * 2
             return score
 
@@ -387,11 +389,15 @@ Provide your response as structured output matching the MatchResult model.""",
             # Use 'path' field from GitHub client
             path = doc.get("path") or doc.get("file_path", "unknown")
 
+            # Safely flatten tags (use shared utility)
+            doc_tags = flatten_list(doc.get("tags", []))
+            tags_str = ", ".join(sorted(doc_tags)) if doc_tags else "None"
+
             formatted.append(
                 f"""### {i}. {doc.get('title', 'Untitled')}
 - **Path**: {path}
 - **Category**: {doc.get('category', 'unknown')}
-- **Tags**: {', '.join(doc.get('tags', []))}
+- **Tags**: {tags_str}
 - **Summary**: {summary}
 """
             )
