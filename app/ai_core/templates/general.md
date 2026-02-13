@@ -1,6 +1,6 @@
 ---
 title: "{title}"
-category: "decision"
+category: "general"
 tags: [{tags}]
 difficulty: "{difficulty}"
 source_type: "{source_type}"
@@ -15,24 +15,17 @@ last_updated: "{last_updated}"
 
 # {title}
 
+## Summary
+{summary}
+
+## Key Topics
+{key_topics}
+
+## Key Points
+{key_points}
+
+## Resources Mentioned
+{mentioned_resources}
+
 ## Context
-{decision_context}
-
-## Decision
-{decision_made}
-
-## Rationale
-{reasoning}
-
-## Alternatives Considered
-{alternatives}
-
-## Consequences
-### Positive
-{positive_consequences}
-
-### Negative
-{negative_consequences}
-
-## Implementation Notes
-{implementation_notes}
+{participants_context}

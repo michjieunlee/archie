@@ -18,12 +18,19 @@ CATEGORY_CLASSIFICATION_PROMPT = dedent(
     You are a knowledge classifier. Analyze the following Slack conversation and determine which category it belongs to.
 
     **Categories:**
-    - **troubleshooting**: Problem-solving guides and solutions. The conversation discusses an issue, error, or problem and how it was resolved.
-    - **processes**: Standard operating procedures and workflows. The conversation describes how to do something step-by-step.
-    - **decisions**: Technical decisions, architecture choices, and rationale. The conversation discusses a choice that was made and why.
+    - **troubleshooting**: Problem-solving guides for actual issues, errors, or bugs. The conversation discusses a SPECIFIC problem that occurred and how it was debugged/fixed.
+    - **process**: Standard procedures, configurations, or workflows. The conversation describes the CORRECT way to do something (authentication, setup, deployment, etc.).
+    - **decision**: Technical decisions, architecture choices, and rationale. The conversation discusses a choice that was made and why. Team discussions that lead to a decision or conclusion.
+    - **reference**: Resource pointers and documentation links. Simple Q&A where someone asks "where is X?" and gets a link/pointer.
+    - **general**: Informational discussions that don't fit other categories. Educational content or team discussions WITHOUT a clear decision/conclusion.
+
+    **Important Distinctions:**
+    - "I can't do X" followed by "here's how to do X correctly" → **process** (not troubleshooting)
+    - "We're getting error X, how do we fix it?" → **troubleshooting**
+    - "Where can I find X?" → "Here's the link" → **reference**
 
     **Instructions:**
-    Return ONLY the category name (troubleshooting, processes, or decisions).
+    Return ONLY the category name (troubleshooting, process, decision, reference, or general).
 
     **Conversation:**
     {conversation_content}
@@ -44,6 +51,7 @@ EXTRACTION_SYSTEM_PROMPT = dedent(
     Extract these fields:
     - **title**: Clear, descriptive title (e.g., "Database Connection Timeout Fix")
     - **tags**: 3-5 relevant tags (e.g., ["database", "postgresql", "timeout", "production"])
+    - **difficulty**: Difficulty level (beginner, intermediate, or advanced)
     - **problem_description**: Clear description of the problem that occurred
     - **system_info**: System/platform information (e.g., "PostgreSQL 14.0 on Linux")
     - **version_info**: Version information (e.g., "Application v2.1.0")
@@ -56,10 +64,11 @@ EXTRACTION_SYSTEM_PROMPT = dedent(
     - **ai_confidence**: Your confidence score (0.0-1.0)
     - **ai_reasoning**: Why this is KB-worthy and your confidence explanation
 
-    ### PROCESSES
+    ### PROCESS
     Extract these fields:
     - **title**: Clear, descriptive title (e.g., "Staging Deployment Process")
     - **tags**: 3-5 relevant tags (e.g., ["deployment", "staging", "cicd", "process"])
+    - **difficulty**: Difficulty level (beginner, intermediate, or advanced)
     - **process_overview**: High-level overview of what this process does
     - **prerequisites**: What's needed before starting (tools, access, etc.)
     - **process_steps**: Detailed step-by-step instructions
@@ -69,10 +78,11 @@ EXTRACTION_SYSTEM_PROMPT = dedent(
     - **ai_confidence**: Your confidence score (0.0-1.0)
     - **ai_reasoning**: Why this is KB-worthy and your confidence explanation
 
-    ### DECISIONS
+    ### DECISION
     Extract these fields:
     - **title**: Clear, descriptive title (e.g., "Adopt Microservices Architecture")
     - **tags**: 3-5 relevant tags (e.g., ["architecture", "microservices", "decision", "design"])
+    - **difficulty**: Difficulty level (beginner, intermediate, or advanced)
     - **decision_context**: Context and background for why this decision was needed
     - **decision_made**: The specific decision that was made
     - **reasoning**: Detailed rationale behind the decision
@@ -82,6 +92,40 @@ EXTRACTION_SYSTEM_PROMPT = dedent(
     - **implementation_notes**: How to implement this decision
     - **ai_confidence**: Your confidence score (0.0-1.0)
     - **ai_reasoning**: Why this is KB-worthy and your confidence explanation
+
+    ### REFERENCE
+    Extract these fields:
+    - **title**: Clear, descriptive title (e.g., "Gerrit Instance URL for ServiceNow")
+    - **tags**: 3-5 relevant tags (e.g., ["gerrit", "servicenow", "url", "documentation"])
+    - **difficulty**: Difficulty level (beginner, intermediate, or advanced)
+    - **question_context**: What was being asked or needed
+    - **resource_type**: Type of resource (Documentation, Service URL, Contact, Tool, Wiki)
+    - **primary_resource**: Main link or resource provided
+    - **additional_resources**: Other related links or resources
+    - **resource_description**: Description of what these resources provide
+    - **usage_context**: When and why you would use this resource
+    - **access_requirements**: Prerequisites or requirements to access
+    - **related_topics**: Related topics or alternative resources
+    - **ai_confidence**: Your confidence score (0.0-1.0)
+    - **ai_reasoning**: Why this is KB-worthy and your confidence explanation
+
+    ### GENERAL
+    Extract these fields:
+    - **title**: Clear, descriptive title (e.g., "Team Discussion on API Rate Limiting")
+    - **tags**: 3-5 relevant tags (e.g., ["api", "rate-limiting", "best-practices"])
+    - **difficulty**: Difficulty level (beginner, intermediate, or advanced)
+    - **summary**: High-level summary of the conversation
+    - **key_topics**: Main topics discussed
+    - **key_points**: Important points or takeaways
+    - **mentioned_resources**: Any links, tools, or resources mentioned
+    - **participants_context**: Context about participants or the discussion
+    - **ai_confidence**: Your confidence score (0.0-1.0)
+    - **ai_reasoning**: Why this is KB-worthy and your confidence explanation
+
+    ## Difficulty Assessment:
+    - **beginner**: Simple, straightforward topics; basic concepts; minimal prerequisites; references to basic documentation
+    - **intermediate**: Requires some domain knowledge; multiple steps or components; standard troubleshooting/processes
+    - **advanced**: Complex technical concepts; deep system knowledge required; architecture-level decisions; performance/security considerations
 
     ## Guidelines:
     - Be specific and technical - include exact commands, error messages, configurations

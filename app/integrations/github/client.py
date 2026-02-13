@@ -261,7 +261,13 @@ class GitHubClient:
                 logger.info(
                     "No categories found in repository, using default categories"
                 )
-                self._cached_categories = ["troubleshooting", "processes", "decisions"]
+                self._cached_categories = [
+                    "troubleshooting",
+                    "processes",
+                    "decisions",
+                    "references",
+                    "general",
+                ]
 
             logger.info(f"Discovered categories: {self._cached_categories}")
             return self._cached_categories
@@ -269,11 +275,23 @@ class GitHubClient:
         except UnknownObjectException:
             # Repository is empty
             logger.info("Repository is empty, using default categories")
-            self._cached_categories = ["troubleshooting", "processes", "decisions"]
+            self._cached_categories = [
+                "troubleshooting",
+                "processes",
+                "decisions",
+                "references",
+                "general",
+            ]
             return self._cached_categories
         except Exception as e:
             logger.warning(f"Error discovering categories: {e}, using defaults")
-            self._cached_categories = ["troubleshooting", "processes", "decisions"]
+            self._cached_categories = [
+                "troubleshooting",
+                "processes",
+                "decisions",
+                "references",
+                "general",
+            ]
             return self._cached_categories
 
     def get_categories(self) -> List[str]:

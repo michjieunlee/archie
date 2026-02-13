@@ -2,7 +2,7 @@
 title: "{title}"
 category: "process"
 tags: [{tags}]
-difficulty: "intermediate"
+difficulty: "{difficulty}"
 source_type: "{source_type}"
 history_from: "{history_from}"
 history_to: "{history_to}"

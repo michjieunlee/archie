@@ -101,7 +101,9 @@ class PRManager:
                 else:
                     branch_name = f"{base_branch_name}-{attempt + 1}"
 
-                logger.info(f"Attempting to create PR with branch: {branch_name} (attempt {attempt + 1}/{max_retries})")
+                logger.info(
+                    f"Attempting to create PR with branch: {branch_name} (attempt {attempt + 1}/{max_retries})"
+                )
 
                 # Step 2: Create branch
                 await self.client.create_branch(branch_name)
@@ -147,12 +149,22 @@ class PRManager:
 
             except GithubException as e:
                 # Check if error is "PR already exists" (422 Validation Failed)
-                if e.status == 422 and "pull request already exists" in str(e.data).lower():
-                    logger.warning(f"PR already exists for branch {branch_name}, trying with suffix -{attempt + 2}")
+                if (
+                    e.status == 422
+                    and "pull request already exists" in str(e.data).lower()
+                ):
+                    logger.warning(
+                        f"PR already exists for branch {branch_name}, trying with suffix -{attempt + 2}"
+                    )
                     continue
                 # Check if branch already exists
-                elif e.status == 422 and "reference already exists" in str(e.data).lower():
-                    logger.warning(f"Branch {branch_name} already exists, trying with suffix -{attempt + 2}")
+                elif (
+                    e.status == 422
+                    and "reference already exists" in str(e.data).lower()
+                ):
+                    logger.warning(
+                        f"Branch {branch_name} already exists, trying with suffix -{attempt + 2}"
+                    )
                     continue
                 else:
                     logger.error(f"Failed to create PR for '{title}': {e}")
@@ -162,7 +174,9 @@ class PRManager:
                 raise
 
         # All retries exhausted
-        raise Exception(f"Failed to create PR for '{title}' after {max_retries} attempts - all branch names are taken")
+        raise Exception(
+            f"Failed to create PR for '{title}' after {max_retries} attempts - all branch names are taken"
+        )
 
     def _build_pr_body(
         self,
@@ -228,9 +242,13 @@ class PRManager:
             if file_path.startswith("troubleshooting/"):
                 labels.append("troubleshooting")
             elif file_path.startswith("processes/"):
-                labels.append("processes")
+                labels.append("process")
             elif file_path.startswith("decisions/"):
-                labels.append("decisions")
+                labels.append("decision")
+            elif file_path.startswith("references/"):
+                labels.append("reference")
+            elif file_path.startswith("general/"):
+                labels.append("general")
 
             # Apply labels (only if they exist in the repository)
             existing_labels = {label.name for label in self.client.repo.get_labels()}
