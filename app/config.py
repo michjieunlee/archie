@@ -29,14 +29,17 @@ class Settings(BaseSettings):
     sap_genai_api_url: str = ""
     sap_genai_api_key: str = ""
     sap_genai_deployment_id: str = ""
+    sap_genai_endpoint: str = ""
 
     # Processing Configuration
     batch_size_masking: int = 20  # Messages per orchestration call
     orchestration_timeout: int = 30  # Seconds
+    dry_run: bool = False  # Skip GitHub PR creation when True (for testing)
 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
 @lru_cache
