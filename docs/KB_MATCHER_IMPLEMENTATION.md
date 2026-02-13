@@ -31,7 +31,7 @@ class MatchResult(BaseModel):
     # Unified fields for both UPDATE and CREATE
     document_path: Optional[str]  # Path of document (matched for UPDATE, suggested for CREATE)
     document_title: Optional[str]  # Title of document
-    category: Optional[str]  # One of: troubleshooting, processes, or decisions
+    category: Optional[str]  # One of: troubleshooting, process, decision, reference, or general
 ```
 
 **Note:** The current implementation uses **unified fields** (`document_path`, `document_title`, `category`) instead of separate fields for UPDATE and CREATE actions.
@@ -183,7 +183,7 @@ The matcher works with GitHub repository data through the `read_kb_repository()`
 {
     "title": "Document Title",
     "path": "category/filename.md",  # Note: uses 'path' field
-    "category": "troubleshooting",  # One of: troubleshooting, processes, or decisions
+    "category": "troubleshooting",  # One of: troubleshooting, process, decision, reference, or general
     "tags": ["tag1", "tag2"],
     "content": "Full markdown content with frontmatter",
     "markdown_content": "Content without frontmatter",
@@ -229,7 +229,8 @@ Required in `.env`:
 
 ### Matching Parameters
 - **AI confidence check**: Documents with `ai_confidence < 0.6` may be recommended for IGNORE
-- **Temperature**: Set to 0.0 for deterministic matching decisions
+- **Temperature**: Set to 0.0 for deterministic matching decisions  
+- **Categories**: Supports all 5 categories (troubleshooting, process, decision, reference, general)
 - **Model**: Configured via `config.py` - uses SAP GenAI Hub proxy (no API key needed)
 
 ## Usage Example
@@ -309,7 +310,7 @@ The implementation includes comprehensive tests in `tests/integrations/test_kb_m
 - UPDATE existing document when relevant match found
 - IGNORE low quality content (low AI confidence)
 - Empty repository handling
-- All category types (troubleshooting, processes, decisions)
+- All category types (troubleshooting, process, decision, reference, general)
 - Value addition assessment
 
 ## Decision Examples
