@@ -28,7 +28,7 @@ SlackClient.fetch_conversations_with_threads() -> StandardizedConversation
 
 # GitHub Integration (🚧 Not yet implemented)
 GitHubClient.read_kb_repository() - fetch existing KB for context (TODO)
-GitHubClient.create_kb_pr() - complex operations (create/update/append) (TODO)
+GitHubClient.create_pr() - complex operations (create/update/append) (TODO)
 
 # APIs (Current endpoints)
 GET /api/slack/fetch (✅ Working)

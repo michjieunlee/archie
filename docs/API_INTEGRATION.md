@@ -125,7 +125,7 @@ Content-Type: application/json
     "branch": "main",
     "github_token": "ghp_your-token",
     "options": {
-        "include_categories": ["troubleshooting", "processes", "decisions"],
+        "include_categories": ["troubleshooting", "processes", "decisions", "references", "general"],
         "parse_markdown": true,
         "extract_metadata": true
     }
@@ -155,7 +155,9 @@ Content-Type: application/json
         "categories": {
             "troubleshooting": 20,
             "processes": 15,
-            "decisions": 10
+            "decisions": 10,
+            "references": 8,
+            "general": 7
         },
         "last_update": "2024-01-15T14:30:00Z"
     }
@@ -211,7 +213,7 @@ Content-Type: application/json
         "user_id": "user123",
         "session_id": "session456",
         "preferences": {
-            "categories": ["troubleshooting", "processes"],
+            "categories": ["troubleshooting", "processes", "references"],
             "confidence_threshold": 0.7
         }
     }

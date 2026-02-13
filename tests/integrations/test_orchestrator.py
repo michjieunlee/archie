@@ -132,7 +132,7 @@ async def test_text_to_kb_process():
     ], f"Expected CREATE or IGNORE, got {result.action}"
 
     if result.action == KBActionType.CREATE:
-        assert result.kb_category == "processes", "Should be processes"
+        assert result.kb_category == "process", "Should be process"
 
     return result
 
@@ -253,7 +253,7 @@ async def test_decision_documentation():
     assert result.status == "success", f"Expected success, got {result.status}"
 
     if result.action == KBActionType.CREATE:
-        assert result.kb_category == "decisions", "Should be decisions"
+        assert result.kb_category == "decision", "Should be decision"
 
     return result
 
