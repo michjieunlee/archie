@@ -112,7 +112,7 @@ class PIIMasker:
             ],
         )
 
-    def _create_orchestration_config(self, combined_text: str) -> OrchestrationConfig:
+    def _create_orchestration_config(self, text: str) -> OrchestrationConfig:
         """Create orchestration configuration with DPI masking."""
 
         # Create template for the masking request
@@ -152,9 +152,9 @@ class PIIMasker:
         Mask PII in a batch of standardized conversations using parallel processing.
 
         This method:
-        1. Processes each conversation's messages together as a batch
+        1. Processes each message individually to avoid delimiter issues
         2. Updates author_name to masked identifiers (USER_1, USER_2, etc.)
-        3. Uses asyncio.gather() for parallel processing of multiple conversations
+        3. Uses asyncio.gather() for parallel processing of all messages
         4. Uses SAP GenAI Orchestration V2 for masking content
         5. Fails entire pipeline on any error (strict mode)
 
@@ -184,18 +184,14 @@ class PIIMasker:
             # Create deep copy to avoid modifying original
             masked_conversations = deepcopy(conversations)
 
-            # Create tasks for parallel processing of all conversations
+            # Create tasks for parallel processing of all messages across all conversations
             tasks = []
-            for conv_idx, conversation in enumerate(masked_conversations):
-                logger.info(
-                    f"Queuing conversation {conv_idx + 1}/{len(masked_conversations)} ({len(conversation.messages)} messages)"
-                )
-                tasks.append(self._mask_conversation_messages(conversation))
+            for conversation in masked_conversations:
+                for message in conversation.messages:
+                    tasks.append(self._mask_single_message(message))
 
-            # Process all conversations in parallel using asyncio.gather
-            # Note: Each await inside _mask_conversation_messages() yields control to event loop
-            # allowing all conversations to process concurrently
-            logger.info(f"Processing {len(tasks)} conversations in parallel...")
+            # Process all messages in parallel using asyncio.gather
+            logger.info(f"Processing {len(tasks)} messages in parallel...")
             await asyncio.gather(*tasks)
 
             # Update masked flags and author names
@@ -225,61 +221,41 @@ class PIIMasker:
             logger.error(error_msg)
             raise MaskingError(error_msg) from e
 
-    async def _mask_conversation_messages(
-        self, conversation: StandardizedConversation
-    ) -> None:
+    async def _mask_single_message(self, message: StandardizedMessage) -> None:
         """
-        Mask all messages in a conversation using a single Orchestration V2 call.
+        Mask a single message using Orchestration V2.
 
         Args:
-            conversation: StandardizedConversation whose messages need masking
+            message: StandardizedMessage to mask (modified in place)
 
         Raises:
-            MaskingError: If masking fails for the conversation
+            MaskingError: If masking fails for the message
         """
         try:
-            # Use a unique delimiter that's unlikely to appear in conversation text
-            # This prevents messages containing \n\n from being incorrectly split
-            MESSAGE_DELIMITER = "\n<<<MESSAGE_BOUNDARY>>>\n"
-
-            # Combine all messages into a natural conversation flow
-            # This allows the LLM to better understand context for consistent masking
-            combined_text = MESSAGE_DELIMITER.join(
-                [msg.content for msg in conversation.messages]
-            )
-
             # Create orchestration config
-            config = self._create_orchestration_config(combined_text)
+            config = self._create_orchestration_config(message.content)
 
-            # Call orchestration service with placeholder values
-            # Note: This await yields control to event loop, allowing other threads
-            # in asyncio.gather() to start their API calls concurrently
+            # Call orchestration service
             result = await asyncio.to_thread(
                 self.orchestration_service.run,
                 config=config,
-                placeholder_values={"input": combined_text},
+                placeholder_values={"input": message.content},
             )
 
-            # Extract masked content from result
+            # Extract and update masked content
             if result and hasattr(result, "final_result"):
-                masked_combined = self._extract_masked_content(result)
-
-                # Split the masked content back into individual messages
-                self._distribute_masked_content(conversation, masked_combined)
-
-                logger.debug(
-                    f"Masked conversation {conversation.id}: {len(conversation.messages)} messages"
-                )
+                message.content = self._extract_masked_content(result).strip()
             else:
                 raise MaskingError(
-                    f"Invalid response from orchestration service for conversation {conversation.id}"
+                    f"Invalid response from orchestration service for message {message.id}"
                 )
 
         except Exception as e:
-            error_msg = f"Conversation masking failed for {conversation.id}: {str(e)}"
+            error_msg = f"Message masking failed for {message.id}: {str(e)}"
             logger.error(error_msg)
             raise MaskingError(error_msg) from e
 
+<<<<<<< HEAD
     def _distribute_masked_content(
         self, conversation: StandardizedConversation, masked_combined: str
     ) -> None:
@@ -342,6 +318,8 @@ class PIIMasker:
         except Exception as e:
             raise MaskingError(f"Failed to distribute masked content: {e}") from e
 
+=======
+>>>>>>> 77e6d5b (Replace delimiter approach with individual message processing)
     def _extract_masked_content(self, result: Any) -> str:
         """
         Extract masked content from orchestration result.
@@ -403,7 +381,7 @@ class PIIMasker:
             "total_conversations": len(conversations),
             "total_messages": total_messages,
             "total_characters": total_chars,
-            "estimated_api_calls": len(conversations),  # One call per conversation
+            "estimated_api_calls": total_messages,  # One call per message
             "estimated_time_seconds": estimated_time,  # Parallel processing
             "entities_masked": [
                 "PERSON",
