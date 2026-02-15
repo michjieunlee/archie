@@ -111,10 +111,34 @@ This document provides visual architecture diagrams and system design overview f
 │ KB MATCHING         │
 │ • Existing KB scan  │
 │ • Similarity check  │
-│ • Merge/Update logic│
+│ • CREATE/UPDATE/    │
+│   IGNORE decision   │
 └──────────┬──────────┘
            │
            ▼
+    ┌──────┴──────┐
+    │             │
+    ▼             ▼
+┌─────────┐  ┌─────────┐
+│ CREATE  │  │ UPDATE  │
+│ Action  │  │ Action  │
+└────┬────┘  └────┬────┘
+     │            │
+     ▼            ▼
+┌─────────┐  ┌─────────────────┐
+│Template │  │ AI-Powered      │
+│Based    │  │ Intelligent     │
+│Generate │  │ Merge           │
+└────┬────┘  │ • UPDATE_PROMPT │
+     │       │ • Selective     │
+     │       │   Updates       │
+     │       │ • Preserve      │
+     │       │   Formatting    │
+     │       └────┬────────────┘
+     │            │
+     └────┬───────┘
+          │
+          ▼
 ┌─────────────────────┐
 │ KB GENERATION       │
 │ • Document creation │
@@ -127,6 +151,55 @@ This document provides visual architecture diagrams and system design overview f
 │ List[               │
 │ KBGenerationResult] │
 └─────────────────────┘
+```
+
+### KB Document Update Flow
+
+```
+┌──────────────────┐
+│ KBMatcher        │
+│ Returns UPDATE   │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Fetch Existing   │
+│ Document from    │
+│ GitHub           │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ KBGenerator      │
+│ .update_markdown()│
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ AI with          │
+│ UPDATE_PROMPT    │
+│ • Selective      │
+│ • Preserve Tags  │
+│ • Minimal Changes│
+└────────┬─────────┘
+         │
+    Success? ────No───┐
+         │            │
+         Yes          ▼
+         │      ┌─────────────┐
+         │      │ Fallback to │
+         │      │ generate_   │
+         │      │ markdown()  │
+         │      └──────┬──────┘
+         │             │
+         └─────┬───────┘
+               │
+               ▼
+       ┌───────────────┐
+       │ Updated       │
+       │ Markdown      │
+       │ Content       │
+       └───────────────┘
 ```
 
 ## Team Ownership Architecture

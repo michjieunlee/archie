@@ -19,7 +19,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from app.models.knowledge import KBDocument
 from app.ai_core.prompts.matching import MATCHING_SYSTEM_PROMPT
 from app.config import get_settings
-from app.utils import flatten_list
+from app.utils import flatten_list, format_kb_document_content
 
 logger = logging.getLogger(__name__)
 
@@ -240,7 +240,7 @@ class KBMatcher:
             MatchResult (Pydantic model from structured output)
         """
         # Format new content based on category template structure
-        new_content_formatted = self._format_new_content_by_category(kb_document)
+        new_content_formatted = format_kb_document_content(kb_document)
 
         # Format existing docs
         existing_docs_text = self._format_existing_docs(relevant_documents)
@@ -289,125 +289,6 @@ Provide your response as structured output matching the MatchResult model.""",
 
         logger.info(f"Structured output received: {result.action}")
         return result
-
-    def _format_new_content_by_category(self, kb_document: KBDocument) -> str:
-        """
-        Format new content based on category template structure.
-
-        Uses the same structure as the templates to present content consistently.
-        """
-        extraction = kb_document.extraction_output
-        category = kb_document.category.value
-
-        if category == "troubleshooting":
-            return f"""### Problem Description
-{extraction.problem_description}
-
-### Environment
-- **System**: {extraction.system_info}
-- **Version**: {extraction.version_info}
-- **Environment**: {extraction.environment}
-
-### Symptoms
-{extraction.symptoms}
-
-### Root Cause
-{extraction.root_cause}
-
-### Solution
-{extraction.solution_steps}
-
-### Prevention
-{extraction.prevention_measures}
-
-### Related Issues
-{extraction.related_links or 'None'}"""
-
-        elif category == "process":
-            return f"""### Overview
-{extraction.process_overview}
-
-### Prerequisites
-{extraction.prerequisites}
-
-### Step-by-Step Process
-{extraction.process_steps}
-
-### Validation
-{extraction.validation_steps}
-
-### Troubleshooting
-{extraction.common_issues}
-
-### Related Processes
-{extraction.related_processes}"""
-
-        elif category == "decision":
-            return f"""### Context
-{extraction.decision_context}
-
-### Decision
-{extraction.decision_made}
-
-### Rationale
-{extraction.reasoning}
-
-### Alternatives Considered
-{extraction.alternatives}
-
-### Consequences
-#### Positive
-{extraction.positive_consequences}
-
-#### Negative
-{extraction.negative_consequences}
-
-### Implementation Notes
-{extraction.implementation_notes}"""
-
-        elif category == "reference":
-            return f"""### Question Context
-{extraction.question_context}
-
-### Resource Type
-{extraction.resource_type}
-
-### Primary Resource
-{extraction.primary_resource}
-
-### Additional Resources
-{extraction.additional_resources}
-
-### Resource Description
-{extraction.resource_description}
-
-### Usage Context
-{extraction.usage_context}
-
-### Access Requirements
-{extraction.access_requirements}
-
-### Related Topics
-{extraction.related_topics}"""
-
-        elif category == "general":
-            return f"""### Summary
-{extraction.summary}
-
-### Key Topics
-{extraction.key_topics}
-
-### Key Points
-{extraction.key_points}
-
-### Mentioned Resources
-{extraction.mentioned_resources}
-
-### Participants Context
-{extraction.participants_context}"""
-
-        else:
-            return "Content format not available for this category"
 
     def _format_existing_docs(self, existing_docs: List[Dict[str, Any]]) -> str:
         """Format existing KB documents for LLM prompt."""

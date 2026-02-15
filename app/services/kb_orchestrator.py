@@ -316,9 +316,47 @@ class KBOrchestrator:
             f"Match result: {match_result.action.value} (confidence: {match_result.confidence_score})"
         )
 
-        # Step 4: Generate KB document and summary
-        logger.info("Generating KB document and summary...")
-        markdown_content = self.generator.generate_markdown(kb_document)
+        # Step 4: Generate or update KB document
+        if match_result.action == MatchAction.UPDATE:
+            logger.info(
+                f"UPDATE action: Attempting to update existing KB document at {match_result.document_path}"
+            )
+
+            # Fetch existing document content
+            existing_doc = next(
+                (
+                    doc
+                    for doc in existing_kb_docs
+                    if doc.get("path") == match_result.document_path
+                ),
+                None,
+            )
+
+            if existing_doc and existing_doc.get("content"):
+                try:
+                    logger.info(
+                        "Fetched existing document, using AI to merge updates..."
+                    )
+                    markdown_content = await self.generator.update_markdown(
+                        existing_content=existing_doc["content"],
+                        new_document=kb_document,
+                    )
+                    logger.info("Successfully updated document using AI merge")
+                except Exception as e:
+                    logger.warning(
+                        f"AI update failed: {e}. Falling back to generate_markdown()"
+                    )
+                    markdown_content = self.generator.generate_markdown(kb_document)
+            else:
+                logger.warning(
+                    f"Could not find existing document content for path: {match_result.document_path}. "
+                    f"Falling back to generate_markdown()"
+                )
+                markdown_content = self.generator.generate_markdown(kb_document)
+        else:
+            logger.info(f"CREATE action: Generating new KB document")
+            markdown_content = self.generator.generate_markdown(kb_document)
+
         kb_summary = self._generate_document_summary(markdown_content)
 
         # Step 5: Create GitHub PR
