@@ -126,8 +126,32 @@ cp .env.example .env
 
 ### Running the Server
 
+**Recommended method** (with automatic debug logging support):
+```bash
+python run.py
+```
+
+This will start the server on `http://127.0.0.1:8000` with debug logging enabled/disabled based on the `DEBUG` setting in your `.env` file.
+
+**Alternative method** (direct uvicorn):
 ```bash
 uvicorn app.main:app --reload --port 8000
+```
+
+**Enable debug logging:**
+- Set `DEBUG=true` in your `.env` file (when using `python run.py`)
+- Or use `uvicorn app.main:app --reload --port 8000 --log-level debug`
+
+**Optional configuration:**
+```bash
+# Change host (default: 127.0.0.1)
+HOST=0.0.0.0 python run.py
+
+# Change port (default: 8000)
+PORT=3000 python run.py
+
+# Combine multiple options
+HOST=0.0.0.0 PORT=3000 python run.py
 ```
 
 ### API Documentation
