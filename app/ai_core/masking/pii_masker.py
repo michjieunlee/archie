@@ -225,7 +225,9 @@ class PIIMasker:
             logger.error(error_msg)
             raise MaskingError(error_msg) from e
 
-    async def _mask_conversation_messages(self, conversation: StandardizedConversation) -> None:
+    async def _mask_conversation_messages(
+        self, conversation: StandardizedConversation
+    ) -> None:
         """
         Mask all messages in a conversation using a single Orchestration V2 call.
 
@@ -236,9 +238,15 @@ class PIIMasker:
             MaskingError: If masking fails for the conversation
         """
         try:
+            # Use a unique delimiter that's unlikely to appear in conversation text
+            # This prevents messages containing \n\n from being incorrectly split
+            MESSAGE_DELIMITER = "\n<<<MESSAGE_BOUNDARY>>>\n"
+
             # Combine all messages into a natural conversation flow
             # This allows the LLM to better understand context for consistent masking
-            combined_text = "\n\n".join([msg.content for msg in conversation.messages])
+            combined_text = MESSAGE_DELIMITER.join(
+                [msg.content for msg in conversation.messages]
+            )
 
             # Create orchestration config
             config = self._create_orchestration_config(combined_text)
@@ -278,15 +286,15 @@ class PIIMasker:
         """
         Distribute masked content back to individual messages.
 
-        The masking LLM receives all messages combined with '\\n\\n' separator.
+        The masking LLM receives all messages combined with a unique delimiter.
         This method splits the masked result back to individual messages.
 
         Special handling:
         - Single-message conversations (e.g., text input): Don't split - assign
           the entire masked result as the message content. This prevents content
           with multiple paragraphs from being incorrectly truncated.
-        - Multi-message conversations (e.g., Slack threads): Split by '\\n\\n'
-          and assign each part to the corresponding message.
+        - Multi-message conversations (e.g., Slack threads): Split by unique
+          delimiter and assign each part to the corresponding message.
 
         Args:
             conversation: Conversation whose messages need updating
@@ -296,14 +304,22 @@ class PIIMasker:
             MaskingError: If content cannot be distributed properly
         """
         try:
+            # Use the same unique delimiter used in _mask_conversation_messages
+            MESSAGE_DELIMITER = "\n<<<MESSAGE_BOUNDARY>>>\n"
+
             # For single-message conversations, don't split - assign entire content
             if len(conversation.messages) == 1:
                 conversation.messages[0].content = masked_combined.strip()
                 logger.debug("Single message - assigned entire masked content")
                 return
 
+<<<<<<< HEAD
             # For multi-message conversations, split by double newlines
             masked_parts = masked_combined.split("\n\n")
+=======
+            # For multi-message conversations, split by the unique delimiter
+            masked_parts = masked_combined.split(MESSAGE_DELIMITER)
+>>>>>>> 65f2f3d (Fix message delimiter to prevent splitting messages containing newlines)
 
             # Verify we got the expected number of parts
             if len(masked_parts) != len(conversation.messages):
@@ -371,9 +387,13 @@ class PIIMasker:
         Returns:
             Dictionary with statistics
         """
-        total_messages = sum(len(conversation.messages) for conversation in conversations)
+        total_messages = sum(
+            len(conversation.messages) for conversation in conversations
+        )
         total_chars = sum(
-            len(msg.content) for conversation in conversations for msg in conversation.messages
+            len(msg.content)
+            for conversation in conversations
+            for msg in conversation.messages
         )
 
         # With parallel processing, time ≈ max of all threads (not sum)
