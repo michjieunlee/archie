@@ -8,8 +8,14 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from gen_ai_hub.proxy.langchain.openai import ChatOpenAI
+from gen_ai_hub.proxy.core.proxy_clients import get_proxy_client
+from langchain_core.prompts import ChatPromptTemplate
+
 from app.models.knowledge import KBDocument, KBCategory
-from app.utils import flatten_list
+from app.utils import flatten_list, format_kb_document_content
+from app.ai_core.prompts.generation import UPDATE_PROMPT
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +210,69 @@ class KBGenerator:
             filename = filename[:60].rstrip("-")
 
         return f"{filename}.md"
+
+    async def update_markdown(
+        self, existing_content: str, new_document: KBDocument
+    ) -> str:
+        """
+        Update existing KB document with new information using AI.
+
+        Uses UPDATE_PROMPT to intelligently merge content following guidelines:
+        - Only update lines that change meaning
+        - Preserve formatting and structure
+        - Make minimal changes
+
+        Args:
+            existing_content: The current markdown content of the existing document
+            new_document: The newly extracted KB document with information to merge
+
+        Returns:
+            Updated markdown content
+
+        Raises:
+            Exception: If AI update fails, will be caught by caller for fallback
+        """
+        try:
+            logger.info("Initializing AI-powered document update...")
+
+            # Initialize LLM
+            config = get_settings()
+            proxy_client = get_proxy_client("gen-ai-hub")
+            llm = ChatOpenAI(
+                proxy_model_name=config.openai_model,
+                proxy_client=proxy_client,
+                temperature=0.0,  # Deterministic for updates
+            )
+
+            # Format new information using shared utility function
+            new_info_formatted = format_kb_document_content(new_document)
+
+            logger.info(
+                f"Formatted new content for category: {new_document.category.value}"
+            )
+
+            # Create prompt
+            prompt = ChatPromptTemplate.from_messages([("system", UPDATE_PROMPT)])
+
+            # Build chain and invoke
+            chain = prompt | llm
+            response = await chain.ainvoke(
+                {
+                    "existing_content": existing_content,
+                    "new_information": new_info_formatted,
+                }
+            )
+
+            updated_content = response.content.strip()
+
+            logger.info(
+                f"Successfully updated KB document using AI (length: {len(updated_content)} chars)"
+            )
+            return updated_content
+
+        except Exception as e:
+            logger.error(f"Error in AI-powered document update: {e}", exc_info=True)
+            raise  # Re-raise for caller to handle fallback
 
     def get_category_directory(self, category: KBCategory) -> str:
         """
