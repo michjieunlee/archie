@@ -128,7 +128,7 @@ class PIIMasker:
         # Create LLM model details
         llm = LLMModelDetails(
             name="gpt-4o-mini",
-            params={"max_tokens": 1000, "temperature": 0.0},
+            params={"temperature": 0.0},
         )
 
         # Create prompt templating config

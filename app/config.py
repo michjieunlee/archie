@@ -24,7 +24,6 @@ class Settings(BaseSettings):
     # No API key needed - uses gen_ai_hub proxy
     openai_model: str = "gpt-5"
     temperature: float = 0.0
-    max_tokens: int = 4000
 
     # SAP GenAI SDK
     sap_genai_api_url: str = ""
