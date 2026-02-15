@@ -127,13 +127,28 @@ EXTRACTION_SYSTEM_PROMPT = dedent(
     - **intermediate**: Requires some domain knowledge; multiple steps or components; standard troubleshooting/processes
     - **advanced**: Complex technical concepts; deep system knowledge required; architecture-level decisions; performance/security considerations
 
-    ## Guidelines:
-    - Be specific and technical - include exact commands, error messages, configurations
-    - Preserve code snippets and commands exactly as shared
+    ## CRITICAL ANTI-HALLUCINATION GUIDELINES:
+    
+    **YOU MUST ONLY EXTRACT INFORMATION THAT IS EXPLICITLY PRESENT IN THE CONVERSATION.**
+    
+    - **NEVER generate, infer, or assume information that is not directly stated in the conversation**
+    - **NEVER add examples, troubleshooting steps, or validation steps that were not discussed**
+    - **NEVER expand on topics beyond what was actually mentioned**
+    - If a field's information is not explicitly present in the conversation, use "Not specified" or "Not discussed in conversation"
+    - For process_steps, validation_steps, common_issues, and troubleshooting sections: **ONLY include steps/issues/validations that were actually mentioned in the conversation**
+    - Do not add "common best practices" or "typical steps" that were not discussed
+    - Preserve exact commands, code snippets, URLs, and technical details as shared (do not modify or expand them)
     - Use clear, professional language suitable for documentation
-    - For multi-step content, use numbered lists
-    - Include concrete examples where possible
-    - If information is not explicitly mentioned, write "Not specified" rather than making assumptions
+    - For multi-step content, use numbered lists only for steps that were explicitly discussed
+    
+    **Example of CORRECT extraction:**
+    - Conversation mentions: "You need to issue a PAT token with generous expiration"
+    - Extract: "Issue a Personal Access Token (PAT) with a generous expiration date as recommended"
+    - DO NOT ADD: SSH keys, network troubleshooting, firewall checks, or any other methods not mentioned
+    
+    **Example of INCORRECT extraction (hallucination):**
+    - Conversation mentions only PAT
+    - DO NOT extract: SSH setup steps, network diagnostics, firewall configurations, or alternative authentication methods
 
     ## Confidence Scoring:
     - **High (0.8-1.0)**: Clear, verified solution/process/decision with details
@@ -159,7 +174,28 @@ EXTRACTION_USER_PROMPT_TEMPLATE = dedent(
 
     {additional_context}
 
+    **CRITICAL ANTI-HALLUCINATION REQUIREMENTS:**
+    
+    You MUST follow these rules STRICTLY:
+    
+    1. **ONLY extract what is EXPLICITLY stated in the conversation above**
+    2. **DO NOT add any information from your general knowledge**
+    3. **DO NOT generate examples, steps, or troubleshooting advice not in the conversation**
+    4. **DO NOT mention alternative methods (SSH, VPN, network, firewall, etc.) unless they were discussed**
+    5. **DO NOT expand abbreviated topics into full explanations**
+    
+    For each field:
+    - If the conversation discusses it: Extract ONLY what was said
+    - If the conversation does NOT discuss it: Use "Not discussed in conversation"
+    - DO NOT fill in "obvious" or "logical" steps that weren't mentioned
+    
+    **Specific examples of what NOT to do:**
+    - If only PAT tokens are mentioned → DO NOT add SSH key setup
+    - If only one auth method is discussed → DO NOT mention alternatives
+    - If no validation is mentioned → DO NOT create validation steps
+    - If no troubleshooting is mentioned → DO NOT add troubleshooting advice
+    
     Based on the category, populate ALL required fields for the appropriate model ({category}Extraction).
-    Ensure every field has meaningful content - use "Not specified" only when information is truly absent from the conversation.
+    Extract ONLY what was explicitly stated in the conversation.
     """
 ).strip()
