@@ -139,7 +139,52 @@ def create_sample_conversations() -> List[StandardizedConversation]:
         last_activity_at=datetime.now(),
     )
 
-    return [conversation1, conversation2, conversation3]
+    # conversation 4: Multi-paragraph message with corrections (tests delimiter fix)
+    conversation4 = StandardizedConversation(
+        id="conversation_004",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C789",
+            channel_name="infrastructure",
+        ),
+        messages=[
+            StandardizedMessage(
+                idx=0,
+                id="msg7",
+                message_id="msg7",
+                author_id="user_david",
+                author_name="David Lee",
+                content="Where can I find the infrastructure service contacts?",
+                timestamp=datetime.now(),
+                is_masked=False,
+            ),
+            StandardizedMessage(
+                idx=1,
+                id="msg8",
+                message_id="msg8",
+                author_id="user_emma",
+                author_name="Emma Wilson",
+                content="You can find them at: https://wiki.example.page/infra-service-responsibles\n\nAlso check the GitHub onboarding: https://github.com/your-org/onboarding",
+                timestamp=datetime.now(),
+                is_masked=False,
+            ),
+            StandardizedMessage(
+                idx=2,
+                id="msg9",
+                message_id="msg9",
+                author_id="user_emma",
+                author_name="Emma Wilson",
+                content="Correction: The correct first link is:\n\nhttps://wiki.example.page/infra-service/responsibles\n\n(Note the slash between infra-service and responsibles)",
+                timestamp=datetime.now(),
+                is_masked=False,
+            ),
+        ],
+        participant_count=2,
+        created_at=datetime.now(),
+        last_activity_at=datetime.now(),
+    )
+
+    return [conversation1, conversation2, conversation3, conversation4]
 
 
 def print_divider(char="=", length=80):
