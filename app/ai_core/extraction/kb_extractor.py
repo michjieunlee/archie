@@ -75,12 +75,10 @@ class KBExtractor:
             proxy_model_name=config.openai_model,
             proxy_client=self.proxy_client,
             temperature=config.temperature,
-            max_tokens=config.max_tokens,
         )
 
         self.model = config.openai_model
         self.temperature = config.temperature
-        self.max_tokens = config.max_tokens
 
     async def extract_knowledge(
         self,
