@@ -405,7 +405,7 @@ def _execute_action(action: str, parameters, user_input: str, files: list | None
     
     Args:
         action: The action type (kb_from_slack, kb_from_text, kb_query, chat_only)
-        parameters: Either dict (for kb_from_slack) or str (for other actions) # TODO
+        parameters: Dict for kb_from_slack/kb_from_text with structured params; string for kb_query/chat_only (may be empty)
         user_input: Original user input
         files: Optional list of uploaded files
     """
@@ -450,7 +450,8 @@ def _execute_action(action: str, parameters, user_input: str, files: list | None
         return kb_from_text(text=text, title=title, metadata=metadata)
 
     elif action == "kb_query":
-        return kb_query(query=parameters or user_input)
+        # Use entire user input as query (parameters not used for kb_query)
+        return kb_query(query=user_input)
 
     return None
 
