@@ -134,7 +134,10 @@ INTENT_CLASSIFICATION_PROMPT = f"""You are an intent classifier for Archie, an A
     - "search for", "find information on", "look up"
     - "summarize our knowledge on", "what's documented about"
     - Requests for specific KB article details
-    **Query extraction**: Extract the search topic or specific information need
+    
+    **Parameter extraction**: No extraction needed
+    - Return empty string for parameters
+    - The entire user input will be used as the query in the backend
 
     ### 4. chat_only
     **When to use**: Conversational or meta requests that don't need backend processing
@@ -191,7 +194,7 @@ INTENT_CLASSIFICATION_PROMPT = f"""You are an intent classifier for Archie, an A
     **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": null, "to_datetime": null, "limit": null}}}}
 
     **Input**: "What do we know about the authentication flow?"
-    **Output**: {{"action": "kb_query", "parameters": "authentication flow"}}
+    **Output**: {{"action": "kb_query", "parameters": ""}}
 
     **Input**: [User attaches file] "Please add this API documentation with the file title "Gerrit API documentation"
     **Output**: {{"action": "kb_from_text", "parameters": {{"title": "Gerrit API documentation", "metadata": null}}}}
