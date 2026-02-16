@@ -4,6 +4,7 @@ Provides a centered chat interface with sticky input bar and file upload dialog.
 """
 
 import re
+from typing import Any
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -288,7 +289,7 @@ def _build_system_prompt() -> str:
 
 # Map each action to the integrations it requires.
 _ACTION_REQUIREMENTS = {
-    "kb_from_slack": ["slack"],
+    "kb_from_slack": ["slack", "github"], # TODO: check if slack -> github PR is mandatory
     "kb_from_text":  ["github"],
     "kb_query":      ["github"],
 }
@@ -322,12 +323,12 @@ def _get_llm_client():
 # ── Intent classification ─────────────────────────────────────────────
 
 
-def _classify_intent(user_input: str, files: list | None = None) -> dict:
+def _classify_intent(user_input: str, files: list | None = None) -> dict[str, Any]:
     """
     Ask the LLM to classify the user's message into an action.
 
     Returns:
-        {"action": str, "query": str}
+        {"action": str, "parameters": dict or str}
     """
     import json
 
@@ -358,12 +359,14 @@ def _classify_intent(user_input: str, files: list | None = None) -> dict:
     try:
         parsed = json.loads(raw)
         action = parsed.get("action", "chat_only")
-        query = parsed.get("query", "")
+        
         if action not in ("kb_from_slack", "kb_from_text", "kb_query", "chat_only"):
             action = "chat_only"
-        return {"action": action, "query": query}
+        parameters = parsed.get("parameters", {} if action == "kb_from_slack" else "") # TODO
+        return {"action": action, "parameters": parameters}
+            
     except (json.JSONDecodeError, AttributeError):
-        return {"action": "chat_only", "query": ""}
+        return {"action": "chat_only", "parameters": ""}
 
 
 def _check_prerequisites(action: str) -> str | None:
@@ -389,20 +392,38 @@ def _check_prerequisites(action: str) -> str | None:
 # ── API dispatch ──────────────────────────────────────────────────────
 
 
-def _execute_action(action: str, query: str, user_input: str, files: list | None) -> dict | None:
+def _execute_action(action: str, parameters, user_input: str, files: list | None) -> dict | None:
     """
     Call the appropriate backend API and return the raw result dict,
     or None if the action is chat_only.
+    
+    Args:
+        action: The action type (kb_from_slack, kb_from_text, kb_query, chat_only)
+        parameters: Either dict (for kb_from_slack) or str (for other actions) # TODO
+        user_input: Original user input
+        files: Optional list of uploaded files
     """
     from services.api_client import kb_from_slack, kb_from_text, kb_query
 
     if action == "kb_from_slack":
-        channel_id = st.session_state.get("slack_channel_id") or None
-        #TODO process query to date / limit
-        return kb_from_slack()
+        # Extract structured parameters from dict
+        if isinstance(parameters, dict):
+            from_datetime = parameters.get("from_datetime")
+            to_datetime = parameters.get("to_datetime")
+            limit = parameters.get("limit")
+        else:
+            from_datetime = None
+            to_datetime = None
+            limit = None
+        
+        return kb_from_slack(
+            from_datetime=from_datetime,
+            to_datetime=to_datetime,
+            limit=limit if limit is not None else 50  # API default
+        )
 
     elif action == "kb_from_text":
-        text = query or user_input
+        text = parameters or user_input
         if files:
             file_texts = []
             for f in files:
@@ -414,7 +435,7 @@ def _execute_action(action: str, query: str, user_input: str, files: list | None
         return kb_from_text(text=text)
 
     elif action == "kb_query":
-        return kb_query(query=query or user_input)
+        return kb_query(query=parameters or user_input)
 
     return None
 
@@ -463,7 +484,7 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
         # Step 1 — classify intent
         intent = _classify_intent(user_input, files)
         action = intent["action"]
-        query = intent["query"]
+        parameters = intent["parameters"]
 
         # Step 2 — check prerequisites
         if action != "chat_only":
@@ -472,7 +493,7 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
                 return prereq_msg
 
         # Step 3 — execute API action (if any)
-        api_result = _execute_action(action, query, user_input, files)
+        api_result = _execute_action(action, parameters, user_input, files)
 
         if api_result is not None:
             # Step 4 — LLM summarises the API result
