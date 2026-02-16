@@ -362,7 +362,13 @@ def _classify_intent(user_input: str, files: list | None = None) -> dict[str, An
         
         if action not in ("kb_from_slack", "kb_from_text", "kb_query", "chat_only"):
             action = "chat_only"
-        parameters = parsed.get("parameters", {} if action == "kb_from_slack" else "") # TODO
+        
+        if action in ("kb_from_slack", "kb_from_text"):
+            default_params = {}
+        else:
+            default_params = ""
+        
+        parameters = parsed.get("parameters", default_params)
         return {"action": action, "parameters": parameters}
             
     except (json.JSONDecodeError, AttributeError):
@@ -423,7 +429,15 @@ def _execute_action(action: str, parameters, user_input: str, files: list | None
         )
 
     elif action == "kb_from_text":
-        text = parameters or user_input
+        if isinstance(parameters, dict):
+            title = parameters.get("title")
+            metadata = parameters.get("metadata")
+        else:
+            title = None
+            metadata = None
+        
+        # Build text from user input + files
+        text = user_input
         if files:
             file_texts = []
             for f in files:
@@ -432,7 +446,8 @@ def _execute_action(action: str, parameters, user_input: str, files: list | None
                 except Exception:
                     file_texts.append(str(f["content"]))
             text = "\n\n".join([text] + file_texts) if text else "\n\n".join(file_texts)
-        return kb_from_text(text=text)
+        
+        return kb_from_text(text=text, title=title, metadata=metadata)
 
     elif action == "kb_query":
         return kb_query(query=parameters or user_input)
