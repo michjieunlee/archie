@@ -8,6 +8,12 @@ from components.chat_section import render_chat_section
 from components.integration_panel import render_integration_panel, render_integration_buttons
 from config.settings import PAGE_CONFIG
 
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 def main():
     """
