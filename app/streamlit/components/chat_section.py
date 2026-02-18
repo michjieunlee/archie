@@ -152,6 +152,77 @@ def _inject_sticky_js():
     components.html(js, height=0, scrolling=False)
 
 
+def _inject_autoscroll_js():
+    """Use components.html to run JS that auto-scrolls chat to bottom on new messages."""
+    js = """
+    <script>
+    (function() {
+        // Unique namespace for auto-scroll to avoid conflicts
+        window.chatAutoScroll = window.chatAutoScroll || {};
+        
+        var scrollTimeout = null;
+        var lastMessageCount = 0;
+        var lastScrollHeight = 0;
+        
+        function scrollToBottom() {
+            var doc = window.parent.document;
+            
+            // Find the chat history container
+            var chatContainer = doc.querySelector('.st-key-chat_history');
+            if (!chatContainer) return;
+            
+            // Count current messages
+            var messages = chatContainer.querySelectorAll('[data-testid="stChatMessage"]');
+            var currentMessageCount = messages.length;
+            
+            // Get current scroll height (increases as content is added)
+            var currentScrollHeight = chatContainer.scrollHeight;
+            
+            // Scroll if there are new messages OR if content height has increased
+            // (content height increases for multi-line responses being rendered)
+            if (currentMessageCount > lastMessageCount || currentScrollHeight > lastScrollHeight) {
+                lastMessageCount = currentMessageCount;
+                lastScrollHeight = currentScrollHeight;
+                
+                // Smooth scroll to bottom
+                chatContainer.scrollTo({
+                    top: chatContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
+        }
+        
+        function debouncedScroll() {
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+            scrollTimeout = setTimeout(scrollToBottom, 100);
+        }
+        
+        // Initial scroll after a delay to let content load
+        setTimeout(scrollToBottom, 500);
+        
+        // Watch for new messages being added
+        var autoScrollObserver = new MutationObserver(function(mutations) {
+            debouncedScroll();
+        });
+        
+        // Start observing the document body for changes
+        var doc = window.parent.document;
+        autoScrollObserver.observe(doc.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Store observer globally so it can be accessed if needed
+        window.chatAutoScroll.observer = autoScrollObserver;
+        window.chatAutoScroll.scrollToBottom = scrollToBottom;
+    })();
+    </script>
+    """
+    components.html(js, height=0, scrolling=False)
+
+
 # ── main render function ───────────────────────────────────────────────
 def render_chat_section():
     """
@@ -268,6 +339,9 @@ def render_chat_section():
 
     # Inject JS to pin the input bar
     _inject_sticky_js()
+    
+    # Inject JS to auto-scroll chat to bottom on new messages
+    _inject_autoscroll_js()
 
     # Open the dialog when + is clicked
     if attach_clicked:
