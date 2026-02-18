@@ -239,7 +239,12 @@ def render_chat_section():
         file_upload_dialog()
 
     # ── handle send ────────────────────────────────────────────────────
-    if send_clicked and user_input:
+    # Initialize generating_response flag if not exists
+    if "generating_response" not in st.session_state:
+        st.session_state.generating_response = False
+    
+    # Phase 1: User clicks send - show message immediately and set loading state
+    if send_clicked and user_input and not st.session_state.generating_response:
         file_info_list = list(st.session_state.pending_files)
 
         user_message = {"role": "user", "content": user_input}
@@ -247,15 +252,42 @@ def render_chat_section():
             user_message["files"] = file_info_list
 
         st.session_state.messages.append(user_message)
-
-        response = generate_chat_response(user_input, file_info_list)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        
+        # Store the input and files for processing in next phase
+        st.session_state.pending_user_input = user_input
+        st.session_state.pending_user_files = file_info_list
+        
+        # Set flag to trigger response generation on next render
+        st.session_state.generating_response = True
 
         # Clear pending files and reset input field
         st.session_state.pending_files = []
         st.session_state.chat_input_key += 1
         st.session_state.scroll_to_bottom = True
         st.rerun()
+    
+    # Phase 2: Generate response after user message is displayed
+    if st.session_state.generating_response:
+        # Show loading indicator in chat
+        with chat_container:
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking"):
+                    # Generate the response
+                    user_input_to_process = st.session_state.pending_user_input
+                    files_to_process = st.session_state.pending_user_files
+                    
+                    response = generate_chat_response(user_input_to_process, files_to_process)
+                    
+                    # Add assistant response to messages
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    
+                    # Clear the generating flag and pending data
+                    st.session_state.generating_response = False
+                    st.session_state.pending_user_input = None
+                    st.session_state.pending_user_files = None
+                    
+                    # Rerun to show the actual response
+                    st.rerun()
 
 
 def _get_connection_status() -> dict:
@@ -279,11 +311,11 @@ def _build_system_prompt() -> str:
     if status["github_connected"]:
         connection_lines += f"- GitHub: Connected to `{status['github_url']}`\n"
     else:
-        connection_lines += "- GitHub: NOT connected\n"
+        connection_lines += "- GitHub: not connected\n"
     if status["slack_connected"]:
         connection_lines += f"- Slack: Connected to #{status['slack_channel_name']}\n"
     else:
-        connection_lines += "- Slack: NOT connected\n"
+        connection_lines += "- Slack: not connected\n"
 
     return build_system_prompt(connection_lines)
 
