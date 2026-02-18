@@ -3,6 +3,8 @@ Chat section component for the Streamlit app.
 Provides a centered chat interface with sticky input bar and file upload dialog.
 """
 
+import json
+import logging
 import re
 from typing import Any
 
@@ -14,6 +16,9 @@ from prompts import (
     build_api_response_format_prompt,
     INTENT_CLASSIFICATION_PROMPT,
 )
+
+# Configure logger for this module
+logger = logging.getLogger(__name__)
 
 # Height of the sticky input bar (px) – used to calculate chat container height
 _INPUT_BAR_HEIGHT = 200
@@ -401,9 +406,12 @@ def _classify_intent(user_input: str, files: list | None = None) -> dict[str, An
             default_params = ""
         
         parameters = parsed.get("parameters", default_params)
-        return {"action": action, "parameters": parameters}
+        result = {"action": action, "parameters": parameters}
+        logger.debug(f"_classify_intent result: action={action}, parameters={parameters}")
+        return result
             
-    except (json.JSONDecodeError, AttributeError):
+    except (json.JSONDecodeError, AttributeError) as e:
+        logger.debug(f"_classify_intent failed to parse LLM response: {e}, defaulting to chat_only")
         return {"action": "chat_only", "parameters": ""}
 
 
@@ -414,6 +422,8 @@ def _check_prerequisites(action: str) -> str | None:
     """
     required = _ACTION_REQUIREMENTS.get(action, [])
     status = _get_connection_status()
+    logger.debug(f"_check_prerequisites called for action={action}, required={required}, status={status}")
+    
     missing = []
 
     if "slack" in required and not status["slack_connected"]:
@@ -422,8 +432,11 @@ def _check_prerequisites(action: str) -> str | None:
         missing.append("**GitHub** — connect a repository from the Integrations panel in the left sidebar")
 
     if missing:
+        logger.debug(f"_check_prerequisites: missing integrations={missing}")
         lines = "\n".join(f"- {m}" for m in missing)
         return f"To do that I need the following integration(s) configured first:\n\n{lines}\n\nPlease connect them and try again."
+    
+    logger.debug("_check_prerequisites: all prerequisites met")
     return None
 
 
@@ -443,6 +456,8 @@ def _execute_action(action: str, parameters, user_input: str, files: list | None
     """
     from services.api_client import kb_from_slack, kb_from_text, kb_query
 
+    logger.debug(f"_execute_action called with action={action}, parameters={parameters}, user_input length={len(user_input)}, files={len(files) if files else 0}")
+
     if action == "kb_from_slack":
         # Extract structured parameters from dict
         if isinstance(parameters, dict):
@@ -454,11 +469,14 @@ def _execute_action(action: str, parameters, user_input: str, files: list | None
             to_datetime = None
             limit = None
         
-        return kb_from_slack(
+        logger.debug(f"_execute_action: calling kb_from_slack with from_datetime={from_datetime}, to_datetime={to_datetime}, limit={limit}")
+        result = kb_from_slack(
             from_datetime=from_datetime,
             to_datetime=to_datetime,
             limit=limit if limit is not None else 50  # API default
         )
+        logger.debug(f"_execute_action: kb_from_slack returned result with keys: {list(result.keys()) if result else None}")
+        return result
 
     elif action == "kb_from_text":
         if isinstance(parameters, dict):
@@ -479,12 +497,19 @@ def _execute_action(action: str, parameters, user_input: str, files: list | None
                     file_texts.append(str(f["content"]))
             text = "\n\n".join([text] + file_texts) if text else "\n\n".join(file_texts)
         
-        return kb_from_text(text=text, title=title, metadata=metadata)
+        logger.debug(f"_execute_action: calling kb_from_text with title={title}, metadata={metadata}, text length={len(text)}")
+        result = kb_from_text(text=text, title=title, metadata=metadata)
+        logger.debug(f"_execute_action: kb_from_text returned result with keys: {list(result.keys()) if result else None}")
+        return result
 
     elif action == "kb_query":
         # Use entire user input as query (parameters not used for kb_query)
-        return kb_query(query=user_input)
+        logger.debug(f"_execute_action: calling kb_query with query={user_input[:100]}{'...' if len(user_input) > 100 else ''}")
+        result = kb_query(query=user_input)
+        logger.debug(f"_execute_action: kb_query returned result with keys: {list(result.keys()) if result else None}")
+        return result
 
+    logger.debug(f"_execute_action: action={action} does not require API call, returning None")
     return None
 
 
@@ -510,7 +535,9 @@ def _format_api_response(user_input: str, action: str, api_result: dict) -> str:
         temperature=0.3,
         max_tokens=1024
     )
-    return response.choices[0].message.content
+    formatted_response = response.choices[0].message.content
+    logger.debug(f"_format_api_response: generated response preview={formatted_response[:200]}{'...' if len(formatted_response) > 200 else ''}")
+    return formatted_response
 
 
 # ── Main entry point ──────────────────────────────────────────────────
@@ -530,27 +557,34 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
     """
     try:
         # Step 1 — classify intent
+        logger.debug("generate_chat_response: Step 1 - classifying intent")
         intent = _classify_intent(user_input, files)
         action = intent["action"]
         parameters = intent["parameters"]
 
         # Step 2 — check prerequisites
         if action != "chat_only":
+            logger.debug(f"generate_chat_response: Step 2 - checking prerequisites for action={action}")
             prereq_msg = _check_prerequisites(action)
             if prereq_msg:
+                logger.debug(f"generate_chat_response: prerequisites not met, returning error message={prereq_msg}")
                 return prereq_msg
 
         # Step 3 — execute API action (if any)
+        logger.debug(f"generate_chat_response: Step 3 - executing action={action}")
         api_result = _execute_action(action, parameters, user_input, files)
 
         if api_result is not None:
             # Step 4 — LLM summarises the API result
+            logger.debug(f"generate_chat_response: Step 4 - formatting API response for action={action}, response={json.dumps(api_result, indent=2, default=str)}")
             return _format_api_response(user_input, action, api_result)
 
         # Step 5 — chat_only: regular conversation
+        logger.debug("generate_chat_response: Step 5 - entering chat_only conversation mode")
         client = _get_llm_client()
         system_prompt = _build_system_prompt()
         history = _build_history_messages()
+        logger.debug(f"generate_chat_response: using {len(history)} messages from history")
 
         user_text = user_input
         if files:
@@ -572,4 +606,5 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
         return response.choices[0].message.content
 
     except Exception as e:
+        logger.error(f"generate_chat_response: ERROR - {str(e)}", exc_info=True)
         return f"Encountered an error generating a response: {str(e)}"
