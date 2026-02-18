@@ -77,6 +77,8 @@ def _inject_sticky_js():
     js = """
     <script>
     (function() {
+        var lastSidebarState = null;
+        
         function pin() {
             var doc = window.parent.document;
 
@@ -89,21 +91,24 @@ def _inject_sticky_js():
                           block.parentElement.closest('[data-testid="stVerticalBlock"]');
             if (outer) block = outer;
 
-            // Match the main content area's exact bounds
-            var mainEl = doc.querySelector('[data-testid="stMain"]');
-            var left = 0;
-            var width = '100%';
-            if (mainEl) {
-                var rect = mainEl.getBoundingClientRect();
-                left = rect.left;
-                width = rect.width + 'px';
+            // Check if sidebar is collapsed
+            var sidebar = doc.querySelector('[data-testid="stSidebar"]');
+            var sidebarCollapsed = !sidebar || 
+                                   sidebar.getAttribute('aria-expanded') === 'false' ||
+                                   getComputedStyle(sidebar).width === '0px';
+            
+            // Track sidebar state changes
+            if (lastSidebarState !== sidebarCollapsed) {
+                lastSidebarState = sidebarCollapsed;
             }
 
+            // Use fixed positioning that spans full viewport width
+            // Let Streamlit's native layout handle the offset
             block.style.position   = 'fixed';
             block.style.bottom     = '0';
-            block.style.left       = left + 'px';
-            block.style.width      = width;
-            block.style.right      = 'auto';
+            block.style.left       = '0';
+            block.style.right      = '0';
+            block.style.width      = '100%';
             block.style.background = '#ffffff';
             block.style.borderTop  = '1px solid #e0e0e0';
             block.style.padding    = '0.75rem 2rem';
@@ -111,11 +116,36 @@ def _inject_sticky_js():
             block.style.zIndex     = '100';
             block.style.boxShadow  = '0 -2px 8px rgba(0,0,0,0.06)';
             block.dataset.pinned   = '1';
+            
+            // Apply margin to account for sidebar when it's open
+            if (!sidebarCollapsed && sidebar) {
+                var sidebarWidth = sidebar.offsetWidth;
+                block.style.marginLeft = sidebarWidth + 'px';
+                block.style.width = 'calc(100% - ' + sidebarWidth + 'px)';
+            } else {
+                block.style.marginLeft = '0';
+                block.style.width = '100%';
+            }
         }
 
+        // Initial pin
         setTimeout(pin, 300);
-        new MutationObserver(function() { setTimeout(pin, 150); })
-            .observe(window.parent.document.body, {childList: true, subtree: true});
+        
+        // Re-pin on any DOM changes (catches sidebar toggle)
+        var observer = new MutationObserver(function() { 
+            setTimeout(pin, 150); 
+        });
+        observer.observe(window.parent.document.body, {
+            childList: true, 
+            subtree: true, 
+            attributes: true,
+            attributeFilter: ['aria-expanded', 'style']
+        });
+        
+        // Also listen for window resize (catches manual sidebar drag)
+        window.parent.addEventListener('resize', function() {
+            setTimeout(pin, 100);
+        });
     })();
     </script>
     """

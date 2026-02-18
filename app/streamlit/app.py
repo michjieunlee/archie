@@ -75,6 +75,11 @@ def main():
             padding: 1rem;
         }
 
+        /* Ensure main content area takes full width when sidebar is collapsed */
+        [data-testid="stMain"] {
+            transition: margin-left 0.3s ease;
+        }
+
         /* ===== Sidebar: remove ALL top space ===== */
         [data-testid="stSidebar"] {
             padding-top: 0 !important;
