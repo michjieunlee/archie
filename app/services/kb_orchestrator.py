@@ -648,10 +648,10 @@ class KBOrchestrator:
 
         print(f"\n📄 GENERATED MARKDOWN PREVIEW:")
         print("-" * 40)
-        # preview = markdown_content[:500]
-        # if len(markdown_content) > 500:
-        #     preview += "\n... [truncated]"
-        # print(preview)
+        preview = markdown_content[:500]
+        if len(markdown_content) > 500:
+            preview += "\n... [truncated]"
+        print(preview)
         print(markdown_content)
         print("-" * 40)
 
