@@ -80,7 +80,7 @@ last_updated: "{TIMESTAMP}"
 ## Prevention
 {PREVENTION_MEASURES}
 
-## Related Issues
+## Related Links
 {RELATED_LINKS}
 ```
 
