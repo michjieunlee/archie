@@ -10,10 +10,12 @@ Responsibilities:
 
 import logging
 import asyncio
+import random
 from typing import List, Dict, Any
 from copy import deepcopy
 
 from gen_ai_hub.orchestration_v2.service import OrchestrationService
+from gen_ai_hub.orchestration_v2.exceptions import OrchestrationError
 from gen_ai_hub.orchestration_v2.models.message import SystemMessage, UserMessage
 from gen_ai_hub.orchestration_v2.models.template import (
     Template,
@@ -68,12 +70,14 @@ class PIIMasker:
         Create Data Masking configuration.
 
         Configured entities:
-        - PERSON: Names of individuals
+        - PERSON: Names of individuals (excludes: "Gerrit" code review tool)
         - EMAIL: Email addresses
         - PHONE: Phone numbers
         - ADDRESS: Physical addresses
         - I_NUMBER: Custom entity for personal IDs (I/D/C followed by digits, e.g., i123456, D123456, C987654)
         - SLACK_USER: Slack user IDs (e.g., U1234567890, U0ACPTBU04R, W1234567890)
+
+        Allowlist: Terms that will NOT be masked (e.g., "Gerrit")
         """
         return MaskingModuleConfig(
             masking_providers=[
@@ -108,6 +112,8 @@ class PIIMasker:
                             ),
                         ),
                     ],
+                    # Allowlist: Names/terms that should NOT be masked
+                    allowlist=["Gerrit"],
                 )
             ],
         )
@@ -223,37 +229,99 @@ class PIIMasker:
 
     async def _mask_single_message(self, message: StandardizedMessage) -> None:
         """
-        Mask a single message using Orchestration V2.
+        Mask a single message using Orchestration V2 with retry logic for rate limits.
+
+        Implements exponential backoff with jitter for 429 rate limit errors.
+        Retry strategy:
+        - Initial delay: 1s
+        - Exponential multiplier: 2x
+        - Max delay: 60s
+        - Jitter: ±20% random variation
+        - Max retries: 5
 
         Args:
             message: StandardizedMessage to mask (modified in place)
 
         Raises:
-            MaskingError: If masking fails for the message
+            MaskingError: If masking fails after all retries
         """
-        try:
-            # Create orchestration config
-            config = self._create_orchestration_config(message.content)
+        last_exception = None
 
-            # Call orchestration service
-            result = await asyncio.to_thread(
-                self.orchestration_service.run,
-                config=config,
-                placeholder_values={"input": message.content},
-            )
+        for attempt in range(self.settings.max_retries + 1):
+            try:
+                # Create orchestration config
+                config = self._create_orchestration_config(message.content)
 
-            # Extract and update masked content
-            if result and hasattr(result, "final_result"):
-                message.content = self._extract_masked_content(result).strip()
-            else:
-                raise MaskingError(
-                    f"Invalid response from orchestration service for message {message.id}"
+                # Call orchestration service
+                result = await asyncio.to_thread(
+                    self.orchestration_service.run,
+                    config=config,
+                    placeholder_values={"input": message.content},
                 )
 
-        except Exception as e:
-            error_msg = f"Message masking failed for {message.id}: {str(e)}"
-            logger.error(error_msg)
-            raise MaskingError(error_msg) from e
+                # Extract and update masked content
+                if result and hasattr(result, "final_result"):
+                    message.content = self._extract_masked_content(result).strip()
+                    if attempt > 0:
+                        logger.info(
+                            f"Message {message.id} masked successfully after {attempt} retry(ies)"
+                        )
+                    return
+                else:
+                    raise MaskingError(
+                        f"Invalid response from orchestration service for message {message.id}"
+                    )
+
+            except OrchestrationError as e:
+                last_exception = e
+                error_str = str(e)
+
+                # Check if this is a 429 rate limit error
+                if "429" in error_str or "rate limit" in error_str.lower():
+                    if attempt < self.settings.max_retries:
+                        # Calculate exponential backoff with jitter
+                        base_delay = self.settings.retry_base_delay * (
+                            self.settings.retry_exponential_base**attempt
+                        )
+                        # Cap at max delay
+                        delay = min(base_delay, self.settings.retry_max_delay)
+                        # Add jitter: ±20% random variation
+                        jitter = delay * 0.2 * (2 * random.random() - 1)
+                        delay_with_jitter = delay + jitter
+
+                        logger.warning(
+                            f"Rate limit hit for message {message.id} (attempt {attempt + 1}/{self.settings.max_retries + 1}). "
+                            f"Retrying in {delay_with_jitter:.2f}s..."
+                        )
+
+                        await asyncio.sleep(delay_with_jitter)
+                        continue
+                    else:
+                        error_msg = (
+                            f"Message masking failed for {message.id} after {self.settings.max_retries + 1} attempts: "
+                            f"Rate limit exceeded - {error_str}"
+                        )
+                        logger.error(error_msg)
+                        raise MaskingError(error_msg) from e
+                else:
+                    # Non-rate-limit OrchestrationError, fail immediately
+                    error_msg = f"Message masking failed for {message.id}: {error_str}"
+                    logger.error(error_msg)
+                    raise MaskingError(error_msg) from e
+
+            except Exception as e:
+                # Other exceptions, fail immediately
+                last_exception = e
+                error_msg = f"Message masking failed for {message.id}: {str(e)}"
+                logger.error(error_msg)
+                raise MaskingError(error_msg) from e
+
+        # Should not reach here, but just in case
+        error_msg = f"Message masking failed for {message.id} after all retries"
+        if last_exception:
+            error_msg += f": {str(last_exception)}"
+        logger.error(error_msg)
+        raise MaskingError(error_msg) from last_exception
 
     def _extract_masked_content(self, result: Any) -> str:
         """
