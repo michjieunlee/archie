@@ -87,7 +87,7 @@ def format_kb_document_content(kb_document: "KBDocument") -> str:
 ### Prevention
 {extraction.prevention_measures}
 
-### Related Issues
+### Related Links
 {extraction.related_links or 'None'}"""
 
     elif category == "process":
