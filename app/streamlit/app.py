@@ -8,6 +8,12 @@ from components.chat_section import render_chat_section
 from components.integration_panel import render_integration_panel, render_integration_buttons
 from config.settings import PAGE_CONFIG
 
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 def main():
     """
@@ -67,6 +73,11 @@ def main():
         /* Chat message styling */
         .stChatMessage {
             padding: 1rem;
+        }
+
+        /* Ensure main content area takes full width when sidebar is collapsed */
+        [data-testid="stMain"] {
+            transition: margin-left 0.3s ease;
         }
 
         /* ===== Sidebar: remove ALL top space ===== */
