@@ -84,9 +84,9 @@ class KBGenerator:
         """
         template_map = {
             KBCategory.TROUBLESHOOTING: "troubleshooting.md",
-            KBCategory.PROCESS: "process.md",
-            KBCategory.DECISION: "decision.md",
-            KBCategory.REFERENCE: "reference.md",
+            KBCategory.PROCESSES: "processes.md",
+            KBCategory.DECISIONS: "decisions.md",
+            KBCategory.REFERENCES: "references.md",
             KBCategory.GENERAL: "general.md",
         }
         return template_map.get(category, "general.md")
@@ -375,14 +375,7 @@ class KBGenerator:
             category: The document category
 
         Returns:
-            Directory name in plural form
+            Directory name (already plural in enum values)
         """
-        # Map singular category values to plural directory names
-        category_dir_map = {
-            KBCategory.TROUBLESHOOTING: "troubleshooting",
-            KBCategory.PROCESS: "processes",
-            KBCategory.DECISION: "decisions",
-            KBCategory.REFERENCE: "references",
-            KBCategory.GENERAL: "general",
-        }
-        return category_dir_map.get(category, category.value)
+        # Now that enum values are already plural, just return the value directly
+        return category.value

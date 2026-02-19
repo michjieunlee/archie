@@ -14,9 +14,9 @@ class KBCategory(str, Enum):
     """Knowledge Base document categories."""
 
     TROUBLESHOOTING = "troubleshooting"  # Problem-solving guides
-    PROCESS = "process"  # Standard procedures
-    DECISION = "decision"  # Technical choices and rationale
-    REFERENCE = "reference"  # Resource pointers and documentation links
+    PROCESSES = "processes"  # Standard procedures
+    DECISIONS = "decisions"  # Technical choices and rationale
+    REFERENCES = "references"  # Resource pointers and documentation links
     GENERAL = "general"  # Informational content that doesn't fit other categories
 
 
