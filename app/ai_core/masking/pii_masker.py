@@ -255,6 +255,7 @@ class PIIMasker:
             logger.error(error_msg)
             raise MaskingError(error_msg) from e
 
+<<<<<<< main-service
 <<<<<<< HEAD
     def _distribute_masked_content(
         self, conversation: StandardizedConversation, masked_combined: str
@@ -320,6 +321,8 @@ class PIIMasker:
 
 =======
 >>>>>>> 77e6d5b (Replace delimiter approach with individual message processing)
+=======
+>>>>>>> main
     def _extract_masked_content(self, result: Any) -> str:
         """
         Extract masked content from orchestration result.
