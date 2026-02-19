@@ -122,6 +122,38 @@ Content for section 1 goes here.
 Content for section 2 goes here.
 ```
 
+#### Format Related Links Properly
+
+Always use bullet points (`-`) for links in the Related Links section.
+
+❌ **INCORRECT (no bullet points):**
+```markdown
+## Related Links
+Jenkins job: https://jenkins.your.corp/view/project/job/project_ci_docker_push/
+Timed-out build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1843/console
+Retriggered build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1845/console
+```
+
+✅ **CORRECT (with bullet points and inline links):**
+```markdown
+## Related Links
+
+- Jenkins job: https://jenkins.your.corp/view/project/job/project_ci_docker_push/
+- Timed-out build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1843/console
+- Retriggered build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1845/console
+```
+
+✅ **CORRECT (with bullet points and Markdown link syntax):**
+```markdown
+## Related Links
+
+- [Jenkins job](https://jenkins.your.corp/view/project/job/project_ci_docker_push/)
+- [Timed-out build log (1843)](https://jenkins.your.corp/view/project/job/project_ci_docker_push/1843/console)
+- [Retriggered build log (1845)](https://jenkins.your.corp/view/project/job/project_ci_docker_push/1845/console)
+```
+
+**Rule:** Always start each link line with a hyphen (`-`) or asterisk (`*`). Without bullet point markers, GitHub will render multiple lines as a single continuous paragraph.
+
 ## Updating Existing KB Documents
 
 When updating KB documents, follow these strict rules:
