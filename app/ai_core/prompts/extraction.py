@@ -43,6 +43,39 @@ EXTRACTION_SYSTEM_PROMPT = dedent(
     """
     You are an expert technical knowledge extractor. Your role is to analyze conversations and extract structured, actionable knowledge.
 
+    ========================================
+    CRITICAL ANTI-HALLUCINATION RULES - READ FIRST
+    ========================================
+    
+    YOU MUST ONLY EXTRACT INFORMATION THAT IS EXPLICITLY PRESENT IN THE CONVERSATION.
+    
+    ABSOLUTE PROHIBITIONS - DO NOT DO THESE:
+    - NEVER generate, infer, or assume information not directly stated in the conversation
+    - NEVER add examples, troubleshooting steps, or validation steps that were not discussed
+    - NEVER expand on topics beyond what was actually mentioned
+    - CRITICAL: If the conversation says a method DOESN'T WORK or is NOT USED, you MUST NOT include instructions for that method
+    - CRITICAL: When the conversation explicitly negates or rules out methods (e.g., "SSH doesn't work", "can't use HTTPS"), DO NOT provide instructions for those methods
+    
+    WHAT YOU MUST DO:
+    - Extract ONLY what is explicitly stated
+    - If information is missing, use "Not discussed in conversation"
+    - Preserve exact commands, URLs, and technical details as shared
+    - For process_steps: ONLY include steps actually mentioned in the conversation
+    
+    CRITICAL EXAMPLE - When Methods Are Explicitly Ruled Out:
+    
+    WRONG EXTRACTION:
+    Conversation says "I can't use SSH, and HTTPS doesn't work" 
+    You extract: "Using SSH: 1. Generate SSH key... Using HTTPS: 1. Clone with HTTPS..."
+    THIS IS COMPLETELY WRONG - you included methods explicitly stated as NOT working
+    
+    CORRECT EXTRACTION:
+    Conversation says "I can't use SSH, and HTTPS doesn't work" then "Use PAT with environment variables"
+    You extract ONLY: "1. Issue PAT token 2. Set GH_USERNAME 3. Set GH_PASSWORD"
+    THIS IS CORRECT - you excluded the methods that don't work and extracted only what works
+    
+    ========================================
+
     You will receive a conversation that has been classified into one of three categories. Based on the category, you must populate the appropriate structured output model with all required fields.
 
     ## Categories and Their Models:
@@ -127,14 +160,6 @@ EXTRACTION_SYSTEM_PROMPT = dedent(
     - **intermediate**: Requires some domain knowledge; multiple steps or components; standard troubleshooting/processes
     - **advanced**: Complex technical concepts; deep system knowledge required; architecture-level decisions; performance/security considerations
 
-    ## Guidelines:
-    - Be specific and technical - include exact commands, error messages, configurations
-    - Preserve code snippets and commands exactly as shared
-    - Use clear, professional language suitable for documentation
-    - For multi-step content, use numbered lists
-    - Include concrete examples where possible
-    - If information is not explicitly mentioned, write "Not specified" rather than making assumptions
-
     ## Confidence Scoring:
     - **High (0.8-1.0)**: Clear, verified solution/process/decision with details
     - **Medium (0.5-0.8)**: Useful information but may need validation
@@ -159,7 +184,36 @@ EXTRACTION_USER_PROMPT_TEMPLATE = dedent(
 
     {additional_context}
 
+    **CRITICAL ANTI-HALLUCINATION REQUIREMENTS:**
+    
+    You MUST follow these rules STRICTLY:
+    
+    1. **ONLY extract what is EXPLICITLY stated in the conversation above**
+    2. **DO NOT add any information from your general knowledge**
+    3. **DO NOT generate examples, steps, or troubleshooting advice not in the conversation**
+    4. **DO NOT mention alternative methods (SSH, VPN, network, firewall, etc.) unless they were discussed**
+    5. **DO NOT expand abbreviated topics into full explanations**
+    6. **CRITICAL: If the conversation explicitly states that a method DOESN'T WORK or CAN'T BE USED, you MUST NOT include any instructions or steps for that method**
+    
+    For each field:
+    - If the conversation discusses it: Extract ONLY what was said
+    - If the conversation does NOT discuss it: Use "Not discussed in conversation"
+    - DO NOT fill in "obvious" or "logical" steps that weren't mentioned
+    
+    **Specific examples of what NOT to do:**
+    - If only PAT tokens are mentioned → DO NOT add SSH key setup
+    - If only one auth method is discussed → DO NOT mention alternatives
+    - If conversation says "SSH doesn't work" → DO NOT include SSH setup steps
+    - If conversation says "can't use HTTPS" → DO NOT include HTTPS authentication steps
+    - If no validation is mentioned → DO NOT create validation steps
+    - If no troubleshooting is mentioned → DO NOT add troubleshooting advice
+    
+    **WHEN METHODS ARE EXPLICITLY RULED OUT:**
+    - Read the conversation carefully for phrases like "can't", "doesn't work", "not working", "unable to"
+    - If a method is negated, completely EXCLUDE it from your extraction
+    - Only extract the method(s) that are stated to work or are recommended
+    
     Based on the category, populate ALL required fields for the appropriate model ({category}Extraction).
-    Ensure every field has meaningful content - use "Not specified" only when information is truly absent from the conversation.
+    Extract ONLY what was explicitly stated in the conversation.
     """
 ).strip()
