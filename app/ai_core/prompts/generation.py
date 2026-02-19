@@ -65,6 +65,19 @@ When writing KB documents, follow these strict formatting rules:
 - Use code blocks for commands, URLs, or technical references
 - Add spacing between sections for better readability
 
+### Related Links Section
+- ALWAYS format links with bullet points using hyphens (-) or asterisks (*)
+- Each link must be on a separate line starting with a bullet point marker
+- Example CORRECT:
+  ## Related Links
+  
+  - Jenkins job: https://jenkins.your.corp/view/project/job/project_ci_docker_push/
+  - Build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1843/console
+- Example INCORRECT (no bullet points - will render as single line):
+  ## Related Links
+  Jenkins job: https://jenkins.your.corp/view/project/job/project_ci_docker_push/
+  Build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1843/console
+
 ## Markdown Template
 {template}
 
@@ -117,6 +130,8 @@ CRITICAL: Follow these rules when updating KB documents:
    - Ensure any new content uses proper GitHub markdown (no • bullets)
    - Use line breaks for numbered conditions, not inline "(1), (2)" format
    - Remove unnecessary masked values
+   - ALWAYS format Related Links section with bullet points (- or *) on each line
+   - Example: Each link must start with "- " to render properly on GitHub
 
 7. **Minimal Changes**
    - Make the smallest possible changes that incorporate the new information
