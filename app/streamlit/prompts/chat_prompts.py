@@ -11,10 +11,10 @@ from datetime import datetime
 def build_system_prompt(connection_lines: str) -> str:
     """
     Build the main system prompt for Archie with current connection states.
-    
+
     Args:
         connection_lines: Formatted string showing current GitHub/Slack connection status
-        
+
     Returns:
         Complete system prompt string
     """
@@ -67,7 +67,7 @@ INTENT_CLASSIFICATION_PROMPT = f"""You are an intent classifier for Archie, an A
 
     ### 1. kb_from_slack
     **When to use**: User wants to extract knowledge from Slack conversations
-    **Example Triggers**: 
+    **Example Triggers**:
     - "import from Slack", "sync Slack", "get Slack messages"
     - "what did we discuss about X in Slack"
     - "create KB from Slack channel"
@@ -127,7 +127,7 @@ INTENT_CLASSIFICATION_PROMPT = f"""You are an intent classifier for Archie, an A
     - Title specified but no metadata: title set, metadata null
     - Metadata specified but no title: metadata set, title null
 
-    ### 3. kb_query  
+    ### 3. kb_query
     **When to use**: User wants to search or retrieve existing knowledge
     **Example Triggers**:
     - Questions about existing information: "what do we know about X"
@@ -223,12 +223,12 @@ INTENT_CLASSIFICATION_PROMPT = f"""You are an intent classifier for Archie, an A
 def build_api_response_format_prompt(user_input: str, action: str, api_result_json: str) -> str:
     """
     Build the prompt for formatting API responses into user-friendly messages.
-    
+
     Args:
         user_input: The user's original request
         action: The action that was executed
         api_result_json: JSON string of the API response
-        
+
     Returns:
         Complete formatting prompt string
     """
@@ -293,7 +293,7 @@ def build_api_response_format_prompt(user_input: str, action: str, api_result_js
 
         **API Success (kb_query)**:
         ```
-        Gerrit Service User creation is definitely under the team's responsibility. 
+        Gerrit Service User creation is definitely under the team's responsibility.
         Here are the steps to create the service user:
         Pre-requisite: service user name, service user owner group
 
@@ -305,7 +305,7 @@ def build_api_response_format_prompt(user_input: str, action: str, api_result_js
         📚 Found 3 relevant KB articles:
 
         1. **Gerrit Service User Creation** - Describes how to create Gerrit service users
-        2. **Team R&R** - Team's roles and responsibilities 
+        2. **Team R&R** - Team's roles and responsibilities
         3. **Ops task manual** - Operations guide
         ```
 

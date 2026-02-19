@@ -519,13 +519,14 @@ class KBOrchestrator:
         try:
             prompt_template = dedent(
                 """
-                Generate a brief, user-friendly summary (2-3 sentences) of this knowledge base document. 
+                Generate a brief, user-friendly summary (2-3 sentences) of this knowledge base document.
                 The summary should give readers a quick overview of what the document covers and its main purpose.
-                
+
                 ---
+
                 {markdown_content}
                 ---
-                
+
                 Provide only the summary text, without any preamble or additional formatting.
                 """
             ).strip()

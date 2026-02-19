@@ -27,7 +27,7 @@ class MatchResult(BaseModel):
     confidence_score: float  # 0.0-1.0
     reasoning: str
     value_addition_assessment: str
-    
+
     # Unified fields for both UPDATE and CREATE
     document_path: Optional[str]  # Path of document (matched for UPDATE, suggested for CREATE)
     document_title: Optional[str]  # Title of document
@@ -147,7 +147,7 @@ The `_format_new_content_by_category()` method formats extracted content accordi
 def _format_new_content_by_category(self, kb_document: KBDocument) -> str:
     extraction = kb_document.extraction_output
     category = kb_document.category.value
-    
+
     if category == "troubleshooting":
         return f"""### Problem Description
 {extraction.problem_description}
@@ -203,7 +203,7 @@ try:
     all_kb_docs = await self.github_client.read_kb_repository()
     # Filter by category for more focused matching
     existing_kb_docs = [
-        doc for doc in all_kb_docs 
+        doc for doc in all_kb_docs
         if doc.get("category") == kb_document.category.value
     ]
 except Exception as e:
@@ -242,7 +242,7 @@ matcher = KBMatcher()
 # Fetch existing KB documents from GitHub
 all_kb_docs = await github_client.read_kb_repository()
 existing_kb_docs = [
-    doc for doc in all_kb_docs 
+    doc for doc in all_kb_docs
     if doc.get("category") == kb_document.category.value
 ]
 
@@ -254,12 +254,12 @@ if match_result.action == MatchAction.UPDATE:
     file_path = match_result.document_path
     title = match_result.document_title
     logger.info(f"UPDATE: {title} at {file_path}")
-    
+
 elif match_result.action == MatchAction.CREATE:
     file_path = match_result.document_path
     category = match_result.category
     logger.info(f"CREATE: New document at {file_path}")
-    
+
 else:  # IGNORE
     logger.info(f"IGNORE: {match_result.reasoning}")
 
@@ -320,7 +320,7 @@ The implementation includes comprehensive tests in `tests/integrations/test_kb_m
 **Existing**: "Database Connection Timeout Issues"
 - Focus: Connection pool exhaustion, timeout configuration
 
-**New**: "Memory Leak Causing Database Connection Issues"  
+**New**: "Memory Leak Causing Database Connection Issues"
 - Focus: Memory leak after 4 hours leading to connection failures
 
 **Decision**: **UPDATE** existing document

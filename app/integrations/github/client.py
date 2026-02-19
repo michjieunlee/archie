@@ -18,6 +18,7 @@ from github import Github
 from github.Repository import Repository
 from github.GithubException import GithubException, UnknownObjectException
 from app.config import get_settings
+from app.services.credential_store import get_credential
 from app.utils import flatten_list
 
 logger = logging.getLogger(__name__)
@@ -28,10 +29,20 @@ class GitHubClient:
 
     def __init__(self):
         settings = get_settings()
-        self.client = Github(settings.github_token)
-        self.repo: Repository = self.client.get_repo(
-            f"{settings.github_repo_owner}/{settings.github_repo_name}"
-        )
+
+        # Runtime credentials (from UI) override .env settings
+        token = get_credential("github_token") or settings.github_token
+        repo_owner = get_credential("github_repo_owner") or settings.github_repo_owner
+        repo_name = get_credential("github_repo_name") or settings.github_repo_name
+
+        # Validate that credentials are available
+        if not token:
+            raise ValueError("GitHub token is not configured.")
+        if not repo_owner or not repo_name:
+            raise ValueError("GitHub repository is not configured.")
+
+        self.client = Github(token)
+        self.repo: Repository = self.client.get_repo(f"{repo_owner}/{repo_name}")
         self.default_branch = settings.github_default_branch
         self._cached_categories: Optional[List[str]] = (
             None  # Cache for discovered categories

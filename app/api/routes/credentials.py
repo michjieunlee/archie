@@ -145,24 +145,24 @@ async def connect_slack(request: SlackConnectRequest):
             return SlackConnectResponse(
                 success=False, message="Channel ID is required"
             )
-        
+
         # Validate channel exists and bot has access
         try:
             settings = get_settings()
             bot_token = settings.slack_bot_token
-            
+
             if not bot_token:
                 return SlackConnectResponse(
                     success=False,
                     message="Slack bot token is not configured. Please provide a token or set SLACK_BOT_TOKEN in your environment.",
                 )
-            
+
             slack_client = WebClient(token=bot_token)
             # Validate channel exists and bot has access
             channel_info = slack_client.conversations_info(channel=channel_id)
             channel_name = channel_info["channel"]["name"]
             logger.info(f"Validated access to Slack channel: #{channel_name} ({channel_id})")
-            
+
         except SlackApiError as slack_err:
             error_code = slack_err.response.get("error", "unknown_error")
             if error_code == "channel_not_found":
