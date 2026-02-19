@@ -1,6 +1,6 @@
 ---
 title: "{title}"
-category: "process"
+category: "processes"
 tags: [{tags}]
 difficulty: "{difficulty}"
 source_type: "{source_type}"

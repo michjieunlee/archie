@@ -90,7 +90,7 @@ def format_kb_document_content(kb_document: "KBDocument") -> str:
 ### Related Links
 {extraction.related_links or 'None'}"""
 
-    elif category == "process":
+    elif category == "processes":
         return f"""### Overview
 {extraction.process_overview}
 
@@ -109,7 +109,7 @@ def format_kb_document_content(kb_document: "KBDocument") -> str:
 ### Related Processes
 {extraction.related_processes or 'None'}"""
 
-    elif category == "decision":
+    elif category == "decisions":
         return f"""### Context
 {extraction.decision_context}
 
@@ -132,7 +132,7 @@ def format_kb_document_content(kb_document: "KBDocument") -> str:
 ### Implementation Notes
 {extraction.implementation_notes or 'None'}"""
 
-    elif category == "reference":
+    elif category == "references":
         return f"""### Question Context
 {extraction.question_context}
 

@@ -242,11 +242,11 @@ class PRManager:
             if file_path.startswith("troubleshooting/"):
                 labels.append("troubleshooting")
             elif file_path.startswith("processes/"):
-                labels.append("process")
+                labels.append("processes")
             elif file_path.startswith("decisions/"):
-                labels.append("decision")
+                labels.append("decisions")
             elif file_path.startswith("references/"):
-                labels.append("reference")
+                labels.append("references")
             elif file_path.startswith("general/"):
                 labels.append("general")
 
