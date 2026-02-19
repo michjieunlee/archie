@@ -5,6 +5,7 @@ This module handles generation of markdown files from KBDocuments using template
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -211,6 +212,92 @@ class KBGenerator:
 
         return f"{filename}.md"
 
+    def _update_frontmatter_metadata(
+        self, content: str, new_document: KBDocument
+    ) -> str:
+        """
+        Programmatically update metadata fields in the YAML frontmatter.
+
+        Updates the following fields if they exist in the new_document:
+        - last_updated: Always set to new_document.updated_at
+        - history_from: If present in new_document metadata
+        - history_to: If present in new_document metadata
+        - message_limit: If present in new_document metadata
+        - ai_confidence: From new_document extraction
+        - ai_reasoning: From new_document extraction
+
+        Args:
+            content: The markdown content with YAML frontmatter
+            new_document: The new KB document with updated metadata
+
+        Returns:
+            Content with updated frontmatter metadata
+        """
+        # Extract frontmatter and body
+        frontmatter_match = re.match(r"^---\n(.*?)\n---\n(.*)$", content, re.DOTALL)
+        if not frontmatter_match:
+            logger.warning("No frontmatter found in document, returning content as-is")
+            return content
+
+        frontmatter = frontmatter_match.group(1)
+        body = frontmatter_match.group(2)
+
+        # Update last_updated to new_document's updated_at timestamp
+        update_date = new_document.updated_at.strftime("%Y-%m-%d")
+        frontmatter = re.sub(
+            r'last_updated:\s*"[^"]*"', f'last_updated: "{update_date}"', frontmatter
+        )
+
+        # Update metadata fields from new_document if they exist
+        metadata = new_document.extraction_metadata
+        extraction = new_document.extraction_output
+
+        # Update history_from if present
+        if metadata.history_from:
+            history_from_str = metadata.history_from.isoformat()
+            frontmatter = re.sub(
+                r'history_from:\s*"[^"]*"',
+                f'history_from: "{history_from_str}"',
+                frontmatter,
+            )
+
+        # Update history_to if present
+        if metadata.history_to:
+            history_to_str = metadata.history_to.isoformat()
+            frontmatter = re.sub(
+                r'history_to:\s*"[^"]*"', f'history_to: "{history_to_str}"', frontmatter
+            )
+
+        # Update message_limit if present
+        if metadata.message_limit is not None:
+            frontmatter = re.sub(
+                r"message_limit:\s*\d+",
+                f"message_limit: {metadata.message_limit}",
+                frontmatter,
+            )
+
+        # Update ai_confidence
+        ai_confidence_str = f"{extraction.ai_confidence:.2f}"
+        frontmatter = re.sub(
+            r"ai_confidence:\s*[\d.]+",
+            f"ai_confidence: {ai_confidence_str}",
+            frontmatter,
+        )
+
+        # Update ai_reasoning - handle multiline and quotes properly
+        ai_reasoning_escaped = extraction.ai_reasoning.replace('"', '\\"')
+        frontmatter = re.sub(
+            r'ai_reasoning:\s*"[^"]*(?:\\.[^"]*)*"',
+            f'ai_reasoning: "{ai_reasoning_escaped}"',
+            frontmatter,
+        )
+
+        # Reconstruct the document
+        updated_content = f"---\n{frontmatter}\n---\n{body}"
+
+        logger.info(f"Updated frontmatter metadata: last_updated={update_date}")
+        return updated_content
+
     async def update_markdown(
         self, existing_content: str, new_document: KBDocument
     ) -> str:
@@ -221,13 +308,14 @@ class KBGenerator:
         - Only update lines that change meaning
         - Preserve formatting and structure
         - Make minimal changes
+        - Programmatically updates metadata fields after AI processing
 
         Args:
             existing_content: The current markdown content of the existing document
             new_document: The newly extracted KB document with information to merge
 
         Returns:
-            Updated markdown content
+            Updated markdown content with refreshed metadata
 
         Raises:
             Exception: If AI update fails, will be caught by caller for fallback
@@ -264,6 +352,11 @@ class KBGenerator:
             )
 
             updated_content = response.content.strip()
+
+            # Programmatically update metadata fields in frontmatter
+            updated_content = self._update_frontmatter_metadata(
+                updated_content, new_document
+            )
 
             logger.info(
                 f"Successfully updated KB document using AI (length: {len(updated_content)} chars)"
