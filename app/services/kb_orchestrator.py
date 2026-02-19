@@ -645,12 +645,13 @@ class KBOrchestrator:
         print(f"\n📝 SUMMARY:")
         print(f"   {kb_summary}")
 
-        print(f"\n📄 GENERATED MARKDOWN PREVIEW (first 500 chars):")
+        print(f"\n📄 GENERATED MARKDOWN PREVIEW:")
         print("-" * 40)
-        preview = markdown_content[:500]
-        if len(markdown_content) > 500:
-            preview += "\n... [truncated]"
-        print(preview)
+        # preview = markdown_content[:500]
+        # if len(markdown_content) > 500:
+        #     preview += "\n... [truncated]"
+        # print(preview)
+        print(markdown_content)
         print("-" * 40)
 
         print(f"\n{separator}")
