@@ -35,5 +35,5 @@ last_updated: "{last_updated}"
 ## Prevention
 {prevention_measures}
 
-## Related Issues
+## Related Links
 {related_links}
