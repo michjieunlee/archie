@@ -182,6 +182,100 @@ def sample_process_thread():
 
 
 @pytest.fixture
+def sample_reference_thread():
+    """Create a sample reference/resource sharing thread."""
+    now = datetime.now(timezone.utc)
+    return StandardizedConversation(
+        id="1234567894.123456",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C01234567",
+            channel_name="support",
+        ),
+        participant_count=2,
+        created_at=now,
+        last_activity_at=now,
+        messages=[
+            StandardizedMessage(
+                idx=0,
+                id="msg1",
+                author_id="U011",
+                author_name="USER_1",
+                content="Where can I find the API documentation?",
+                timestamp=now,
+            ),
+            StandardizedMessage(
+                idx=1,
+                id="msg2",
+                author_id="U012",
+                author_name="USER_2",
+                content="You can find it here: https://docs.example.com/api\nAlso check out the Swagger UI at https://api.example.com/swagger",
+                timestamp=now,
+            ),
+            StandardizedMessage(
+                idx=2,
+                id="msg3",
+                author_id="U011",
+                author_name="USER_1",
+                content="Perfect, thanks!",
+                timestamp=now,
+            ),
+        ],
+    )
+
+
+@pytest.fixture
+def sample_general_thread():
+    """Create a sample general informational discussion thread."""
+    now = datetime.now(timezone.utc)
+    return StandardizedConversation(
+        id="1234567895.123456",
+        source=Source(
+            type=SourceType.SLACK,
+            channel_id="C01234567",
+            channel_name="engineering",
+        ),
+        participant_count=3,
+        created_at=now,
+        last_activity_at=now,
+        messages=[
+            StandardizedMessage(
+                idx=0,
+                id="msg1",
+                author_id="U013",
+                author_name="USER_1",
+                content="What's the difference between REST and GraphQL?",
+                timestamp=now,
+            ),
+            StandardizedMessage(
+                idx=1,
+                id="msg2",
+                author_id="U014",
+                author_name="USER_2",
+                content="REST is resource-based with multiple endpoints, while GraphQL uses a single endpoint with a flexible query language. GraphQL lets clients request exactly what they need.",
+                timestamp=now,
+            ),
+            StandardizedMessage(
+                idx=2,
+                id="msg3",
+                author_id="U015",
+                author_name="USER_3",
+                content="Also, REST is simpler for basic CRUD operations, but GraphQL shines when you need complex data fetching with nested relationships.",
+                timestamp=now,
+            ),
+            StandardizedMessage(
+                idx=3,
+                id="msg4",
+                author_id="U013",
+                author_name="USER_1",
+                content="Interesting! Thanks for explaining.",
+                timestamp=now,
+            ),
+        ],
+    )
+
+
+@pytest.fixture
 def sample_decision_thread():
     """Create a sample technical decision thread."""
     now = datetime.now(timezone.utc)
@@ -291,12 +385,12 @@ def test_format_conversation_structure(sample_threaded_conversation):
 
 
 @pytest.mark.asyncio
-async def test_extract_troubleshooting_knowledge(sample_troubleshooting_thread):
+async def test_extract_troubleshooting_knowledge(sample_troubleshooting_conversation):
     """Test extraction of troubleshooting knowledge with real LLM."""
     extractor = KBExtractor()
     generator = KBGenerator()
 
-    document = await extractor.extract_knowledge(sample_troubleshooting_thread)
+    document = await extractor.extract_knowledge(sample_troubleshooting_conversation)
 
     # Assert document was created
     assert document is not None
@@ -320,7 +414,9 @@ async def test_extract_troubleshooting_knowledge(sample_troubleshooting_thread):
 
     # Assert metadata
     assert document.extraction_metadata.source_type == "slack"
-    assert document.extraction_metadata.source_id == sample_troubleshooting_thread.id
+    assert (
+        document.extraction_metadata.source_id == sample_troubleshooting_conversation.id
+    )
     assert document.extraction_metadata.channel_id == "C01234567"
     assert document.extraction_metadata.channel_name == "engineering"
     assert document.extraction_metadata.message_count == 4
@@ -349,7 +445,7 @@ async def test_extract_process_knowledge(sample_process_thread):
     print(f"\n✅ Extracted Title: {document.title}")
 
     # Assert category is correct
-    assert document.category == KBCategory.PROCESSES
+    assert document.category == KBCategory.PROCESS
     print(f"Category: {document.category.value}")
 
     # Assert extraction output has category-specific fields
@@ -374,14 +470,72 @@ async def test_extract_decision_knowledge(sample_decision_thread):
     print(f"\n✅ Extracted Title: {document.title}")
 
     # Assert category is correct
-    assert document.category == KBCategory.DECISIONS
+    assert document.category == KBCategory.DECISION
     print(f"Category: {document.category.value}")
 
     # Assert extraction output has category-specific fields
     assert hasattr(document.extraction_output, "decision_context")
     assert hasattr(document.extraction_output, "decision_made")
     assert hasattr(document.extraction_output, "reasoning")
+    assert hasattr(document.extraction_output, "difficulty")
     print(f"Decision: {document.extraction_output.decision_made[:100]}...")
+    print(f"Difficulty: {document.extraction_output.difficulty}")
+
+    # Assert AI confidence
+    assert 0.0 <= document.ai_confidence <= 1.0
+    print(f"AI Confidence: {document.ai_confidence:.2f}")
+
+
+@pytest.mark.asyncio
+async def test_extract_reference_knowledge(sample_reference_thread):
+    """Test extraction of reference knowledge with real LLM."""
+    extractor = KBExtractor()
+
+    document = await extractor.extract_knowledge(sample_reference_thread)
+
+    # Assert document was created
+    assert document is not None
+    print(f"\n✅ Extracted Title: {document.title}")
+
+    # Assert category is correct
+    assert document.category == KBCategory.REFERENCE
+    print(f"Category: {document.category.value}")
+
+    # Assert extraction output has category-specific fields
+    assert hasattr(document.extraction_output, "question_context")
+    assert hasattr(document.extraction_output, "primary_resource")
+    assert hasattr(document.extraction_output, "resource_type")
+    assert hasattr(document.extraction_output, "difficulty")
+    print(f"Resource: {document.extraction_output.primary_resource[:100]}...")
+    print(f"Difficulty: {document.extraction_output.difficulty}")
+
+    # Assert AI confidence
+    assert 0.0 <= document.ai_confidence <= 1.0
+    print(f"AI Confidence: {document.ai_confidence:.2f}")
+
+
+@pytest.mark.asyncio
+async def test_extract_general_knowledge(sample_general_thread):
+    """Test extraction of general informational knowledge with real LLM."""
+    extractor = KBExtractor()
+
+    document = await extractor.extract_knowledge(sample_general_thread)
+
+    # Assert document was created
+    assert document is not None
+    print(f"\n✅ Extracted Title: {document.title}")
+
+    # Assert category is correct
+    assert document.category == KBCategory.GENERAL
+    print(f"Category: {document.category.value}")
+
+    # Assert extraction output has category-specific fields
+    assert hasattr(document.extraction_output, "summary")
+    assert hasattr(document.extraction_output, "key_topics")
+    assert hasattr(document.extraction_output, "key_points")
+    assert hasattr(document.extraction_output, "difficulty")
+    print(f"Summary: {document.extraction_output.summary[:100]}...")
+    print(f"Difficulty: {document.extraction_output.difficulty}")
 
     # Assert AI confidence
     assert 0.0 <= document.ai_confidence <= 1.0

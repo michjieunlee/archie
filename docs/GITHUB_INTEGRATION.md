@@ -25,8 +25,12 @@ your-test-repository/
 │   └── sample-issue.md
 ├── processes/
 │   └── sample-process.md
-└── decisions/
-    └── sample-decision.md
+├── decisions/
+│   └── sample-decision.md
+├── references/
+│   └── sample-reference.md
+└── general/
+    └── sample-general.md
 ```
 
 ### Testing

@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from functools import lru_cache
 
 
@@ -23,7 +24,6 @@ class Settings(BaseSettings):
     # No API key needed - uses gen_ai_hub proxy
     openai_model: str = "gpt-5"
     temperature: float = 0.0
-    max_tokens: int = 4000
 
     # SAP GenAI SDK
     sap_genai_api_url: str = ""
@@ -36,10 +36,9 @@ class Settings(BaseSettings):
     orchestration_timeout: int = 30  # Seconds
     dry_run: bool = False  # Skip GitHub PR creation when True (for testing)
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"
+    model_config = ConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
 
 @lru_cache

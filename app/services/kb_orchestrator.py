@@ -62,7 +62,6 @@ class KBOrchestrator:
             proxy_model_name=config.openai_model,
             proxy_client=self.proxy_client,
             temperature=0.0,
-            max_tokens=500,
         )
 
         # Lazy initialization of GitHub client (only when needed)
@@ -114,7 +113,7 @@ class KBOrchestrator:
             # Step 1: Fetch conversation from Slack
             # Default values applied inline:
             # - to_datetime: current datetime if not provided
-            # - from_datetime: kept as None if not provided  
+            # - from_datetime: kept as None if not provided
             # - limit: capped at 100
             logger.info("Fetching Slack conversation...")
             conversation = await fetch_slack_conversation(
@@ -317,9 +316,47 @@ class KBOrchestrator:
             f"Match result: {match_result.action.value} (confidence: {match_result.confidence_score})"
         )
 
-        # Step 4: Generate KB document and summary
-        logger.info("Generating KB document and summary...")
-        markdown_content = self.generator.generate_markdown(kb_document)
+        # Step 4: Generate or update KB document
+        if match_result.action == MatchAction.UPDATE:
+            logger.info(
+                f"UPDATE action: Attempting to update existing KB document at {match_result.document_path}"
+            )
+
+            # Fetch existing document content
+            existing_doc = next(
+                (
+                    doc
+                    for doc in existing_kb_docs
+                    if doc.get("path") == match_result.document_path
+                ),
+                None,
+            )
+
+            if existing_doc and existing_doc.get("content"):
+                try:
+                    logger.info(
+                        "Fetched existing document, using AI to merge updates..."
+                    )
+                    markdown_content = await self.generator.update_markdown(
+                        existing_content=existing_doc["content"],
+                        new_document=kb_document,
+                    )
+                    logger.info("Successfully updated document using AI merge")
+                except Exception as e:
+                    logger.warning(
+                        f"AI update failed: {e}. Falling back to generate_markdown()"
+                    )
+                    markdown_content = self.generator.generate_markdown(kb_document)
+            else:
+                logger.warning(
+                    f"Could not find existing document content for path: {match_result.document_path}. "
+                    f"Falling back to generate_markdown()"
+                )
+                markdown_content = self.generator.generate_markdown(kb_document)
+        else:
+            logger.info(f"CREATE action: Generating new KB document")
+            markdown_content = self.generator.generate_markdown(kb_document)
+
         kb_summary = self._generate_document_summary(markdown_content)
 
         # Step 5: Create GitHub PR
@@ -347,7 +384,9 @@ class KBOrchestrator:
         file_path = match_result.document_path
         if not file_path:
             # Fallback: generate path from category and title
-            sanitized_title = kb_document.title.lower().replace(" ", "-").replace("/", "-")
+            sanitized_title = (
+                kb_document.title.lower().replace(" ", "-").replace("/", "-")
+            )
             file_path = f"{kb_document.category.value}/{sanitized_title}.md"
             logger.info(f"Generated file path: {file_path}")
 
@@ -383,7 +422,9 @@ class KBOrchestrator:
         source_url = self._construct_source_url(conversation)
 
         # Build PR title with KB prefix and action indicator
-        action_prefix = "[UPDATE]" if match_result.action == MatchAction.UPDATE else "[NEW]"
+        action_prefix = (
+            "[UPDATE]" if match_result.action == MatchAction.UPDATE else "[NEW]"
+        )
         pr_title = f"KB {action_prefix}: {kb_document.title}"
 
         # Create the PR
@@ -476,31 +517,51 @@ class KBOrchestrator:
             A brief summary (2-3 sentences) of the document
         """
         try:
-            prompt = dedent(
-                f"""
+            prompt_template = dedent(
+                """
                 Generate a brief, user-friendly summary (2-3 sentences) of this knowledge base document. 
                 The summary should give readers a quick overview of what the document covers and its main purpose.
                 
+                ---
                 {markdown_content}
+                ---
                 
                 Provide only the summary text, without any preamble or additional formatting.
-            """
+                """
             ).strip()
 
+            prompt = prompt_template.format(markdown_content=markdown_content)
             messages = [HumanMessage(content=prompt)]
             response = self.llm.invoke(messages)
 
+            # Check if response has content
+            if not response or not response.content:
+                logger.error("LLM returned empty response for summary generation")
+                return ""
+
             summary = response.content.strip()
-            logger.info(f"Generated summary from markdown content")
+
+            # Check if summary is actually empty after stripping
+            if not summary:
+                logger.error("LLM returned empty response for summary generation")
+                return ""
+
+            logger.info(
+                f"Generated summary ({len(summary)} chars): {summary[:100]}..."
+                if len(summary) > 100
+                else f"Generated summary ({len(summary)} chars): {summary}"
+            )
 
             return summary
 
         except Exception as e:
             logger.error(f"Error generating document summary: {str(e)}", exc_info=True)
             # Fallback to a simple summary
-            return "Unable to generate summary at this time."
+            return f"Unable to generate summary at this time. Error: {str(e)}"
 
-    def _construct_source_url(self, conversation: StandardizedConversation) -> Optional[str]:
+    def _construct_source_url(
+        self, conversation: StandardizedConversation
+    ) -> Optional[str]:
         """
         Construct source URL from conversation metadata.
 
@@ -527,11 +588,11 @@ class KBOrchestrator:
             if conversation.messages:
                 first_message = conversation.messages[0]
                 # Get timestamp - either from message id or metadata
-                if hasattr(first_message, 'id') and first_message.id:
+                if hasattr(first_message, "id") and first_message.id:
                     # Slack message IDs often contain the timestamp
                     thread_ts = first_message.id
-                elif first_message.metadata and 'ts' in first_message.metadata:
-                    thread_ts = first_message.metadata['ts']
+                elif first_message.metadata and "ts" in first_message.metadata:
+                    thread_ts = first_message.metadata["ts"]
 
             # Construct Slack URL
             # Format: https://slack.com/app_redirect?channel=CHANNEL_ID&message_ts=TIMESTAMP
@@ -575,7 +636,11 @@ class KBOrchestrator:
         print(f"   Action:     {match_result.action.value.upper()}")
         print(f"   Confidence: {match_result.confidence_score:.1%}")
         print(f"   File Path:  {match_result.document_path or 'Not specified'}")
-        print(f"   Reasoning:  {match_result.reasoning[:200]}..." if len(match_result.reasoning) > 200 else f"   Reasoning:  {match_result.reasoning}")
+        print(
+            f"   Reasoning:  {match_result.reasoning[:200]}..."
+            if len(match_result.reasoning) > 200
+            else f"   Reasoning:  {match_result.reasoning}"
+        )
 
         print(f"\n📝 SUMMARY:")
         print(f"   {kb_summary}")
