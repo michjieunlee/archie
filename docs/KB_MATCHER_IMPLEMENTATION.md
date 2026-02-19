@@ -169,7 +169,7 @@ def _format_new_content_by_category(self, kb_document: KBDocument) -> str:
 ### Prevention
 {extraction.prevention_measures}
 
-### Related Issues
+### Related Links
 {extraction.related_links or 'None'}"""
     # ... similar for processes and decisions
 ```

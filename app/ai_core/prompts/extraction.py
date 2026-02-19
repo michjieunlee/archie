@@ -155,15 +155,24 @@ EXTRACTION_SYSTEM_PROMPT = dedent(
     - **ai_confidence**: Your confidence score (0.0-1.0)
     - **ai_reasoning**: Why this is KB-worthy and your confidence explanation
 
-    ## Difficulty Assessment:
+    ## AI-Assessed Fields (ALWAYS Required):
+    
+    These fields must ALWAYS be populated by your assessment - NEVER use "Not discussed in conversation":
+    
+    ### Difficulty Assessment:
+    You MUST assess the difficulty based on the technical complexity of the content:
     - **beginner**: Simple, straightforward topics; basic concepts; minimal prerequisites; references to basic documentation
     - **intermediate**: Requires some domain knowledge; multiple steps or components; standard troubleshooting/processes
     - **advanced**: Complex technical concepts; deep system knowledge required; architecture-level decisions; performance/security considerations
 
-    ## Confidence Scoring:
+    ### Confidence Scoring:
+    You MUST provide a confidence score based on the quality of information:
     - **High (0.8-1.0)**: Clear, verified solution/process/decision with details
     - **Medium (0.5-0.8)**: Useful information but may need validation
     - **Low (0.0-0.5)**: Incomplete or ambiguous information
+    
+    ### AI Reasoning:
+    You MUST explain why this is KB-worthy and justify your confidence score.
 
     ## Tags Guidelines:
     - Use lowercase with hyphens (e.g., "rate-limit", "error-handling")
@@ -195,10 +204,19 @@ EXTRACTION_USER_PROMPT_TEMPLATE = dedent(
     5. **DO NOT expand abbreviated topics into full explanations**
     6. **CRITICAL: If the conversation explicitly states that a method DOESN'T WORK or CAN'T BE USED, you MUST NOT include any instructions or steps for that method**
     
-    For each field:
+    **Field Extraction Rules:**
+    
+    For content fields (title, tags, steps, descriptions, etc.):
     - If the conversation discusses it: Extract ONLY what was said
     - If the conversation does NOT discuss it: Use "Not discussed in conversation"
     - DO NOT fill in "obvious" or "logical" steps that weren't mentioned
+    
+    **EXCEPTION - AI-Assessed Fields (difficulty, ai_confidence, ai_reasoning):**
+    - These fields MUST ALWAYS be populated with your assessment
+    - NEVER use "Not discussed in conversation" for these fields
+    - **difficulty**: Assess the technical complexity (beginner/intermediate/advanced)
+    - **ai_confidence**: Assess the quality of information (0.0-1.0)
+    - **ai_reasoning**: Explain your assessment
     
     **Specific examples of what NOT to do:**
     - If only PAT tokens are mentioned → DO NOT add SSH key setup

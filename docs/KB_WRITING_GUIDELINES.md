@@ -323,7 +323,7 @@ To prevent future conflicts:
 - Use exact versions in package.json when possible
 - Test dependency updates in a separate branch
 
-## Related Issues
+## Related Links
 
 - [npm cache issues](link-to-related-kb)
 - [Node version management](link-to-related-kb)
