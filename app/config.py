@@ -34,7 +34,13 @@ class Settings(BaseSettings):
     # Processing Configuration
     batch_size_masking: int = 20  # Messages per orchestration call
     orchestration_timeout: int = 30  # Seconds
-    dry_run: bool = False  # Skip GitHub PR creation when True (for testing)
+    dry_run: bool = True  # Skip GitHub PR creation when True (for testing)
+
+    # Retry Configuration for Rate Limiting
+    max_retries: int = 5
+    retry_base_delay: float = 1.0  # Initial delay in seconds
+    retry_max_delay: float = 60.0  # Maximum delay in seconds
+    retry_exponential_base: float = 2.0  # Exponential backoff multiplier
 
     model_config = ConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
