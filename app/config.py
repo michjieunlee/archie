@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # Processing Configuration
     batch_size_masking: int = 20  # Messages per orchestration call
     orchestration_timeout: int = 30  # Seconds
-    dry_run: bool = True  # Skip GitHub PR creation when True (for testing)
+    dry_run: bool = False  # Skip GitHub PR creation when True (for testing)
 
     # Retry Configuration for Rate Limiting
     max_retries: int = 5
