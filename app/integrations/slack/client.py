@@ -62,18 +62,21 @@ class SlackClient:
             # Prepare API parameters
             api_params = {"channel": channel_id}
 
-            # Use datetime range if provided, otherwise use limit (max 100)
+            # Always include limit (max 100 messages)
+            api_params["limit"] = min(limit, 100)
+
+            # Add datetime range if provided
+            if from_datetime:
+                api_params["oldest"] = str(int(from_datetime.timestamp()))
+            if to_datetime:
+                api_params["latest"] = str(int(to_datetime.timestamp()))
+
             if from_datetime or to_datetime:
-                if from_datetime:
-                    api_params["oldest"] = str(int(from_datetime.timestamp()))
-                if to_datetime:
-                    api_params["latest"] = str(int(to_datetime.timestamp()))
                 logger.info(
                     f"Fetching conversation history from channel {channel_id}, "
-                    f"from={from_datetime}, to={to_datetime}"
+                    f"from={from_datetime}, to={to_datetime}, limit={api_params['limit']}"
                 )
             else:
-                api_params["limit"] = min(limit, 100)  # Max 100 messages
                 logger.info(
                     f"Fetching conversation history from channel {channel_id}, limit={api_params['limit']}"
                 )
