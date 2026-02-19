@@ -174,15 +174,15 @@ class KBExtractor:
 
             category_str = response.content.strip().lower()
 
-            # Map to enum
+            # Map to enum (handle both singular and plural for backward compatibility)
             category_map = {
                 "troubleshooting": KBCategory.TROUBLESHOOTING,
-                "process": KBCategory.PROCESS,
-                "processes": KBCategory.PROCESS,  # Handle plural
-                "decision": KBCategory.DECISION,
-                "decisions": KBCategory.DECISION,  # Handle plural
-                "reference": KBCategory.REFERENCE,
-                "references": KBCategory.REFERENCE,  # Handle plural
+                "process": KBCategory.PROCESSES,  # Backward compatibility
+                "processes": KBCategory.PROCESSES,
+                "decision": KBCategory.DECISIONS,  # Backward compatibility
+                "decisions": KBCategory.DECISIONS,
+                "reference": KBCategory.REFERENCES,  # Backward compatibility
+                "references": KBCategory.REFERENCES,
                 "general": KBCategory.GENERAL,
             }
 
@@ -246,11 +246,11 @@ class KBExtractor:
                 structured_llm = self.llm.with_structured_output(
                     TroubleshootingExtraction
                 )
-            elif category == KBCategory.PROCESS:
+            elif category == KBCategory.PROCESSES:
                 structured_llm = self.llm.with_structured_output(ProcessExtraction)
-            elif category == KBCategory.DECISION:
+            elif category == KBCategory.DECISIONS:
                 structured_llm = self.llm.with_structured_output(DecisionExtraction)
-            elif category == KBCategory.REFERENCE:
+            elif category == KBCategory.REFERENCES:
                 structured_llm = self.llm.with_structured_output(ReferenceExtraction)
             elif category == KBCategory.GENERAL:
                 structured_llm = self.llm.with_structured_output(GeneralExtraction)
