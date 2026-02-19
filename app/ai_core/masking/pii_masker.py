@@ -70,12 +70,14 @@ class PIIMasker:
         Create Data Masking configuration.
 
         Configured entities:
-        - PERSON: Names of individuals
+        - PERSON: Names of individuals (excludes: "Gerrit" code review tool)
         - EMAIL: Email addresses
         - PHONE: Phone numbers
         - ADDRESS: Physical addresses
         - I_NUMBER: Custom entity for personal IDs (I/D/C followed by digits, e.g., i123456, D123456, C987654)
         - SLACK_USER: Slack user IDs (e.g., U1234567890, U0ACPTBU04R, W1234567890)
+
+        Allowlist: Terms that will NOT be masked (e.g., "Gerrit")
         """
         return MaskingModuleConfig(
             masking_providers=[
@@ -110,6 +112,8 @@ class PIIMasker:
                             ),
                         ),
                     ],
+                    # Allowlist: Names/terms that should NOT be masked
+                    allowlist=["Gerrit"],
                 )
             ],
         )
