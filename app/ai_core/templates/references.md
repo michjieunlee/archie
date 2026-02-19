@@ -1,6 +1,6 @@
 ---
 title: "{title}"
-category: "decision"
+category: "references"
 tags: [{tags}]
 difficulty: "{difficulty}"
 source_type: "{source_type}"
@@ -16,23 +16,25 @@ last_updated: "{last_updated}"
 # {title}
 
 ## Context
-{decision_context}
+{question_context}
 
-## Decision
-{decision_made}
+## Resource Type
+{resource_type}
 
-## Rationale
-{reasoning}
+## Primary Resource
+{primary_resource}
 
-## Alternatives Considered
-{alternatives}
+## Additional Resources
+{additional_resources}
 
-## Consequences
-### Positive
-{positive_consequences}
+## Description
+{resource_description}
 
-### Negative
-{negative_consequences}
+## When to Use This Resource
+{usage_context}
 
-## Implementation Notes
-{implementation_notes}
+## Access Requirements
+{access_requirements}
+
+## Related Topics
+{related_topics}
