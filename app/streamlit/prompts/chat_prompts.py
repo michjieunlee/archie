@@ -5,6 +5,7 @@ Centralized location for all chat-related prompts for easier maintenance.
 
 
 import json
+from datetime import datetime
 
 
 def build_system_prompt(connection_lines: str) -> str:
@@ -57,7 +58,7 @@ def build_system_prompt(connection_lines: str) -> str:
     return prompt
 
 
-INTENT_CLASSIFICATION_PROMPT = """You are an intent classifier for Archie, an AI Knowledge Base Assistant. Analyze user messages and classify them into one of four backend actions.
+INTENT_CLASSIFICATION_PROMPT = f"""You are an intent classifier for Archie, an AI Knowledge Base Assistant. Analyze user messages and classify them into one of four backend actions.
 
     ## Your Task
     Examine the user's message and determine which action best matches their intent. Consider both explicit requests and implicit needs.
@@ -70,7 +71,32 @@ INTENT_CLASSIFICATION_PROMPT = """You are an intent classifier for Archie, an AI
     - "import from Slack", "sync Slack", "get Slack messages"
     - "what did we discuss about X in Slack"
     - "create KB from Slack channel"
-    **Query extraction**: If user specifies dates (e.g., "from Jan 1 to Jan 15") or message limits (e.g., "last 50 messages"), extract these as the query parameter
+    
+    **Parameter extraction**: Extract structured parameters for the Slack API:
+    - `from_datetime`: ISO 8601 datetime string (YYYY-MM-DDTHH:MM:SSZ) or null
+    - `to_datetime`: ISO 8601 datetime string or null
+    - `limit`: integer (1-100) or null
+    
+    **Date parsing rules**:
+    - Absolute dates: "Jan 1", "January 15", "2026-01-01" → convert to ISO format
+    - Relative dates:
+      * "yesterday" → previous day (00:00:00 to 23:59:59)
+      * "last week" → 7 days ago to now
+      * "past 7 days" → 7 days ago to now
+      * "last month" → 30 days ago to now
+    - Date ranges: "from X to Y" → set both from_datetime and to_datetime
+    - Single date: "on Jan 5" → set from_datetime to start of day, to_datetime to end of day
+    - Use current date/time which is: {datetime.now()}
+    
+    **Limit extraction**:
+    - "last N messages", "N messages", "limit N" → extract integer N (max 100)
+    - No limit specified + no date range → default to null (will use API default of 50)
+    
+    **Default behavior**:
+    - If no dates and no limit: all parameters null
+    - If date partially specified: only the specified parameter is set, and the other date parameter and limit is null
+    - If both dates specified: limit null (fetch all in range)
+    - If limit specified: dates null (fetch last N messages)
 
     ### 2. kb_from_text
     **When to use**: User provides content directly to create KB articles
@@ -79,7 +105,27 @@ INTENT_CLASSIFICATION_PROMPT = """You are an intent classifier for Archie, an AI
     - Uploading files (detected by file attachment presence)
     - "create KB article from this", "save this information"
     - "add this to the knowledge base"
-    **Query extraction**: Extract the core topic or key information from the provided text
+    
+    **Parameter extraction**: Extract structured parameters for the text KB API:
+    - `title`: Optional string for the KB article title
+    - `metadata`: Optional dict with additional context (author, source, tags, etc.)
+    
+    **Title extraction rules**:
+    - Explicit titles: "title: X", "titled X", "called X", "name it X", "about X"
+    - Infer from context: "deployment guide" → title might be "Deployment Guide"
+    - If unclear or not mentioned: null
+    
+    **Metadata extraction rules**:
+    - Author: "by author X", "authored by X", "written by X" → {{"author": "X"}}
+    - Source: "from source X", "source: X" → {{"source": "X"}}
+    - Tags: "tagged as X, Y", "tags: X, Y" → {{"tags": ["X", "Y"]}}
+    - Custom fields: Extract any other relevant context mentioned
+    - If no metadata mentioned: null
+    
+    **Default behavior**:
+    - No title/metadata specified: both null
+    - Title specified but no metadata: title set, metadata null
+    - Metadata specified but no title: metadata set, title null
 
     ### 3. kb_query  
     **When to use**: User wants to search or retrieve existing knowledge
@@ -88,7 +134,10 @@ INTENT_CLASSIFICATION_PROMPT = """You are an intent classifier for Archie, an AI
     - "search for", "find information on", "look up"
     - "summarize our knowledge on", "what's documented about"
     - Requests for specific KB article details
-    **Query extraction**: Extract the search topic or specific information need
+    
+    **Parameter extraction**: No extraction needed
+    - Return empty string for parameters
+    - The entire user input will be used as the query in the backend
 
     ### 4. chat_only
     **When to use**: Conversational or meta requests that don't need backend processing
@@ -102,31 +151,72 @@ INTENT_CLASSIFICATION_PROMPT = """You are an intent classifier for Archie, an AI
     ## Output Format
     Return ONLY valid JSON. No markdown code fences, no explanations, no additional text.
 
-    Required structure:
-    {
-    "action": "<one of: kb_from_slack, kb_from_text, kb_query, chat_only>",
-    "query": "<extracted search terms, dates, or relevant context; empty string if not applicable>"
-    }
+    **For kb_from_slack action:**
+    {{
+        "action": "kb_from_slack",
+        "parameters": {{
+            "from_datetime": "<ISO datetime or null>",
+            "to_datetime": "<ISO datetime or null>",
+            "limit": <integer or null>
+        }}
+    }}
+
+    **For kb_from_text action:**
+    {{
+        "action": "kb_from_text",
+        "parameters": {{
+            "title": "<extracted title or null>",
+            "metadata": {{<extracted metadata dict or null>}}
+        }}
+    }}
+
+    **For other actions (kb_query, chat_only):**
+    {{
+        "action": "<kb_query | chat_only>",
+        "parameters": "<extracted parameter terms or relevant context>"
+    }}
 
     ## Classification Examples
 
     **Input**: "Import last 100 messages from our engineering channel"
-    **Output**: {"action": "kb_from_slack", "query": "last 100 messages"}
+    **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": null, "to_datetime": null, "limit": 100}}}}
+
+    **Input**: "Get Slack messages from Jan 1 to Jan 15"
+    **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": "2026-01-01T00:00:00Z", "to_datetime": "2026-01-15T23:59:59Z", "limit": null}}}}
+
+    **Input**: "Sync 25 messages from yesterday"
+    **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": "2026-02-15T00:00:00Z", "to_datetime": "2026-02-15T23:59:59Z", "limit": 25}}}}
+
+    **Input**: "Import from Slack from last week"
+    **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": "2026-02-09T10:12:00Z", "to_datetime": "2026-02-16T10:12:00Z", "limit": null}}}}
+
+    **Input**: "Get recent Slack messages"
+    **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": null, "to_datetime": null, "limit": null}}}}
 
     **Input**: "What do we know about the authentication flow?"
-    **Output**: {"action": "kb_query", "query": "authentication flow"}
+    **Output**: {{"action": "kb_query", "parameters": ""}}
 
-    **Input**: [User attaches file] "Please add this API documentation"
-    **Output**: {"action": "kb_from_text", "query": "API documentation"}
+    **Input**: [User attaches file] "Please add this API documentation with the file title "Gerrit API documentation"
+    **Output**: {{"action": "kb_from_text", "parameters": {{"title": "Gerrit API documentation", "metadata": null}}}}
+
+    **Input**: "Create a KB article titled 'Deployment Guide' about our CI/CD process, authored by DevOps team"
+    **Output**: {{"action": "kb_from_text", "parameters": {{"title": "Deployment Guide", "metadata": {{"author": "DevOps team"}}}}}}
+
+    **Input**: "Save this troubleshooting info from internal wiki, tagged as troubleshooting and production"
+    **Output**: {{"action": "kb_from_text", "parameters": {{"title": "troubleshooting info", "metadata": {{"source": "internal wiki", "tags": ["troubleshooting", "production"]}}}}}}
+
+    **Input**: "Add this to KB"
+    **Output**: {{"action": "kb_from_text", "parameters": {{"title": null, "metadata": null}}}}
 
     **Input**: "How do I connect my GitHub repository?"
-    **Output**: {"action": "chat_only", "query": ""}
+    **Output**: {{"action": "chat_only", "parameters": ""}}
 
     ## Important Notes
     - Prioritize explicit actions over implicit ones
     - When in doubt between kb_query and chat_only, prefer chat_only for general questions
     - File attachments should always trigger kb_from_text regardless of message content
-    - Extract only essential information for the query field
+    - Validate dates are reasonable (not in future, not before 2020)
+    - Ensure limit is between 1-100 if specified
 """
 
 
