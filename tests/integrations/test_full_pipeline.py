@@ -53,18 +53,18 @@ from app.config import get_settings
 def setup_logging(verbose: bool = False):
     """Configure logging based on verbose mode."""
     log_level = logging.DEBUG if verbose else logging.WARNING
-    
+
     # Configure root logger for app modules
     logging.basicConfig(
         level=log_level,
         format='%(levelname)s | %(name)s | %(message)s',
         force=True,
     )
-    
+
     # Set app modules to appropriate level
     for module in ['app.services', 'app.ai_core', 'app.integrations']:
         logging.getLogger(module).setLevel(log_level)
-    
+
     # Always suppress noisy third-party loggers
     for module in ['httpx', 'httpcore', 'urllib3', 'openai']:
         logging.getLogger(module).setLevel(logging.WARNING)
@@ -77,16 +77,16 @@ def setup_logging(verbose: bool = False):
 TROUBLESHOOTING_TEXT = """
 We encountered a critical production issue with the payment service yesterday.
 
-**Problem**: Payment transactions were failing with timeout errors after the 
-deployment of version 2.3.5. Users reported seeing "Payment processing failed" 
+**Problem**: Payment transactions were failing with timeout errors after the
+deployment of version 2.3.5. Users reported seeing "Payment processing failed"
 messages when trying to complete checkout.
 
-**Investigation**: 
+**Investigation**:
 - John from the backend team found that the database connection pool was exhausted
 - The logs showed connection timeout after 30 seconds
 - CPU usage on the payment-db server was at 95%
 
-**Root Cause**: The new version introduced a memory leak in the connection 
+**Root Cause**: The new version introduced a memory leak in the connection
 handling code. Connections were not being properly released after transactions.
 
 **Solution**:
@@ -106,8 +106,8 @@ Contact Sarah (sarah@company.com) or Mike (mike@company.com) for questions.
 PROCESS_TEXT = """
 **New Developer Onboarding Process**
 
-**Overview**: This document outlines the step-by-step process for onboarding 
-new developers to the engineering team. Following this process ensures new 
+**Overview**: This document outlines the step-by-step process for onboarding
+new developers to the engineering team. Following this process ensures new
 team members are productive within their first week.
 
 **Prerequisites**:
@@ -168,7 +168,7 @@ UPDATE_TEXT = """
 Follow-up on the payment service timeout issue from last week.
 
 **New Findings**:
-After further investigation, we discovered additional issues related to the 
+After further investigation, we discovered additional issues related to the
 payment service timeouts:
 
 - The issue also affects batch processing jobs, not just real-time transactions
@@ -265,28 +265,28 @@ class TestOutputFormatter:
         """Print detailed result information."""
         print(f"\n   📊 Status: {result.status}")
         print(f"   🎯 Action: {result.action.value.upper()}")
-        
+
         if result.reason:
             print(f"   💬 Reason: {result.reason}")
-        
+
         if result.kb_document_title:
             print(f"   📋 Title: {result.kb_document_title}")
             print(f"   📁 Category: {result.kb_category}")
             if result.ai_confidence:
                 print(f"   🎯 Confidence: {result.ai_confidence:.1%}")
-        
+
         if result.ai_reasoning:
             print(f"   🤖 AI Reasoning: {result.ai_reasoning[:200]}..." if len(result.ai_reasoning) > 200 else f"   🤖 AI Reasoning: {result.ai_reasoning}")
-        
+
         if result.kb_summary:
             print(f"   📝 Summary: {result.kb_summary}")
-        
+
         if result.pr_url:
             print(f"   🔗 PR URL: {result.pr_url}")
-        
+
         if result.kb_file_path:
             print(f"   📄 File: {result.kb_file_path}")
-        
+
         if result.kb_markdown_content:
             print(f"\n   📝 Markdown Preview (first 500 chars):")
             print("   " + "-" * 50)
@@ -300,9 +300,9 @@ class TestOutputFormatter:
     def print_results_summary(results: List[TestResult]):
         passed = sum(1 for r in results if r.passed)
         total = len(results)
-        
+
         print(f"\n📊 Results: {passed}/{total} tests passed", end="")
-        
+
         if all(r.passed for r in results):
             print(" ✅")
             print(f"\n🎉 All tests completed successfully!")
@@ -359,7 +359,7 @@ class MockPipelineTest(BasePipelineTest):
         """Test troubleshooting category extraction."""
         try:
             orchestrator = KBOrchestrator()
-            
+
             self.tracker.start_extraction()
             result = await orchestrator.process_text_input(
                 text=TROUBLESHOOTING_TEXT,
@@ -367,26 +367,26 @@ class MockPipelineTest(BasePipelineTest):
                 metadata={"test": "troubleshooting"},
             )
             self.tracker.end_extraction()
-            
+
             if config.verbose:
                 self.formatter.print_verbose_result(result)
-            
+
             # Validate
             if result.status == "error":
                 return TestResult("Troubleshooting KB", False, result.reason)
-            
+
             if result.action == KBActionType.IGNORE:
                 return TestResult("Troubleshooting KB", True, "Content ignored (valid outcome)")
-            
+
             if result.action in [KBActionType.CREATE, KBActionType.UPDATE]:
                 if result.kb_category != "troubleshooting":
-                    return TestResult("Troubleshooting KB", False, 
+                    return TestResult("Troubleshooting KB", False,
                                      f"Expected troubleshooting, got {result.kb_category}")
-                return TestResult("Troubleshooting KB", True, 
+                return TestResult("Troubleshooting KB", True,
                                  f"Category: {result.kb_category}, Action: {result.action.value}")
-            
+
             return TestResult("Troubleshooting KB", True, "Completed")
-            
+
         except Exception as e:
             return TestResult("Troubleshooting KB", False, f"Exception: {e}")
 
@@ -394,7 +394,7 @@ class MockPipelineTest(BasePipelineTest):
         """Test processes category extraction."""
         try:
             orchestrator = KBOrchestrator()
-            
+
             self.tracker.start_extraction()
             result = await orchestrator.process_text_input(
                 text=PROCESS_TEXT,
@@ -402,26 +402,26 @@ class MockPipelineTest(BasePipelineTest):
                 metadata={"test": "process"},
             )
             self.tracker.end_extraction()
-            
+
             if config.verbose:
                 self.formatter.print_verbose_result(result)
-            
+
             # Validate
             if result.status == "error":
                 return TestResult("Process KB", False, result.reason)
-            
+
             if result.action == KBActionType.IGNORE:
                 return TestResult("Process KB", True, "Content ignored (valid outcome)")
-            
+
             if result.action in [KBActionType.CREATE, KBActionType.UPDATE]:
                 if result.kb_category != "processes":
-                    return TestResult("Process KB", False, 
+                    return TestResult("Process KB", False,
                                      f"Expected processes, got {result.kb_category}")
-                return TestResult("Process KB", True, 
+                return TestResult("Process KB", True,
                                  f"Category: {result.kb_category}, Action: {result.action.value}")
-            
+
             return TestResult("Process KB", True, "Completed")
-            
+
         except Exception as e:
             return TestResult("Process KB", False, f"Exception: {e}")
 
@@ -429,32 +429,32 @@ class MockPipelineTest(BasePipelineTest):
         """Test UPDATE matching detection."""
         try:
             orchestrator = KBOrchestrator()
-            
+
             result = await orchestrator.process_text_input(
                 text=UPDATE_TEXT,
                 title="Payment Service Timeout - Additional Findings",
                 metadata={"test": "update_matching"},
             )
-            
+
             if config.verbose:
                 self.formatter.print_verbose_result(result)
-            
+
             # Validate
             if result.status == "error":
                 return TestResult("Update Matching", False, result.reason)
-            
+
             # Both CREATE and UPDATE are valid outcomes depending on existing KB
             if result.action == KBActionType.UPDATE:
-                return TestResult("Update Matching", True, 
+                return TestResult("Update Matching", True,
                                  f"UPDATE detected (matched existing KB)")
             elif result.action == KBActionType.CREATE:
-                return TestResult("Update Matching", True, 
+                return TestResult("Update Matching", True,
                                  f"CREATE returned (no existing KB found)")
             elif result.action == KBActionType.IGNORE:
                 return TestResult("Update Matching", True, "Content ignored")
-            
+
             return TestResult("Update Matching", True, f"Action: {result.action.value}")
-            
+
         except Exception as e:
             return TestResult("Update Matching", False, f"Exception: {e}")
 
@@ -465,39 +465,39 @@ class RealPipelineTest(BasePipelineTest):
     async def test_slack_pipeline(self, config: TestConfig) -> TestResult:
         """Test full pipeline with real Slack messages."""
         settings = get_settings()
-        
+
         if not settings.slack_bot_token:
             return TestResult("Slack Pipeline", True, "⚠️ Skipped (no SLACK_BOT_TOKEN)")
-        
+
         try:
             orchestrator = KBOrchestrator()
-            
+
             to_datetime = datetime.now()
             from_datetime = to_datetime - timedelta(hours=config.slack_hours)
-            
+
             result = await orchestrator.process_slack_messages(
                 from_datetime=from_datetime,
                 to_datetime=to_datetime,
                 limit=config.slack_limit,
             )
-            
+
             if config.verbose:
                 self.formatter.print_verbose_result(result)
-            
+
             # Validate
             if result.status == "error":
                 return TestResult("Slack Pipeline", False, result.reason)
-            
+
             if result.action == KBActionType.IGNORE:
-                return TestResult("Slack Pipeline", True, 
+                return TestResult("Slack Pipeline", True,
                                  f"No KB-worthy content ({result.messages_fetched} msgs)")
-            
+
             if result.action in [KBActionType.CREATE, KBActionType.UPDATE]:
-                return TestResult("Slack Pipeline", True, 
+                return TestResult("Slack Pipeline", True,
                                  f"{result.action.value.upper()}: {result.kb_document_title}")
-            
+
             return TestResult("Slack Pipeline", True, "Completed")
-            
+
         except Exception as e:
             return TestResult("Slack Pipeline", False, f"Exception: {e}")
 
@@ -515,7 +515,7 @@ class PipelineTestRunner:
     async def run_tests(self, test_mode: str, config: TestConfig) -> List[TestResult]:
         """Run tests based on mode."""
         settings = get_settings()
-        
+
         mode_desc = "dry-run" if config.dry_run else "REAL (creates PRs)"
         print(f"🚀 Full Pipeline Tests ({mode_desc})")
         print(f"🔧 DRY_RUN: {settings.dry_run}")
@@ -533,7 +533,7 @@ class PipelineTestRunner:
         else:
             # Run text input tests (troubleshooting, process, update)
             results.extend(await self._run_text_tests(test_mode, config))
-            
+
             # Also run Slack if --slack AND --test are both provided
             if config.include_slack:
                 results.extend(await self._run_slack_tests(config))
@@ -547,7 +547,7 @@ class PipelineTestRunner:
 
         text_test = MockPipelineTest()
         results = []
-        
+
         # Check for test filter
         test_filter = config.test_filter
 
@@ -615,23 +615,23 @@ Examples:
 
         # Run mode arguments (controls DRY_RUN)
         mode_group = parser.add_mutually_exclusive_group()
-        mode_group.add_argument("--mock", action="store_true", 
+        mode_group.add_argument("--mock", action="store_true",
                                help="Dry-run mode: DRY_RUN=true, no PR created (default)")
-        mode_group.add_argument("--real", action="store_true", 
+        mode_group.add_argument("--real", action="store_true",
                                help="Real mode: DRY_RUN=false, creates actual PRs")
-        mode_group.add_argument("--quick", action="store_true", 
+        mode_group.add_argument("--quick", action="store_true",
                                help="Quick smoke test (dry-run, troubleshooting only)")
 
         # Additional test options
-        parser.add_argument("--slack", action="store_true", 
+        parser.add_argument("--slack", action="store_true",
                            help="Include Slack tests (requires SLACK_BOT_TOKEN)")
-        parser.add_argument("--verbose", "-v", action="store_true", 
+        parser.add_argument("--verbose", "-v", action="store_true",
                            help="Show detailed output")
         parser.add_argument("--test", type=str, choices=["troubleshooting", "process", "update"],
                            help="Run specific test only (troubleshooting, process, update)")
-        parser.add_argument("--slack-limit", type=int, default=10, 
+        parser.add_argument("--slack-limit", type=int, default=10,
                            help="Slack message limit (default: 10)")
-        parser.add_argument("--slack-hours", type=int, default=24, 
+        parser.add_argument("--slack-hours", type=int, default=24,
                            help="Slack history hours (default: 24)")
 
         args = parser.parse_args()
@@ -647,7 +647,7 @@ Examples:
         else:
             test_mode = "mock"
             os.environ["DRY_RUN"] = "true"
-        
+
         # Clear the settings cache to pick up the new DRY_RUN value
         from app.config import get_settings
         get_settings.cache_clear()
@@ -672,7 +672,7 @@ Examples:
 async def main():
     """Main test execution function."""
     test_mode, config = ConfigParser.parse_args()
-    
+
     # Setup logging based on verbose mode
     setup_logging(config.verbose)
 

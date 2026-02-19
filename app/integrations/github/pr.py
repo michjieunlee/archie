@@ -44,6 +44,27 @@ class PRManager:
         ai_confidence: Optional[float] = None,
         max_retries: int = 5,
     ) -> PRResult:
+        """Alias for create_kb_pr for backward compatibility."""
+        return await self.create_kb_pr(
+            title=title,
+            content=content,
+            file_path=file_path,
+            summary=summary,
+            source_url=source_url,
+            ai_confidence=ai_confidence,
+            max_retries=max_retries,
+        )
+
+    async def create_kb_pr(
+        self,
+        title: str,
+        content: str,
+        file_path: str,
+        summary: Optional[str] = None,
+        source_url: Optional[str] = None,
+        ai_confidence: Optional[float] = None,
+        max_retries: int = 5,
+    ) -> PRResult:
         """
         Create a PR with a document.
 
