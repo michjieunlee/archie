@@ -71,8 +71,7 @@ archie/
 │   │   │   ├── extraction.py
 │   │   │   ├── matching.py
 │   │   │   └── generation.py
-│   │   └── templates/          # KB document templates
-│   │       └── kb_template.md
+│   │   └── templates/          # KB document templates (decision.md, process.md, troubleshooting.md)
 │   │
 │   ├── models/                 # Shared data models
 │   │   ├── thread.py           # StandardizedConversation
@@ -127,8 +126,32 @@ cp .env.example .env
 
 ### Running the Server
 
+**Recommended method** (with automatic debug logging support):
+```bash
+python run.py
+```
+
+This will start the server on `http://127.0.0.1:8000` with debug logging enabled/disabled based on the `DEBUG` setting in your `.env` file.
+
+**Alternative method** (direct uvicorn):
 ```bash
 uvicorn app.main:app --reload --port 8000
+```
+
+**Enable debug logging:**
+- Set `DEBUG=true` in your `.env` file (when using `python run.py`)
+- Or use `uvicorn app.main:app --reload --port 8000 --log-level debug`
+
+**Optional configuration:**
+```bash
+# Change host (default: 127.0.0.1)
+HOST=0.0.0.0 python run.py
+
+# Change port (default: 8000)
+PORT=3000 python run.py
+
+# Combine multiple options
+HOST=0.0.0.0 PORT=3000 python run.py
 ```
 
 ### API Documentation
@@ -201,6 +224,8 @@ pytest tests/ -v
 - **API Integration**: `docs/API_INTEGRATION.md` - Complete API documentation and data models
 - **Implementation Plans**: `docs/IMPLEMENTATION_PLANS.md` - Team responsibilities and development guidance
 - **KB Structure**: `docs/KB_REPOSITORY_STRUCTURE.md` - Knowledge base repository organization
+- **KB Writing Guidelines**: `docs/KB_WRITING_GUIDELINES.md` - Guidelines for writing and updating KB documents
+- **KB Templates**: Templates are located in `ai_core/templates/` (decision.md, process.md, troubleshooting.md)
 
 ## Future Roadmap
 

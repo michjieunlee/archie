@@ -94,7 +94,7 @@ class GitHubKBOperations:
         try:
             logger.info(f"Creating new KB document: {title}")
 
-            pr_result = await self.pr_manager.create_kb_pr(
+            pr_result = await self.pr_manager.create_pr(
                 title=title,
                 content=content,
                 file_path=file_path,
@@ -138,8 +138,8 @@ class GitHubKBOperations:
         try:
             logger.info(f"Updating KB document: {title} at {file_path}")
 
-            # Use the same create_kb_pr method - it handles both create and update
-            pr_result = await self.pr_manager.create_kb_pr(
+            # Use the same create_pr method - it handles both create and update
+            pr_result = await self.pr_manager.create_pr(
                 title=f"Update: {title}",
                 content=content,
                 file_path=file_path,
@@ -199,7 +199,7 @@ class GitHubKBOperations:
             )
 
             # Create PR with combined content
-            pr_result = await self.pr_manager.create_kb_pr(
+            pr_result = await self.pr_manager.create_pr(
                 title=f"Append to: {title}",
                 content=combined_content,
                 file_path=file_path,

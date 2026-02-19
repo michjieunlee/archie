@@ -8,8 +8,14 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from gen_ai_hub.proxy.langchain.openai import ChatOpenAI
+from gen_ai_hub.proxy.core.proxy_clients import get_proxy_client
+from langchain_core.prompts import ChatPromptTemplate
+
 from app.models.knowledge import KBDocument, KBCategory
-from app.utils import flatten_list
+from app.utils import flatten_list, format_kb_document_content
+from app.ai_core.prompts.generation import UPDATE_PROMPT
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +30,12 @@ class KBGenerator:
         Initialize the KB Generator.
 
         Args:
-            templates_dir: Directory containing template files. Defaults to .archie/templates
+            templates_dir: Directory containing template files. Defaults to app/ai_core/templates
         """
         if templates_dir is None:
-            # Default to .archie/templates relative to project root
-            self.templates_dir = (
-                Path(__file__).parent.parent.parent.parent / ".archie" / "templates"
-            )
+            # Default to templates dir relative to this module
+            module_dir = Path(__file__).parent.parent  # ai_core directory
+            self.templates_dir = module_dir / "templates"
         else:
             self.templates_dir = Path(templates_dir)
 
@@ -78,10 +83,12 @@ class KBGenerator:
         """
         template_map = {
             KBCategory.TROUBLESHOOTING: "troubleshooting.md",
-            KBCategory.PROCESSES: "process.md",
-            KBCategory.DECISIONS: "decision.md",
+            KBCategory.PROCESS: "process.md",
+            KBCategory.DECISION: "decision.md",
+            KBCategory.REFERENCE: "reference.md",
+            KBCategory.GENERAL: "general.md",
         }
-        return template_map.get(category, "troubleshooting.md")
+        return template_map.get(category, "general.md")
 
     def _load_template(self, template_file: str) -> Optional[str]:
         """
@@ -127,6 +134,7 @@ class KBGenerator:
         variables = {
             "title": extraction.title,
             "tags": tags_formatted,
+            "difficulty": extraction.difficulty,
             "source_type": metadata.source_type,
             # Show "N/A" for history_from if not provided (e.g., when only limit is used)
             "history_from": (
@@ -148,7 +156,7 @@ class KBGenerator:
         # Get extraction data but exclude keys we've already handled
         extraction_data = extraction.model_dump()
         # Remove keys that we've already processed (to avoid overwriting)
-        for key in ['title', 'tags', 'ai_confidence', 'ai_reasoning']:
+        for key in ["title", "tags", "difficulty", "ai_confidence", "ai_reasoning"]:
             extraction_data.pop(key, None)
         variables.update(extraction_data)
 
@@ -165,13 +173,14 @@ class KBGenerator:
             Basic markdown content
         """
         extraction = document.extraction_output
-        
+
         # Flatten tags to flat list (use shared utility)
         normalized_tags = flatten_list(extraction.tags)
 
         md = f"# {extraction.title}\n\n"
         md += f"**Category**: {document.category.value}\n\n"
         md += f"**Tags**: {', '.join(normalized_tags)}\n\n"
+        md += f"**Difficulty**: {extraction.difficulty}\n\n"
         md += f"**Confidence**: {extraction.ai_confidence:.2f}\n\n"
         md += f"**Reasoning**: {extraction.ai_reasoning}\n\n"
 
@@ -202,6 +211,69 @@ class KBGenerator:
 
         return f"{filename}.md"
 
+    async def update_markdown(
+        self, existing_content: str, new_document: KBDocument
+    ) -> str:
+        """
+        Update existing KB document with new information using AI.
+
+        Uses UPDATE_PROMPT to intelligently merge content following guidelines:
+        - Only update lines that change meaning
+        - Preserve formatting and structure
+        - Make minimal changes
+
+        Args:
+            existing_content: The current markdown content of the existing document
+            new_document: The newly extracted KB document with information to merge
+
+        Returns:
+            Updated markdown content
+
+        Raises:
+            Exception: If AI update fails, will be caught by caller for fallback
+        """
+        try:
+            logger.info("Initializing AI-powered document update...")
+
+            # Initialize LLM
+            config = get_settings()
+            proxy_client = get_proxy_client("gen-ai-hub")
+            llm = ChatOpenAI(
+                proxy_model_name=config.openai_model,
+                proxy_client=proxy_client,
+                temperature=0.0,  # Deterministic for updates
+            )
+
+            # Format new information using shared utility function
+            new_info_formatted = format_kb_document_content(new_document)
+
+            logger.info(
+                f"Formatted new content for category: {new_document.category.value}"
+            )
+
+            # Create prompt
+            prompt = ChatPromptTemplate.from_messages([("system", UPDATE_PROMPT)])
+
+            # Build chain and invoke
+            chain = prompt | llm
+            response = await chain.ainvoke(
+                {
+                    "existing_content": existing_content,
+                    "new_information": new_info_formatted,
+                }
+            )
+
+            updated_content = response.content.strip()
+
+            logger.info(
+                f"Successfully updated KB document using AI (length: {len(updated_content)} chars)"
+            )
+            return updated_content
+
+        except Exception as e:
+            logger.error(f"Error in AI-powered document update: {e}", exc_info=True)
+            raise  # Re-raise for caller to handle fallback
+
     def get_category_directory(self, category: KBCategory) -> str:
         """
         Get the directory name for a category.
@@ -210,6 +282,14 @@ class KBGenerator:
             category: The document category
 
         Returns:
-            Directory name
+            Directory name in plural form
         """
-        return category.value
+        # Map singular category values to plural directory names
+        category_dir_map = {
+            KBCategory.TROUBLESHOOTING: "troubleshooting",
+            KBCategory.PROCESS: "processes",
+            KBCategory.DECISION: "decisions",
+            KBCategory.REFERENCE: "references",
+            KBCategory.GENERAL: "general",
+        }
+        return category_dir_map.get(category, category.value)

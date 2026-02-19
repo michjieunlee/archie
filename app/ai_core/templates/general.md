@@ -1,8 +1,8 @@
 ---
 title: "{title}"
-category: "process"
+category: "general"
 tags: [{tags}]
-difficulty: "intermediate"
+difficulty: "{difficulty}"
 source_type: "{source_type}"
 history_from: "{history_from}"
 history_to: "{history_to}"
@@ -15,20 +15,17 @@ last_updated: "{last_updated}"
 
 # {title}
 
-## Overview
-{process_overview}
+## Summary
+{summary}
 
-## Prerequisites
-{prerequisites}
+## Key Topics
+{key_topics}
 
-## Step-by-Step Process
-{process_steps}
+## Key Points
+{key_points}
 
-## Validation
-{validation_steps}
+## Resources Mentioned
+{mentioned_resources}
 
-## Troubleshooting
-{common_issues}
-
-## Related Processes
-{related_processes}
+## Context
+{participants_context}

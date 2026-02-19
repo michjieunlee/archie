@@ -14,8 +14,10 @@ class KBCategory(str, Enum):
     """Knowledge Base document categories."""
 
     TROUBLESHOOTING = "troubleshooting"  # Problem-solving guides
-    PROCESSES = "processes"  # Standard procedures
-    DECISIONS = "decisions"  # Technical choices and rationale
+    PROCESS = "process"  # Standard procedures
+    DECISION = "decision"  # Technical choices and rationale
+    REFERENCE = "reference"  # Resource pointers and documentation links
+    GENERAL = "general"  # Informational content that doesn't fit other categories
 
 
 class ExtractionMetadata(BaseModel):
@@ -59,6 +61,9 @@ class TroubleshootingExtraction(BaseModel):
 
     title: str = Field(..., description="Clear, descriptive title")
     tags: List[str] = Field(..., description="3-5 relevant tags")
+    difficulty: str = Field(
+        ..., description="Difficulty level: beginner, intermediate, or advanced"
+    )
 
     problem_description: str = Field(
         ..., description="Clear description of the problem"
@@ -83,6 +88,9 @@ class ProcessExtraction(BaseModel):
 
     title: str = Field(..., description="Clear, descriptive title")
     tags: List[str] = Field(..., description="3-5 relevant tags")
+    difficulty: str = Field(
+        ..., description="Difficulty level: beginner, intermediate, or advanced"
+    )
 
     process_overview: str = Field(..., description="Overview of the process")
     prerequisites: str = Field(..., description="Prerequisites for the process")
@@ -102,6 +110,9 @@ class DecisionExtraction(BaseModel):
 
     title: str = Field(..., description="Clear, descriptive title")
     tags: List[str] = Field(..., description="3-5 relevant tags")
+    difficulty: str = Field(
+        ..., description="Difficulty level: beginner, intermediate, or advanced"
+    )
 
     decision_context: str = Field(
         ..., description="Context and background for the decision"
@@ -123,10 +134,76 @@ class DecisionExtraction(BaseModel):
     )
 
 
+class ReferenceExtraction(BaseModel):
+    """Extraction output for reference documents."""
+
+    title: str = Field(..., description="Clear, descriptive title")
+    tags: List[str] = Field(..., description="3-5 relevant tags")
+    difficulty: str = Field(
+        ..., description="Difficulty level: beginner, intermediate, or advanced"
+    )
+
+    question_context: str = Field(..., description="What was being asked or needed")
+    resource_type: str = Field(
+        ...,
+        description="Type of resource: Documentation, Service URL, Contact, Tool, Wiki, etc.",
+    )
+    primary_resource: str = Field(..., description="Main link or resource provided")
+    additional_resources: str = Field(
+        ..., description="Other related links or resources"
+    )
+    resource_description: str = Field(
+        ..., description="Description of what these resources provide"
+    )
+    usage_context: str = Field(
+        ..., description="When and why you would use this resource"
+    )
+    access_requirements: str = Field(
+        ..., description="Prerequisites or requirements to access the resource"
+    )
+    related_topics: str = Field(
+        ..., description="Related topics or alternative resources"
+    )
+
+    ai_confidence: float = Field(..., description="AI confidence score (0.0 to 1.0)")
+    ai_reasoning: str = Field(
+        ..., description="Why this is KB-worthy and confidence explanation"
+    )
+
+
+class GeneralExtraction(BaseModel):
+    """Extraction output for general informational documents."""
+
+    title: str = Field(..., description="Clear, descriptive title")
+    tags: List[str] = Field(..., description="3-5 relevant tags")
+    difficulty: str = Field(
+        ..., description="Difficulty level: beginner, intermediate, or advanced"
+    )
+
+    summary: str = Field(..., description="High-level summary of the conversation")
+    key_topics: str = Field(..., description="Main topics discussed")
+    key_points: str = Field(..., description="Important points or takeaways")
+    mentioned_resources: str = Field(
+        ..., description="Any links, tools, or resources mentioned"
+    )
+    participants_context: str = Field(
+        ..., description="Context about participants or the discussion"
+    )
+
+    ai_confidence: float = Field(..., description="AI confidence score (0.0 to 1.0)")
+    ai_reasoning: str = Field(
+        ..., description="Why this is KB-worthy and confidence explanation"
+    )
+
+
 # Union type for extraction output
 
 KnowledgeExtractionOutput = Union[
-    TroubleshootingExtraction, ProcessExtraction, DecisionExtraction
+    TroubleshootingExtraction,
+    ProcessExtraction,
+    DecisionExtraction,
+    ReferenceExtraction,
+    GeneralExtraction,
 ]
 
 

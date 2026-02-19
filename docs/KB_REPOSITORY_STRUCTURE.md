@@ -6,23 +6,29 @@ This document defines a **simplified** KB repository structure for hackathon dem
 
 ```
 knowledge-base/
-├── README.md                          # Repository overview
-├── troubleshooting/                   # Problem-solving guides
+├── README.md                         # Repository overview
+├── troubleshooting/                  # Problem-solving guides
 │   └── example-database-issue.md     # Sample document
-├── processes/                         # Standard procedures
+├── processes/                        # Standard procedures
 │   └── example-deployment-process.md # Sample document
-├── decisions/                         # Technical decisions
+├── decisions/                        # Technical decisions
 │   └── example-tool-choice.md        # Sample document
-└── .archie-generated/                 # Archie metadata (simple)
+├── references/                       # Resource pointers
+│   └── example-api-docs.md           # Sample document
+├── general/                          # General information
+│   └── example-general-info.md       # Sample document
+└── .archie-generated/                # Archie metadata (simple)
     └── last-update.json              # Basic tracking
 ```
 
 ## Hackathon Approach
 
-### **Core Categories (3 only)**
-1. **troubleshooting** - Problem-solving guides
-2. **processes** - Standard procedures
-3. **decisions** - Technical choices and rationale
+### **Core Categories (5 total)**
+1. **troubleshooting** - Problem-solving guides for actual issues and bugs
+2. **processes** - Standard procedures and correct ways to do things
+3. **decisions** - Technical choices, rationale, and team consensus
+4. **references** - Resource pointers, documentation links, and Q&A
+5. **general** - General informational discussions without clear categorization
 
 ### **No Complex Configuration**
 - No subcategories for hackathon
@@ -32,7 +38,12 @@ knowledge-base/
 
 ## Document Templates
 
-### `.archie/templates/troubleshooting.md`
+The KB generator uses templates located in `ai_core/templates/` directory:
+- `troubleshooting.md` - Template for troubleshooting guides
+- `process.md` - Template for process documentation
+- `decision.md` - Template for decision records
+
+### `ai_core/templates/troubleshooting.md`
 ```markdown
 ---
 title: "{TITLE}"
@@ -73,7 +84,7 @@ last_updated: "{TIMESTAMP}"
 {RELATED_LINKS}
 ```
 
-### `.archie/templates/process.md`
+### `ai_core/templates/process.md`
 ```markdown
 ---
 title: "{TITLE}"
@@ -109,7 +120,7 @@ last_updated: "{TIMESTAMP}"
 {RELATED_PROCESSES}
 ```
 
-### `.archie/templates/decision.md`
+### `ai_core/templates/decision.md`
 ```markdown
 ---
 title: "{TITLE}"
@@ -159,17 +170,19 @@ This repository contains the living knowledge base for {TEAM_NAME}, automaticall
 
 ## 📚 Contents
 
-- **[Troubleshooting](troubleshooting/)** - Problem-solving guides and solutions
-- **[Processes](processes/)** - Standard operating procedures
-- **[Decisions](decisions/)** - Architecture and technical decisions
+- **[Troubleshooting](troubleshooting/)** - Problem-solving guides for actual issues
+- **[Processes](processes/)** - Standard operating procedures and configurations
+- **[Decisions](decisions/)** - Architecture and technical decisions with rationale
+- **[References](references/)** - Resource pointers and documentation links
+- **[General](general/)** - General team knowledge and discussions
 
 ## 🤖 About Archie
 
 This knowledge base is automatically generated and maintained by Archie, which:
 
 - Extracts knowledge from Slack conversations
-- Identifies valuable troubleshooting, processes, and decisions
-- Generates structured documentation
+- Identifies valuable troubleshooting, processes, decisions, references, and general knowledge
+- Generates structured documentation with AI-determined difficulty levels
 - Keeps content up-to-date through living updates
 
 ## 📋 How to Use
@@ -214,6 +227,10 @@ This repository uses a simplified configuration approach - no complex configurat
   - Example: `deployment-staging-process.md`
 - **Decisions**: `{decision-area}-{decision-topic}.md`
   - Example: `architecture-microservices-adoption.md`
+- **References**: `{resource-type}-{topic}.md`
+  - Example: `api-documentation-link.md`
+- **General**: `{topic}-discussion.md`
+  - Example: `rest-vs-graphql-discussion.md`
 
 ## Metadata Standards
 
