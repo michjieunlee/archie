@@ -62,6 +62,12 @@ INTENT_CLASSIFICATION_PROMPT = f"""You are an intent classifier for Archie, an A
 
     ## Your Task
     Examine the user's message and determine which action best matches their intent. Consider both explicit requests and implicit needs.
+    
+    **IMPORTANT**: You will receive conversation history along with the current message. Use this context to:
+    - Recognize follow-up messages that refer to previous requests
+    - Identify when a user has completed prerequisites and is ready to proceed with a previously stated action
+    - Understand implicit confirmations (e.g., "I've connected X" after being asked to connect X means proceed with the original request)
+    - Resume previously stated intents when prerequisites are now satisfied
 
     ## Action Definitions
 
@@ -210,6 +216,31 @@ INTENT_CLASSIFICATION_PROMPT = f"""You are an intent classifier for Archie, an A
 
     **Input**: "How do I connect my GitHub repository?"
     **Output**: {{"action": "chat_only", "parameters": ""}}
+
+    ## Context-Aware Classification Examples
+    
+    These examples show how to use conversation history to recognize follow-up actions:
+    
+    **Scenario 1: User asked to fetch Slack messages but Slack wasn't connected**
+    - History: User: "Can you fetch yesterday's slack messages?"
+    - History: Assistant: "To do that I need Slack connected first..."
+    - Current Input: "I've connected the Slack channel"
+    - Output: {{"action": "kb_from_slack", "parameters": {{"from_datetime": "2026-02-19T00:00:00Z", "to_datetime": "2026-02-19T23:59:59Z", "limit": null}}}}
+    - Reasoning: User is following up on their original request to fetch yesterday's Slack messages, now that prerequisites are met
+    
+    **Scenario 2: User asked to create KB article but GitHub wasn't connected**
+    - History: User: "Create a KB article from this text about deployment"
+    - History: Assistant: "To do that I need GitHub connected first..."
+    - Current Input: "Done, I've connected GitHub"
+    - Output: {{"action": "kb_from_text", "parameters": {{"title": "deployment", "metadata": null}}}}
+    - Reasoning: User is confirming they've completed the prerequisite, resume the kb_from_text action
+    
+    **Scenario 3: User changes their mind mid-conversation**
+    - History: User: "Can you fetch yesterday's slack messages?"
+    - History: Assistant: "To do that I need Slack connected first..."
+    - Current Input: "Actually, can you search for existing documentation on deployments instead?"
+    - Output: {{"action": "kb_query", "parameters": ""}}
+    - Reasoning: User has explicitly changed their request to a different action, prioritize the new intent
 
     ## Important Notes
     - Prioritize explicit actions over implicit ones

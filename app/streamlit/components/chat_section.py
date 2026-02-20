@@ -464,9 +464,14 @@ def _get_llm_client():
 # ── Intent classification ─────────────────────────────────────────────
 
 
-def _classify_intent(user_input: str, files: list | None = None) -> dict[str, Any]:
+def _classify_intent(user_input: str, files: list | None = None, history: list | None = None) -> dict[str, Any]:
     """
     Ask the LLM to classify the user's message into an action.
+
+    Args:
+        user_input: The current user message
+        files: Optional list of uploaded files
+        history: Optional conversation history for context
 
     Returns:
         {"action": str, "parameters": dict or str}
@@ -480,10 +485,15 @@ def _classify_intent(user_input: str, files: list | None = None) -> dict[str, An
         file_list = ", ".join(f["name"] for f in files)
         user_text = f"[User attached {len(files)} file(s): {file_list}]\n\n{user_input}"
 
-    messages = [
-        {"role": "system", "content": INTENT_CLASSIFICATION_PROMPT},
-        {"role": "user", "content": user_text},
-    ]
+    # Build messages with history for context
+    messages = [{"role": "system", "content": INTENT_CLASSIFICATION_PROMPT}]
+    
+    # Add recent conversation history if available (limit to last 5 exchanges for context)
+    if history:
+        messages.extend(history[-10:])  # Last 10 messages = ~5 exchanges
+    
+    # Add current user message
+    messages.append({"role": "user", "content": user_text})
 
     response = client.chat.completions.create(
         model_name='gpt-4o-mini',
@@ -660,9 +670,10 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
     5. For chat_only, fall through to a regular LLM conversation.
     """
     try:
-        # Step 1 — classify intent
+        # Step 1 — classify intent with conversation history for context
         logger.debug("generate_chat_response: Step 1 - classifying intent")
-        intent = _classify_intent(user_input, files)
+        history = _build_history_messages()
+        intent = _classify_intent(user_input, files, history)
         action = intent["action"]
         parameters = intent["parameters"]
 
