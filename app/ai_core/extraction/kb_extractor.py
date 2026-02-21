@@ -14,7 +14,7 @@ from gen_ai_hub.proxy.langchain.openai import ChatOpenAI
 from gen_ai_hub.proxy.core.proxy_clients import get_proxy_client
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from app.models.thread import StandardizedConversation
+from app.models.thread import StandardizedConversation, SourceType
 from app.models.knowledge import (
     KBDocument,
     KBCategory,
@@ -303,7 +303,7 @@ class KBExtractor:
             return False
 
         # Check if this is a text input conversation (single message is OK)
-        is_text_input = conversation.metadata.get("source") == "text_input"
+        is_text_input = conversation.source.type == SourceType.TEXT
 
         # Must have at least 2 messages for a discussion (unless it's text input)
         if not is_text_input and len(conversation.messages) < 2:
