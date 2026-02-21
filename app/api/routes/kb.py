@@ -18,6 +18,13 @@ from app.models.api_responses import (
     KBProcessingResponse,
     KBQueryResponse,
 )
+from app.models.thread import (
+    StandardizedMessage,
+    StandardizedConversation,
+    Source,
+    SourceType,
+)
+from app.ai_core.masking.pii_masker import PIIMasker
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -45,7 +52,99 @@ class KBQueryRequest(BaseModel):
     query: str = Field(..., description="User's question about the knowledge base")
 
 
+class MaskMessageRequest(BaseModel):
+    """Request model for message masking endpoint."""
+
+    text: str = Field(..., description="Text to mask PII from")
+
+
 # API Endpoints
+
+
+@router.post("/mask-message")
+async def mask_message(request: MaskMessageRequest):
+    """
+    Mask PII in a text message.
+
+    This endpoint is used to mask user messages before
+    sending them to LLM for processing. This ensures PII is never exposed
+    in prompts for intent classification, chat conversations, or API calls.
+
+    Pipeline:
+    1. Convert text to StandardizedMessage format
+    2. Use PIIMasker to mask PII entities
+    3. Return masked text
+
+    Example request body:
+    ```json
+    {
+        "text": "My email is john.doe@example.com and my ID is D123456"
+    }
+    ```
+
+    Example response:
+    ```json
+    {
+        "masked_text": "My email is MASKED_EMAIL and my ID is MASKED_I_NUMBER",
+        "is_masked": true
+    }
+    ```
+    """
+    try:
+        logger.info(f"Mask message request: text_length={len(request.text)}")
+
+        # Create a temporary StandardizedMessage for masking
+        temp_message = StandardizedMessage(
+            idx=0,
+            id="mask_temp",
+            author_id="user",
+            author_name="User",
+            content=request.text,
+            timestamp=datetime.now(),
+            is_masked=False,
+        )
+
+        # Create a temporary conversation with single message
+        temp_conversation = StandardizedConversation(
+            id="mask_temp",
+            source=Source(
+                type=SourceType.TEXT,
+                channel_id="ui",
+                channel_name="Streamlit UI",
+            ),
+            messages=[temp_message],
+            participant_count=1,
+            created_at=datetime.now(),
+            last_activity_at=datetime.now(),
+        )
+
+        # Initialize masker and mask the conversation
+        try:
+            masker = PIIMasker()
+            masked_conversations = await masker.mask_conversations([temp_conversation])
+        except Exception as masker_error:
+            logger.error(f"Failed to initialize or use PIIMasker: {str(masker_error)}", exc_info=True)
+            raise HTTPException(
+                status_code=503,
+                detail=f"PII masking service unavailable: {str(masker_error)}",
+            )
+
+        # Extract masked text from result
+        masked_text = masked_conversations[0].messages[0].content
+
+        logger.info(f"Message masked successfully: original_length={len(request.text)}, masked_length={len(masked_text)}")
+
+        return {
+            "masked_text": masked_text,
+            "is_masked": True,
+        }
+
+    except Exception as e:
+        logger.error(f"Error in mask message endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to mask message: {str(e)}",
+        )
 
 
 @router.get("/from-slack", response_model=KBProcessingResponse)

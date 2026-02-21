@@ -175,8 +175,6 @@ def kb_from_slack(
         The KBProcessingResponse dict from the backend.
     """
     params = {"limit": limit}
-    # if channel_id:
-    #     params["channel_id"] = channel_id
     if from_datetime:
         params["from_datetime"] = from_datetime
     if to_datetime:
@@ -255,3 +253,34 @@ def kb_query(query: str) -> dict:
         return {"status": "error", "query": query, "answer": None, "sources": [], "total_sources": 0, "reason": detail}
     except Exception as e:
         return {"status": "error", "query": query, "answer": None, "sources": [], "total_sources": 0, "reason": str(e)}
+
+
+def mask_message(text: str) -> dict:
+    """
+    Mask PII in a text message.
+
+    Calls: POST /api/kb/mask-message
+
+    Returns:
+        dict with keys:
+        - masked_text (str): The text with PII masked
+        - is_masked (bool): Whether masking was applied
+    """
+    try:
+        resp = _api_post("/api/kb/mask-message", json={"text": text})
+        resp.raise_for_status()
+        return resp.json()
+    except requests.ConnectionError:
+        logger.warning("Cannot connect to backend API for masking, returning original text")
+        return {"masked_text": text, "is_masked": False, "error": "Cannot connect to backend API"}
+    except requests.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.response.json().get("detail", str(e))
+        except Exception:
+            detail = str(e)
+        logger.error(f"Error masking message: {detail}")
+        return {"masked_text": text, "is_masked": False, "error": detail}
+    except Exception as e:
+        logger.error(f"Unexpected error masking message: {e}")
+        return {"masked_text": text, "is_masked": False, "error": str(e)}
