@@ -2,16 +2,20 @@
 Configuration settings for the Streamlit application.
 """
 
+import os
+
 # Page configuration for Streamlit
 PAGE_CONFIG = {
     "page_title": "Archie - AI Knowledge Base Assistant",
     "page_icon": "🤖",
     "layout": "wide",
-    "initial_sidebar_state": "expanded"
+    "initial_sidebar_state": "expanded",
 }
 
 # API Configuration
-API_BASE_URL = "http://localhost:8001"  # Backend API URL
+# Backend API port is configurable via PORT environment variable (default: 8001)
+API_PORT = os.getenv("PORT", "8001")
+API_BASE_URL = f"http://localhost:{API_PORT}"  # Backend API URL
 API_TIMEOUT = 180  # seconds (3 minutes)
 
 # File Upload Settings
