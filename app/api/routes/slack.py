@@ -11,6 +11,7 @@ import time
 
 from app.integrations.slack.client import SlackClient
 from app.models.thread import StandardizedConversation
+from app.services.credential_store import get_credential
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -35,6 +36,15 @@ async def fetch_slack_conversation(
         StandardizedConversation with all messages and replies
     """
     try:
+        # Get slack channel id from credential store
+        if channel_id is None:
+            channel_id = get_credential("slack_channel_id")
+            if not channel_id:
+                raise ValueError("No Slack channel configured. Please connect a Slack channel first.")
+            logger.debug(f"Using channel_id from credential store: {channel_id}")
+        else:
+            logger.debug(f"Using provided channel_id: {channel_id}")
+
         client = SlackClient()
 
         # Fetch Slack conversations with replies
