@@ -11,6 +11,8 @@ The extraction process has 2 steps:
 
 from textwrap import dedent
 
+from app.ai_core.prompts.generation import FORMATTING_RULES
+
 # Step 1: Category Classification
 
 CATEGORY_CLASSIFICATION_PROMPT = dedent(
@@ -39,8 +41,9 @@ CATEGORY_CLASSIFICATION_PROMPT = dedent(
 
 # Step 2: Knowledge Extraction
 
-EXTRACTION_SYSTEM_PROMPT = dedent(
-    """
+EXTRACTION_SYSTEM_PROMPT = (
+    dedent(
+        """
     You are an expert technical knowledge extractor. Your role is to analyze conversations and extract structured, actionable knowledge.
 
     ========================================
@@ -180,6 +183,8 @@ EXTRACTION_SYSTEM_PROMPT = dedent(
     - Include technology names (e.g., "python", "kubernetes", "postgresql")
     - Include problem types (e.g., "bug", "performance", "security")
     """
+    )
+    + FORMATTING_RULES
 ).strip()
 
 EXTRACTION_USER_PROMPT_TEMPLATE = dedent(
