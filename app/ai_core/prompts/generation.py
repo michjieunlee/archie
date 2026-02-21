@@ -5,6 +5,38 @@ Owner: ③ AI Core · Compliance · Knowledge Logic Owner
 This prompt generates or updates KB documents.
 """
 
+# Shared formatting rules - used by both extraction and generation
+FORMATTING_RULES = """
+FORMATTING GUIDELINES
+
+Choose the most appropriate format based on content:
+
+1. Use bullet points or numbered lists when:
+   - There are distinct, separate items (like multiple decisions)
+   - Items are enumerated explicitly in the source
+   - Content is a checklist or sequential steps
+
+2. Use prose paragraphs when:
+   - Content is explanatory or contextual
+   - Ideas flow naturally together
+   - There's a single main point or narrative
+
+3. CRITICAL - When using lists, each item MUST be on its own line:
+   - NEVER inline items like "1) item. 2) item. 3) item."
+   - NEVER use semicolons to separate items on one line
+   - Each item gets its own line with proper markdown (- or 1.)
+
+Let the content dictate the format. Use your judgment.
+
+WRONG - inline list:
+1) First. 2) Second. 3) Third.
+
+CORRECT - proper list:
+1. First
+2. Second
+3. Third
+"""
+
 GENERATION_PROMPT = """
 You are a technical writer creating knowledge base documentation.
 
@@ -30,53 +62,7 @@ Key Points:
 4. Add relevant tags for searchability
 5. Keep the tone professional and helpful
 
-## GitHub Markdown Guidelines
-When writing KB documents, follow these strict formatting rules:
-
-### Bullet Points
-- DO NOT use special characters that GitHub cannot render (e.g., •, ◦, ▪)
-- Use standard markdown bullet points with hyphens (-) or asterisks (*)
-- Example CORRECT:
-  - First point
-  - Second point
-- Example INCORRECT:
-  • First point
-  • Second point
-
-### Numberings and Lists
-- For numbered lists with complex conditions, use proper line breaks
-- DO NOT use inline numbering like "(1) condition, (2) condition"
-- Example CORRECT:
-  1. First condition
-  2. Second condition
-  3. Third condition
-- Example INCORRECT:
-  "when all of the following apply: (1) Server is gerrit-prod, (2) Requester originates within Team Dev"
-
-### Masked Values
-- Only include masked values if absolutely necessary for understanding the context
-- Prefer generic descriptions over specific masked URLs, names, or IDs
-- Remove unnecessary masked references that don't add clarity
-- Example: Instead of "use https://gerrit.your.corp/ as the 'MASKED_PERSON Instance Name' URL", use "use the instance URL https://gerrit.your.corp/"
-
-### High Readability
-- Use clear section headers
-- Break long sentences into multiple lines or bullet points
-- Use code blocks for commands, URLs, or technical references
-- Add spacing between sections for better readability
-
-### Related Links Section
-- ALWAYS format links with bullet points using hyphens (-) or asterisks (*)
-- Each link must be on a separate line starting with a bullet point marker
-- Example CORRECT:
-  ## Related Links
-  
-  - Jenkins job: https://jenkins.your.corp/view/project/job/project_ci_docker_push/
-  - Build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1843/console
-- Example INCORRECT (no bullet points - will render as single line):
-  ## Related Links
-  Jenkins job: https://jenkins.your.corp/view/project/job/project_ci_docker_push/
-  Build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1843/console
+""" + FORMATTING_RULES + """
 
 ## Markdown Template
 {template}
@@ -126,12 +112,10 @@ CRITICAL: Follow these rules when updating KB documents:
    - Frontmatter fields like last_updated, ai_confidence, etc. are handled programmatically
    - Only update the document body content
 
-6. **GitHub Markdown Compliance**
-   - Ensure any new content uses proper GitHub markdown (no • bullets)
-   - Use line breaks for numbered conditions, not inline "(1), (2)" format
-   - Remove unnecessary masked values
-   - ALWAYS format Related Links section with bullet points (- or *) on each line
-   - Example: Each link must start with "- " to render properly on GitHub
+6. **Formatting Compliance**
+   - ONE item per line - never combine multiple bullets or numbered items
+   - Use hyphens (-) for bullets, numbers (1. 2. 3.) for ordered lists
+   - No special characters (•, ◦, ▪)
 
 7. **Minimal Changes**
    - Make the smallest possible changes that incorporate the new information
