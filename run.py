@@ -6,8 +6,11 @@ Usage:
 
 Environment variables (set in .env file):
     DEBUG=true - Enable debug logging
-    PORT=8000 - Set server port (default: 8000)
+    PORT=8001 - Set server port (default: 8001)
     HOST=127.0.0.1 - Set server host (default: 127.0.0.1)
+
+Note: Streamlit frontend should run on port 8501 and will automatically
+connect to this FastAPI backend on the configured PORT.
 """
 
 import uvicorn
@@ -22,7 +25,7 @@ if __name__ == "__main__":
     # Get configuration from environment or use defaults
     # Note: HOST and PORT can be overridden via environment variables
     host = os.getenv("HOST", "127.0.0.1")
-    port = int(os.getenv("PORT", "8000"))
+    port = int(os.getenv("PORT", "8001"))
 
     # Set log level based on DEBUG setting from .env
     log_level = "debug" if settings.debug else "info"
