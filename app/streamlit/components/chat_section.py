@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 # Height of the sticky input bar (px) – used to calculate chat container height
 _INPUT_BAR_HEIGHT = 200
 
+# Maximum number of messages to keep in history for LLM context (last N messages = N/2 exchanges)
+_MAX_HISTORY_MESSAGES = 10
+
 
 # ── file-upload dialog (requires Streamlit >= 1.37) ────────────────────
 @st.dialog("Attach Text Files")
@@ -419,7 +422,8 @@ def render_chat_section():
     if send_clicked and user_input and not st.session_state.generating_response:
         file_info_list = list(st.session_state.pending_files)
 
-        user_message = {"role": "user", "content": user_input}
+        # Store original message for display (masked_content will be added later)
+        user_message = {"role": "user", "content": user_input, "masked_content": None}
         if file_info_list:
             user_message["files"] = file_info_list
 
@@ -500,12 +504,23 @@ _ACTION_REQUIREMENTS = {
 
 
 def _build_history_messages() -> list:
-    """Convert recent session_state messages to OpenAI message format."""
+    """
+    Convert recent session_state messages to OpenAI message format.
+    
+    Uses masked_content for user messages (to protect PII), 
+    and regular content for assistant messages.
+    Limits to last _MAX_HISTORY_MESSAGES messages for context.
+    """
     history = []
-    recent = st.session_state.get("messages", [])[-10:]
+    recent = st.session_state.get("messages", [])[-_MAX_HISTORY_MESSAGES:]
     for msg in recent:
-        if msg["role"] in ("user", "assistant"):
-            history.append({"role": msg["role"], "content": msg["content"]})
+        if msg["role"] == "user":
+            # Use masked content for user messages (if available)
+            content = msg.get("masked_content") or msg.get("content")
+            history.append({"role": "user", "content": content})
+        elif msg["role"] == "assistant":
+            # Assistant messages are already safe
+            history.append({"role": "assistant", "content": msg["content"]})
     return history
 
 
@@ -551,9 +566,9 @@ def _classify_intent(user_input: str, files: list | None = None, history: list |
     # Build messages with history for context
     messages = [{"role": "system", "content": INTENT_CLASSIFICATION_PROMPT}]
     
-    # Add recent conversation history if available (limit to last 5 exchanges for context)
+    # Add recent conversation history if available
     if history:
-        messages.extend(history[-10:])  # Last 10 messages = ~5 exchanges
+        messages.extend(history[-_MAX_HISTORY_MESSAGES:])
     
     # Add current user message
     messages.append({"role": "user", "content": user_text})
@@ -725,49 +740,79 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
     Generate a chat response.
 
     Flow:
-    1. LLM classifies the user's intent into one of four actions.
-    2. If the action needs Slack / GitHub and those aren't connected,
+    1. Mask PII in user input to protect personal information
+    2. LLM classifies the user's intent into one of four actions.
+    3. If the action needs Slack / GitHub and those aren't connected,
        return a message asking the user to connect them.
-    3. If prerequisites are met, call the backend API.
-    4. Feed the API result back to the LLM for a human-friendly summary.
-    5. For chat_only, fall through to a regular LLM conversation.
+    4. If prerequisites are met, call the backend API.
+    5. Feed the API result back to the LLM for a human-friendly summary.
+    6. For chat_only, fall through to a regular LLM conversation.
     """
     try:
+        # Step 0 — Mask PII in user input
+        logger.debug("generate_chat_response: Step 1 - masking PII in user input")
+        from services.api_client import mask_message
+        
+        mask_result = mask_message(user_input)
+        masked_input = mask_result.get("masked_text", user_input)
+        is_masked = mask_result.get("is_masked", False)
+        
+        if not is_masked:
+            # Masking failed - abort to prevent PII exposure to LLM
+            error_detail = mask_result.get("error", "Unknown masking error")
+            logger.error(f"PII masking failed: {error_detail}")
+            return (
+                "⚠️ **Unable to Process Message**\n\n"
+                "PII masking service is currently unavailable. Your message could not be processed "
+                "to protect personal information from being sent to the AI system.\n\n"
+                f"**Technical details**: {error_detail}\n\n"
+                "Please try again in a moment, or contact support if the issue persists."
+            )
+        
+        logger.info(f"User input masked: original_length={len(user_input)}, masked_length={len(masked_input)}")
+        
+        # Store masked version in the last user message for history context
+        if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+            st.session_state.messages[-1]["masked_content"] = masked_input
+        
+        # Use masked input for all subsequent operations
+        processed_input = masked_input
+        
         # Step 1 — classify intent with conversation history for context
-        logger.debug("generate_chat_response: Step 1 - classifying intent")
+        logger.debug("generate_chat_response: Step 2 - classifying intent")
         history = _build_history_messages()
-        intent = _classify_intent(user_input, files, history)
+        intent = _classify_intent(processed_input, files, history)
         action = intent["action"]
         parameters = intent["parameters"]
 
         # Step 2 — check prerequisites
         if action != "chat_only":
-            logger.debug(f"generate_chat_response: Step 2 - checking prerequisites for action={action}")
+            logger.debug(f"generate_chat_response: Step 3 - checking prerequisites for action={action}")
             prereq_msg = _check_prerequisites(action)
             if prereq_msg:
                 logger.debug(f"generate_chat_response: prerequisites not met, returning error message={prereq_msg}")
                 return prereq_msg
 
         # Step 3 — execute API action (if any)
-        logger.debug(f"generate_chat_response: Step 3 - executing action={action}")
-        api_result = _execute_action(action, parameters, user_input, files)
+        logger.debug(f"generate_chat_response: Step 4 - executing action={action}")
+        api_result = _execute_action(action, parameters, processed_input, files)
 
         if api_result is not None:
-            # Step 4 — LLM summarises the API result
-            logger.debug(f"generate_chat_response: Step 4 - formatting API response for action={action}, response={json.dumps(api_result, indent=2, default=str)}")
-            return _format_api_response(user_input, action, api_result)
+            # Step 4 — LLM summarises the API result (use masked input)
+            logger.debug(f"generate_chat_response: Step 5 - formatting API response for action={action}, response={json.dumps(api_result, indent=2, default=str)}")
+            return _format_api_response(processed_input, action, api_result)
 
-        # Step 5 — chat_only: regular conversation
-        logger.debug("generate_chat_response: Step 5 - entering chat_only conversation mode")
+        # Step 5 — chat_only: regular conversation (use masked input)
+        logger.debug("generate_chat_response: Step 6 - entering chat_only conversation mode")
         client = _get_llm_client()
         system_prompt = _build_system_prompt()
         history = _build_history_messages()
         logger.debug(f"generate_chat_response: using {len(history)} messages from history")
 
-        user_text = user_input
+        user_text = processed_input
         if files:
             file_list = ", ".join(f["name"] for f in files)
-            user_text = f"[User attached {len(files)} file(s): {file_list}]\n\n{user_input}"
+            user_text = f"[User attached {len(files)} file(s): {file_list}]\n\n{processed_input}"
 
         messages = (
             [{"role": "system", "content": system_prompt}]
