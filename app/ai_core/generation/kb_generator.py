@@ -6,6 +6,7 @@ This module handles generation of markdown files from KBDocuments using template
 
 import logging
 import re
+import yaml
 from pathlib import Path
 from typing import Optional
 
@@ -131,6 +132,12 @@ class KBGenerator:
         normalized_tags = flatten_list(extraction.tags)
         tags_formatted = ", ".join([f'"{tag}"' for tag in normalized_tags])
 
+        # Use yaml.dump() to properly serialize ai_reasoning with correct escaping
+        # This handles quotes, special characters, and multiline strings correctly
+        ai_reasoning_yaml = yaml.dump(
+            extraction.ai_reasoning, default_flow_style=True, allow_unicode=True
+        ).strip()
+
         # Common variables
         variables = {
             "title": extraction.title,
@@ -148,7 +155,7 @@ class KBGenerator:
                 metadata.message_limit if metadata.message_limit is not None else ""
             ),
             "ai_confidence": f"{extraction.ai_confidence:.2f}",
-            "ai_reasoning": extraction.ai_reasoning,
+            "ai_reasoning": ai_reasoning_yaml,
             "created_date": document.created_at.strftime("%Y-%m-%d"),
             "last_updated": document.updated_at.strftime("%Y-%m-%d"),
         }
@@ -284,12 +291,16 @@ class KBGenerator:
             frontmatter,
         )
 
-        # Update ai_reasoning - handle multiline and quotes properly
-        ai_reasoning_escaped = extraction.ai_reasoning.replace('"', '\\"')
+        # Update ai_reasoning - use yaml.dump() for proper YAML serialization
+        # This handles quotes, special characters, and multiline strings correctly
+        ai_reasoning_yaml = yaml.dump(
+            extraction.ai_reasoning, default_flow_style=True, allow_unicode=True
+        ).strip()
         frontmatter = re.sub(
-            r'ai_reasoning:\s*"[^"]*(?:\\.[^"]*)*"',
-            f'ai_reasoning: "{ai_reasoning_escaped}"',
+            r'ai_reasoning:\s*["\'].*?["\'](?:\s|$)',
+            f"ai_reasoning: {ai_reasoning_yaml}\n",
             frontmatter,
+            flags=re.DOTALL,
         )
 
         # Reconstruct the document
