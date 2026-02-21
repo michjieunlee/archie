@@ -12,7 +12,7 @@ PAGE_CONFIG = {
 
 # API Configuration
 API_BASE_URL = "http://localhost:8001"  # Backend API URL
-API_TIMEOUT = 30  # seconds
+API_TIMEOUT = 180  # seconds (3 minutes)
 
 # File Upload Settings
 MAX_FILE_SIZE_MB = 10  # Maximum file size in MB
