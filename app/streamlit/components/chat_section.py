@@ -223,6 +223,66 @@ def _inject_autoscroll_js():
     components.html(js, height=0, scrolling=False)
 
 
+def _inject_keyboard_shortcuts_js():
+    """Use components.html to run JS that handles Command+Enter for sending messages."""
+    js = """
+    <script>
+    (function() {
+        function setupKeyboardShortcuts() {
+            var doc = window.parent.document;
+            var textarea = doc.querySelector('textarea[aria-label="Message"]');
+            
+            if (!textarea) {
+                setTimeout(setupKeyboardShortcuts, 300);
+                return;
+            }
+            
+            // Remove existing listener if any (to avoid duplicates on re-render)
+            if (textarea._keydownHandler) {
+                textarea.removeEventListener('keydown', textarea._keydownHandler);
+            }
+            
+            // Add keyboard event listener
+            textarea._keydownHandler = function(e) {
+                // Check for Cmd+Enter (Mac) or Ctrl+Enter (Windows/Linux)
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    
+                    // Find the SEND button
+                    var sendBtn = null;
+                    var buttons = doc.querySelectorAll('button');
+                    for (var i = 0; i < buttons.length; i++) {
+                        if (buttons[i].textContent.includes('SEND')) {
+                            sendBtn = buttons[i];
+                            break;
+                        }
+                    }
+                    
+                    // Click the button if found and not disabled
+                    if (sendBtn && !sendBtn.disabled) {
+                        sendBtn.click();
+                    }
+                }
+            };
+            
+            textarea.addEventListener('keydown', textarea._keydownHandler);
+        }
+        
+        // Initial setup
+        setupKeyboardShortcuts();
+        
+        // Re-setup on DOM changes (handles Streamlit re-renders)
+        var observer = new MutationObserver(setupKeyboardShortcuts);
+        observer.observe(window.parent.document.body, {
+            childList: true,
+            subtree: true
+        });
+    })();
+    </script>
+    """
+    components.html(js, height=0, scrolling=False)
+
+
 # ── main render function ───────────────────────────────────────────────
 def render_chat_section():
     """
@@ -342,6 +402,9 @@ def render_chat_section():
     
     # Inject JS to auto-scroll chat to bottom on new messages
     _inject_autoscroll_js()
+    
+    # Inject JS to handle Command+Enter keyboard shortcut
+    _inject_keyboard_shortcuts_js()
 
     # Open the dialog when + is clicked
     if attach_clicked:
