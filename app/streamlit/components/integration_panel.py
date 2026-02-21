@@ -93,7 +93,7 @@ def render_github_config():
     if is_connected:
         # Show masked token
         st.text_input(
-            "Personal Access Token",
+            "Token",
             value="●" * 40,
             disabled=True,
             key="github_token_display"
