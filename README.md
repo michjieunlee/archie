@@ -124,35 +124,68 @@ cp .env.example .env
 # Edit .env with your credentials
 ```
 
-### Running the Server
+### Running the Application
+
+Archie consists of two services that run on different ports:
+- **Backend API (FastAPI)**: Port 8001
+- **Frontend UI (Streamlit)**: Port 8501
+
+#### Start Backend API
 
 **Recommended method** (with automatic debug logging support):
 ```bash
 python run.py
 ```
 
-This will start the server on `http://127.0.0.1:8000` with debug logging enabled/disabled based on the `DEBUG` setting in your `.env` file.
+This will start the FastAPI server on `http://127.0.0.1:8001` with debug logging enabled/disabled based on the `DEBUG` setting in your `.env` file.
 
 **Alternative method** (direct uvicorn):
 ```bash
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8001
 ```
 
 **Enable debug logging:**
 - Set `DEBUG=true` in your `.env` file (when using `python run.py`)
-- Or use `uvicorn app.main:app --reload --port 8000 --log-level debug`
+- Or use `uvicorn app.main:app --reload --port 8001 --log-level debug`
 
 **Optional configuration:**
 ```bash
 # Change host (default: 127.0.0.1)
 HOST=0.0.0.0 python run.py
 
-# Change port (default: 8000)
-PORT=3000 python run.py
+# Change port (default: 8001)
+PORT=8002 python run.py
 
 # Combine multiple options
-HOST=0.0.0.0 PORT=3000 python run.py
+HOST=0.0.0.0 PORT=8002 python run.py
 ```
+
+#### Start Frontend UI
+
+```bash
+cd app/streamlit
+streamlit run app.py --server.port 8501
+```
+
+The Streamlit UI will automatically connect to the backend API on port 8001 (or the port specified in your `.env` file).
+
+**Access the application:**
+- Frontend UI: http://localhost:8501
+- Backend API docs: http://localhost:8001/docs
+- Backend API: http://localhost:8001/api
+
+#### Port Configuration
+
+The ports are configurable to avoid conflicts:
+
+**Backend Port (FastAPI)**:
+- Set `PORT=8001` in `.env` file (default)
+- Or override: `PORT=8002 python run.py`
+
+**Frontend Port (Streamlit)**:
+- Use `--server.port` flag: `streamlit run app.py --server.port 8502`
+
+The frontend automatically reads the `PORT` environment variable to connect to the correct backend endpoint.
 
 ### API Documentation
 *See `docs/API_INTEGRATION.md` for complete API endpoint documentation and data models.*
