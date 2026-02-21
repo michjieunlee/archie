@@ -48,7 +48,15 @@ class KBProcessingResponse(BaseModel):
     )
 
     # GitHub PR information (if created)
-    pr_url: Optional[str] = Field(None, description="URL of the created GitHub PR")
+    pr_url: Optional[str] = Field(
+        None, description="URL of the created GitHub PR (for CREATE/UPDATE actions)"
+    )
+
+    # Link to existing document (for IGNORE action)
+    existing_document_url: Optional[str] = Field(
+        None,
+        description="URL of existing document in GitHub (for IGNORE action when duplicate exists)",
+    )
 
     # Generated KB content (populated in dry-run mode or when PR is not created)
     kb_markdown_content: Optional[str] = Field(

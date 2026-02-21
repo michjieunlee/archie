@@ -64,6 +64,12 @@ class MatchResult(BaseModel):
         description="Category of document: troubleshooting, processes, or decisions",
     )
 
+    # GitHub URL of existing document (populated after LLM call)
+    existing_document_url: Optional[str] = Field(
+        None,
+        description="GitHub URL of existing document (for IGNORE action when duplicate exists)",
+    )
+
 
 class KBMatcher:
     """
@@ -288,6 +294,16 @@ Provide your response as structured output matching the MatchResult model.""",
         )
 
         logger.info(f"Structured output received: {result.action}")
+
+        # Populate existing_document_url for IGNORE action if document_path is provided
+        if result.action == MatchAction.IGNORE and result.document_path:
+            result.existing_document_url = self._construct_github_url(
+                result.document_path
+            )
+            logger.info(
+                f"Populated existing_document_url for IGNORE: {result.existing_document_url}"
+            )
+
         return result
 
     def _format_existing_docs(self, existing_docs: List[Dict[str, Any]]) -> str:
@@ -325,6 +341,41 @@ Provide your response as structured output matching the MatchResult model.""",
             )
 
         return "\n".join(formatted)
+
+    def _construct_github_url(self, file_path: str) -> Optional[str]:
+        """
+        Construct GitHub URL for a file path.
+
+        Args:
+            file_path: Path to file in repository (e.g., "troubleshooting/db-issue.md")
+
+        Returns:
+            GitHub URL or None if configuration is missing
+        """
+        try:
+            from app.services.credential_store import get_credential
+
+            config = get_settings()
+
+            # Get repository configuration (runtime credentials override .env)
+            repo_owner = get_credential("github_repo_owner") or config.github_repo_owner
+            repo_name = get_credential("github_repo_name") or config.github_repo_name
+            default_branch = config.github_default_branch
+
+            if not repo_owner or not repo_name:
+                logger.warning(
+                    "GitHub repository configuration missing, cannot construct URL"
+                )
+                return None
+
+            # Construct URL: https://github.com/{owner}/{repo}/blob/{branch}/{file_path}
+            url = f"https://github.com/{repo_owner}/{repo_name}/blob/{default_branch}/{file_path}"
+
+            return url
+
+        except Exception as e:
+            logger.warning(f"Failed to construct GitHub URL: {e}")
+            return None
 
     def _create_result(
         self, kb_document: KBDocument, fallback_reason: Optional[str] = None
