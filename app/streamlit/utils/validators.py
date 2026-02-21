@@ -29,8 +29,14 @@ def validate_github_url(url: str) -> tuple[bool, str]:
 
 def validate_github_token(token: str) -> tuple[bool, str]:
     """
-    Validate GitHub personal access token format.
-    Accepts tokens in formats: ghp_... or github_pat_...
+    Validate GitHub token format.
+    Accepts tokens in the following formats:
+    - ghp_: Classic Personal Access Token
+    - github_pat_: Fine-grained Personal Access Token
+    - gho_: OAuth Access Token
+    - ghu_: GitHub App user access token
+    - ghs_: GitHub App installation access token
+    - ghr_: GitHub App refresh token
 
     Args:
         token: The GitHub token to validate
@@ -44,14 +50,15 @@ def validate_github_token(token: str) -> tuple[bool, str]:
     token = token.strip()
 
     # Check for valid token prefixes
-    if token.startswith('ghp_') or token.startswith('github_pat_'):
+    valid_prefixes = ('ghp_', 'github_pat_', 'gho_', 'ghu_', 'ghs_', 'ghr_')
+    if token.startswith(valid_prefixes):
         # Basic length check (GitHub tokens are typically 40+ characters)
         if len(token) >= 40:
             return True, "Valid GitHub token format."
         else:
             return False, "GitHub token appears to be too short. Please verify your token."
 
-    return False, "Invalid token format. GitHub tokens should start with 'ghp_' or 'github_pat_'."
+    return False, "Invalid token format. GitHub tokens should start with one of: ghp_, github_pat_, gho_, ghu_, ghs_, ghr_"
 
 
 def extract_owner_repo_from_url(url: str) -> tuple[str, str]:
