@@ -16,7 +16,7 @@ from typing import Optional, List, Dict, Any
 
 from langchain_core.prompts import ChatPromptTemplate
 
-from app.models.knowledge import KBDocument
+from app.models.knowledge import KBDocument, KBCategory
 from app.ai_core.prompts.matching import MATCHING_SYSTEM_PROMPT
 from app.config import get_settings
 from app.utils import flatten_list, format_kb_document_content
@@ -59,9 +59,9 @@ class MatchResult(BaseModel):
         None,
         description="Title of document - for UPDATE: matched document title, for CREATE: suggested title",
     )
-    category: Optional[str] = Field(
+    category: Optional[KBCategory] = Field(
         None,
-        description="Category of document: troubleshooting, processes, or decisions",
+        description="Category of document: troubleshooting, processes, decisions, references, or general",
     )
 
     # GitHub URL of existing document (populated after LLM call)
@@ -125,7 +125,7 @@ class KBMatcher:
                 {
                     "title": "Document Title",
                     "path": "category/filename.md",
-                    "category": "troubleshooting|processes|decisions",
+                    "category": "troubleshooting|processes|decisions|references|general",
                     "tags": ["tag1", "tag2"],
                     "content": "Full markdown content with frontmatter",
                     "markdown_content": "Content without frontmatter",

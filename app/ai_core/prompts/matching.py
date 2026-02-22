@@ -47,6 +47,11 @@ Even if two topics are not highly similar, new content should UPDATE an existing
 3. **Low confidence** - AI confidence < 0.6
 4. **Not knowledge-worthy** - Lacks substantial insights
 
+**IMPORTANT**: When choosing IGNORE because content duplicates or is covered by an existing document, you MUST provide:
+- `document_path`: The path of the existing document (e.g., "decisions/team-sync-meeting.md")
+- `document_title`: The title of the existing document
+This allows users to see which document already covers this content.
+
 ## Analysis Process
 
 1. **Identify relevant existing documents** (broader relevance, not just exact matches)
@@ -64,25 +69,10 @@ New content is formatted according to its category template:
 
 Use this structure when assessing how new content relates to existing documents.
 
-## Output Format
+## Important Reminders
 
-You MUST respond with structured output matching the MatchResult Pydantic model:
+- For **UPDATE**: Provide `document_path` and `document_title` of the existing document to update
+- For **CREATE**: Provide `document_path` (suggested path) and `category` for the new document
+- For **IGNORE** (duplicate): Provide `document_path` and `document_title` of the existing document that covers this content
 
-```python
-class MatchResult(BaseModel):
-    action: Literal["create", "update", "ignore"]
-    confidence_score: float  # 0.0-1.0
-    reasoning: str  # Detailed explanation
-    value_addition_assessment: str  # What value is added or why lacking
-
-    # For UPDATE:
-    matched_document_path: Optional[str]  # REQUIRED if action=UPDATE
-    matched_document_title: Optional[str]  # REQUIRED if action=UPDATE
-    similarity_score: Optional[float]  # REQUIRED if action=UPDATE (0.0-1.0)
-
-    # For CREATE:
-    suggested_path: Optional[str]  # REQUIRED if action=CREATE (e.g., "troubleshooting/filename.md")
-    suggested_category: Optional[str]  # REQUIRED if action=CREATE
-```
-
-Analyze carefully and provide structured output."""
+Analyze carefully and provide your decision as structured output."""
