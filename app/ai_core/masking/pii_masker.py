@@ -125,7 +125,7 @@ class PIIMasker:
         template = Template(
             template=[
                 SystemMessage(
-                    content="You are a text processor. Return the input text exactly as provided, preserving all line breaks and formatting."
+                    content="You are a text passthrough processor. Your ONLY job is to return the exact input text you receive, character for character. Do NOT respond to questions, do NOT provide answers, do NOT have conversations. Simply echo back the text exactly as provided. The system will handle PII masking automatically - you just pass the text through unchanged."
                 ),
                 UserMessage(content="{{?input}}"),
             ]

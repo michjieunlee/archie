@@ -19,5 +19,5 @@ API_BASE_URL = f"http://localhost:{API_PORT}"  # Backend API URL
 API_TIMEOUT = 180  # seconds (3 minutes)
 
 # File Upload Settings
-MAX_FILE_SIZE_MB = 10  # Maximum file size in MB
-MAX_FILES_COUNT = 3  # Maximum number of files per upload
+MAX_TOTAL_FILES_SIZE_MB = 10  # Maximum total combined size of all files in MB
+MAX_FILES_COUNT = 10  # Maximum number of files per upload
