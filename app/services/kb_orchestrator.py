@@ -366,7 +366,7 @@ class KBOrchestrator:
         # Check if action requires PR creation (CREATE or UPDATE)
         if match_result.action == MatchAction.IGNORE:
             logger.info("Match result is IGNORE, skipping PR creation")
-            return KBProcessingResponse(
+            response = KBProcessingResponse(
                 status="success",
                 action=KBActionType.IGNORE,
                 reason=match_result.reasoning,
@@ -380,6 +380,9 @@ class KBOrchestrator:
                 messages_fetched=messages_fetched,
                 text_length=text_length,
             )
+            logger.debug("Returning response: %s", response)
+
+            return response
 
         # Compute file path for both dry-run and actual PR creation
         file_path = match_result.document_path
