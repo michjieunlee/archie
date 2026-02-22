@@ -117,7 +117,13 @@ Analyze the user's message and classify it into one of four backend actions. Ret
     - Uploading files (detected by file attachment presence)
     - "create KB article from this", "save this information"
     - "add this to the knowledge base"
+    - "make (a) kb document", "create kb document", "generate kb article"
+    - "summarize this and create kb", "summarize and make kb"
+    - "make/create (a) pr", "create a pull request", "generate pr"
+    - "document this", "add documentation for"
     
+**PRIORITY RULE**: Any request containing "KB document", "KB article", "PR", "pull request" combined with action verbs (make, create, generate, add) should be classified as kb_from_text, even if phrased conversationally (e.g., "can you...", "would you...").
+
 **Parameter extraction**: Extract structured parameters:
 - `title`: Optional string for the KB article title or null
 - `metadata`: Optional JSON string with additional context or null
@@ -186,14 +192,14 @@ For kb_query or chat_only:
 **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": "2026-02-22T00:00:00Z", "to_datetime": "2026-02-22T23:59:59Z", "limit": null}}}}
 **Reasoning**: User wants Slack KB extraction for today - classify as kb_from_slack with today's date range
 
-    **Input**: "Import last 100 messages from our engineering channel"
-    **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": null, "to_datetime": null, "limit": 100}}}}
+**Input**: "Import last 100 messages from our engineering channel"
+**Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": null, "to_datetime": null, "limit": 100}}}}
 
-    **Input**: "Get Slack messages from Jan 1 to Jan 15"
-    **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": "2026-01-01T00:00:00Z", "to_datetime": "2026-01-15T23:59:59Z", "limit": null}}}}
+**Input**: "Get Slack messages from Jan 1 to Jan 15"
+**Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": "2026-01-01T00:00:00Z", "to_datetime": "2026-01-15T23:59:59Z", "limit": null}}}}
 
-    **Input**: "Sync 25 messages from yesterday"
-    **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": "2026-02-15T00:00:00Z", "to_datetime": "2026-02-15T23:59:59Z", "limit": 25}}}}
+**Input**: "Sync 25 messages from yesterday"
+**Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": "2026-02-15T00:00:00Z", "to_datetime": "2026-02-15T23:59:59Z", "limit": 25}}}}
 
 **Input**: "Import from Slack from last week"
 **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": "2026-02-15T14:47:13Z", "to_datetime": "2026-02-22T14:47:13Z", "limit": null}}}}
@@ -201,19 +207,29 @@ For kb_query or chat_only:
 **Input**: "Get recent Slack messages"
 **Output**: {{"action": "kb_from_slack", "parameters": {{"from_datetime": null, "to_datetime": null, "limit": null}}}}
 
-    **Input**: "What do we know about the authentication flow?"
-    **Output**: {{"action": "kb_query", "parameters": ""}}
+**Input**: "What do we know about the authentication flow?"
+**Output**: {{"action": "kb_query", "parameters": ""}}
 
-    **Input**: [User attaches file] "Please add this API documentation with the file title "Gerrit API documentation"
-    **Output**: {{"action": "kb_from_text", "parameters": {{"title": "Gerrit API documentation", "metadata": null}}}}
+**Input**: [User attaches file] "Please add this API documentation with the file title "Gerrit API documentation"
+**Output**: {{"action": "kb_from_text", "parameters": {{"title": "Gerrit API documentation", "metadata": null}}}}
 
-    **Input**: "Create a KB article titled 'Deployment Guide' about our CI/CD process, authored by DevOps team"
-    **Output**: {{"action": "kb_from_text", "parameters": {{"title": "Deployment Guide", "metadata": "{{\\"author\\": \\"DevOps team\\"}}"}}}}
+**Input**: "Create a KB article titled 'Deployment Guide' about our CI/CD process, authored by DevOps team"
+**Output**: {{"action": "kb_from_text", "parameters": {{"title": "Deployment Guide", "metadata": "{{\\"author\\": \\"DevOps team\\"}}"}}}}
 
-    **Input**: "Save this troubleshooting info from internal wiki, tagged as troubleshooting and production"
-    **Output**: {{"action": "kb_from_text", "parameters": {{"title": "troubleshooting info", "metadata": "{{\\"source\\": \\"internal wiki\\", \\"tags\\": [\\"troubleshooting\\", \\"production\\"]}}"}}}}
+**Input**: "Save this troubleshooting info from internal wiki, tagged as troubleshooting and production"
+**Output**: {{"action": "kb_from_text", "parameters": {{"title": "troubleshooting info", "metadata": "{{\\"source\\": \\"internal wiki\\", \\"tags\\": [\\"troubleshooting\\", \\"production\\"]}}"}}}}
 
 **Input**: "Add this to KB"
+**Output**: {{"action": "kb_from_text", "parameters": {{"title": null, "metadata": null}}}}
+
+**Input**: "can you summarize this text and make a kb document as a pr"
+**Output**: {{"action": "kb_from_text", "parameters": {{"title": null, "metadata": null}}}}
+**Reasoning**: Contains "make a kb document" and "make a pr" - clear kb_from_text intent despite conversational phrasing
+
+**Input**: "summarize and create kb"
+**Output**: {{"action": "kb_from_text", "parameters": {{"title": null, "metadata": null}}}}
+
+**Input**: "create a pr with this information"
 **Output**: {{"action": "kb_from_text", "parameters": {{"title": null, "metadata": null}}}}
 
 **Input**: "How do I connect my GitHub repository?"
@@ -292,7 +308,7 @@ Convert the API response above into a well-formatted Markdown message that the u
 ### Handling Different Response Types
 
 #### 1. SUCCESS with PR Created (action: "create" or "update")
-**Key fields to extract**: `pr_url`, `kb_document_title`, `kb_summary`, `kb_category`, `action`
+**Key fields to extract**: `pr_url`, `kb_document_title`, `kb_summary`, `kb_category`, `action`, `ai_reasoning`, `kb_file_path`
 
 **Template**:
 ```
@@ -303,10 +319,15 @@ I've created a pull request to add this knowledge to your repository.
 **📄 Document Details**
 - **Title**: [extracted kb_document_title]
 - **Category**: `[kb_category]`
+- **File Path**: `[kb_file_path]` (if present)
 - **Action**: [CREATE if action="create", UPDATE if action="update"]
 
 **📝 Summary**
 [Use kb_summary field - this describes what the KB document contains]
+
+[If ai_reasoning is present and provides valuable context, include it]:
+**💡 AI Analysis**
+[ai_reasoning - explains why this content was deemed KB-worthy and categorized as such]
 
 **🔗 Next Steps**
 **Review the PR**: [View Pull Request]([pr_url from response])
@@ -315,7 +336,7 @@ Once you review and approve the changes, merge the PR to add this knowledge to y
 ```
 
 #### 2. NOT NEEDED - KB Already Exists (status: "success", action: "ignore")
-**Key fields to extract**: `reason`, `existing_document_title`, `existing_document_link`, `kb_summary`
+**Key fields to extract**: `reason`, `existing_document_title`, `existing_document_url`, `kb_summary`, `ai_reasoning`
 
 **Template**:
 ```
@@ -325,7 +346,12 @@ Once you review and approve the changes, merge the PR to add this knowledge to y
 
 **Details** [Explain based on reason - e.g., "A similar document already exists in your knowledge base" or "The content doesn't contain enough information for a standalone document"]
 
-[If reason mentions existing documents, suggest user can view them providing the existing_document_title and existing_document_link. Briefly explain the existing content based on the kb_summary field.]
+[If existing_document_url is present, provide a clickable link]:
+You can view the existing documentation: [existing_document_title if available, otherwise use a generic name]([existing_document_url])
+
+[If ai_reasoning is present and provides valuable context about why no action was needed]:
+**💡 AI Analysis**
+[ai_reasoning - explains the decision not to create/update]
 ```
 
 #### 3. NO MESSAGES (kb_from_slack only)
@@ -389,6 +415,8 @@ Category: `[source.category]` | [View Document]([source.github_url])
   "kb_document_title": "Deployment Pipeline Troubleshooting",
   "kb_category": "troubleshooting",
   "kb_summary": "Documents the solution for fixing deployment pipeline failures caused by timeout issues. Includes steps to increase timeout values and verify configuration.",
+  "kb_file_path": "troubleshooting/deployment-pipeline-troubleshooting.md",
+  "ai_reasoning": "This conversation contains a clear problem-solution pattern with actionable steps. The deployment pipeline timeout issue and its resolution are well-documented and will be valuable for future reference.",
   "pr_url": "https://github.com/org/kb-repo/pull/42",
   "messages_fetched": 23
 }}
@@ -403,10 +431,14 @@ I've created a pull request to add this knowledge to your repository.
 **📄 Document Details**
 - **Title**: Deployment Pipeline Troubleshooting
 - **Category**: `troubleshooting`
+- **File Path**: `troubleshooting/deployment-pipeline-troubleshooting.md`
 - **Action**: New document created
 
 **📝 Summary**
 Documents the solution for fixing deployment pipeline failures caused by timeout issues. Includes steps to increase timeout values and verify configuration.
+
+**💡 AI Analysis**
+This conversation contains a clear problem-solution pattern with actionable steps. The deployment pipeline timeout issue and its resolution are well-documented and will be valuable for future reference.
 
 **🔗 Next Steps**
 **Review the PR**: [View Pull Request](https://github.com/org/kb-repo/pull/42)
@@ -424,7 +456,9 @@ Once you review and approve the changes, merge the PR to add this knowledge to y
   "status": "success",
   "action": "ignore",
   "reason": "Existing document already covers this topic comprehensively. The new content does not add significant value.",
-  "kb_document_title": "API Timeout Configuration"
+  "kb_document_title": "API Timeout Configuration",
+  "existing_document_url": "https://github.com/org/kb-repo/blob/main/troubleshooting/api-timeout-configuration.md",
+  "ai_reasoning": "The existing document contains all the information from this conversation plus additional context. Adding this would create redundancy without providing new insights."
 }}
 ```
 
@@ -434,7 +468,12 @@ Once you review and approve the changes, merge the PR to add this knowledge to y
 
 Your knowledge base already contains comprehensive documentation on this topic.
 
-The existing document covers this information thoroughly, and the new content doesn't add significant new details. You can view the current documentation at [Existing document title](https://github.com/org/kb-repo/existing/document/link).
+The existing document covers this information thoroughly, and the new content doesn't add significant new details.
+
+You can view the existing documentation: [API Timeout Configuration](https://github.com/org/kb-repo/blob/main/troubleshooting/api-timeout-configuration.md)
+
+**💡 AI Analysis**
+The existing document contains all the information from this conversation plus additional context. Adding this would create redundancy without providing new insights.
 ```
 
 ### Example 3: No Messages Found
