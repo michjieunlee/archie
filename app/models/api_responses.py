@@ -57,6 +57,10 @@ class KBProcessingResponse(BaseModel):
         None,
         description="URL of existing document in GitHub (for IGNORE action when duplicate exists)",
     )
+    existing_document_title: Optional[str] = Field(
+        None,
+        description="Title of existing document in GitHub (for IGNORE action when duplicate exists)",
+    )
 
     # Generated KB content (populated in dry-run mode or when PR is not created)
     kb_markdown_content: Optional[str] = Field(

@@ -377,6 +377,7 @@ class KBOrchestrator:
                 ai_reasoning=kb_document.ai_reasoning,
                 pr_url=None,
                 existing_document_url=match_result.existing_document_url,
+                existing_document_title=match_result.document_title,
                 messages_fetched=messages_fetched,
                 text_length=text_length,
             )
