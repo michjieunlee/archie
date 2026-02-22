@@ -156,12 +156,24 @@ def _inject_sticky_js():
             block.style.left       = '0';
             block.style.right      = '0';
             block.style.width      = '100%';
-            block.style.background = '#ffffff';
-            block.style.borderTop  = '1px solid #e0e0e0';
+            
+            // Check if dark mode is active
+            var isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            // Apply colors based on theme
+            if (isDarkMode) {
+                block.style.background = '#1E1E1E';
+                block.style.borderTop  = '1px solid #4A4A4A';
+                block.style.boxShadow  = '0 -2px 8px rgba(0,0,0,0.3)';
+            } else {
+                block.style.background = '#ffffff';
+                block.style.borderTop  = '1px solid #e0e0e0';
+                block.style.boxShadow  = '0 -2px 8px rgba(0,0,0,0.06)';
+            }
+            
             block.style.padding    = '0.75rem 2rem';
             block.style.boxSizing  = 'border-box';
             block.style.zIndex     = '100';
-            block.style.boxShadow  = '0 -2px 8px rgba(0,0,0,0.06)';
             block.dataset.pinned   = '1';
             
             // Apply margin to account for sidebar when it's open
