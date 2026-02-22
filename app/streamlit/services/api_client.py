@@ -164,7 +164,7 @@ def disconnect_slack(channel_id: str) -> dict:
 def kb_from_slack(
     from_datetime: str | None = None,
     to_datetime: str | None = None,
-    limit: int = 50,
+    limit: int = 20,
 ) -> dict:
     """
     Process Slack messages into a KB article.

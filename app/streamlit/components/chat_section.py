@@ -6,11 +6,12 @@ Provides a centered chat interface with sticky input bar and file upload dialog.
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, Dict, Optional, Union
 
 import streamlit as st
 import streamlit.components.v1 as components
-from config.settings import MAX_FILE_SIZE_MB, MAX_FILES_COUNT
+from pydantic import BaseModel, Field
+from config.settings import MAX_TOTAL_FILES_SIZE_MB, MAX_FILES_COUNT
 from prompts import (
     build_system_prompt,
     build_api_response_format_prompt,
@@ -26,13 +27,49 @@ _INPUT_BAR_HEIGHT = 200
 # Maximum number of messages to keep in history for LLM context (last N messages = N/2 exchanges)
 _MAX_HISTORY_MESSAGES = 10
 
+# Model to use
+_LLM_MODEL = "gpt-4o-mini"
+
+
+# ── Pydantic models for structured output ──────────────────────────────
+
+
+class KBFromSlackParameters(BaseModel):
+    """Parameters for kb_from_slack action"""
+    from_datetime: Optional[str] = Field(None, description="ISO 8601 datetime string or null")
+    to_datetime: Optional[str] = Field(None, description="ISO 8601 datetime string or null")
+    limit: Optional[int] = Field(None, description="Integer between 1-100 or null", ge=1, le=100)
+    
+    class Config:
+        extra = "forbid"  # OpenAI requires additionalProperties: false
+
+
+class KBFromTextParameters(BaseModel):
+    """Parameters for kb_from_text action"""
+    title: Optional[str] = Field(None, description="Title for the KB article or null")
+    metadata: Optional[str] = Field(None, description="JSON string of metadata dict or null")
+    
+    class Config:
+        extra = "forbid"  # OpenAI requires additionalProperties: false
+
+
+class IntentClassification(BaseModel):
+    """Intent classification result with action and parameters"""
+    action: str = Field(
+        description="One of: kb_from_slack, kb_from_text, kb_query, chat_only",
+        pattern="^(kb_from_slack|kb_from_text|kb_query|chat_only)$"
+    )
+    parameters: Union[KBFromSlackParameters, KBFromTextParameters, str] = Field(
+        description="Structured params for kb_from_slack/kb_from_text, empty string for others"
+    )
+
 
 # ── file-upload dialog (requires Streamlit >= 1.37) ────────────────────
 @st.dialog("Attach Text Files")
 def file_upload_dialog():
     """Pop-up dialog for attaching text files."""
     st.markdown(
-        f"Upload up to **{MAX_FILES_COUNT}** text files (max **{MAX_FILE_SIZE_MB} MB** each)."
+        f"Upload up to **{MAX_FILES_COUNT}** text files (max **{MAX_TOTAL_FILES_SIZE_MB} MB** total)."
     )
 
     if "file_uploader_key" not in st.session_state:
@@ -41,26 +78,33 @@ def file_upload_dialog():
     uploaded = st.file_uploader(
         "Upload files",
         accept_multiple_files=True,
-        type=["txt", "md", "json", "csv", "log", "html"],
+        type=["txt", "md", "csv", "log", "json", "xml", "yaml", "yml", "py", "js", "html", "css"],
         key=f"file_uploader_{st.session_state.file_uploader_key}",
         label_visibility="collapsed",
     )
 
-    # Validate
+    # Validate with total size limit
     valid_files = []
+    total_size_mb = 0.0
+    
     if uploaded:
         for f in uploaded[:MAX_FILES_COUNT]:
             size_mb = f.size / (1024 * 1024)
-            if size_mb > MAX_FILE_SIZE_MB:
-                st.error(f"'{f.name}' exceeds {MAX_FILE_SIZE_MB} MB – skipped.")
-            else:
-                valid_files.append(f)
+            
+            # Check if adding this file would exceed total limit
+            if total_size_mb + size_mb > MAX_TOTAL_FILES_SIZE_MB:
+                st.error(f"Cannot add '{f.name}' - exceeds {MAX_TOTAL_FILES_SIZE_MB} MB total limit.")
+                break
+            
+            valid_files.append(f)
+            total_size_mb += size_mb
+        
         if len(uploaded) > MAX_FILES_COUNT:
             st.warning(f"Only the first {MAX_FILES_COUNT} files will be used.")
 
-    # Show selected files
+    # Show selected files with total size
     if valid_files:
-        st.markdown(f"**Selected ({len(valid_files)}/{MAX_FILES_COUNT}):**")
+        st.markdown(f"**Selected: {len(valid_files)} file(s) ({total_size_mb:.2f} MB / {MAX_TOTAL_FILES_SIZE_MB} MB)**")
         for f in valid_files:
             st.caption(f"📄 {f.name}  ({f.size / (1024*1024):.2f} MB)")
 
@@ -294,6 +338,10 @@ def render_chat_section():
     if "pending_files" not in st.session_state:
         st.session_state.pending_files = []
 
+    # Initialize generating_response flag if not exists
+    if "generating_response" not in st.session_state:
+        st.session_state.generating_response = False
+
     # ── scrollable chat history ────────────────────────────────────────
     # Use a plain container with a key so CSS can target it via
     # .st-key-chat_history, then set height + overflow-y
@@ -305,11 +353,34 @@ def render_chat_section():
                 if message["role"] == "user":
                     # Preserve single newlines as hard line breaks in Markdown.
                     content = re.sub(r"(?<!\n)\n(?!\n)", "  \n", content)
-                st.markdown(content)
+                    st.markdown(content)
+                elif message["role"] == "assistant":
+                    st.markdown(content, unsafe_allow_html=True)
                 if "files" in message and message["files"]:
                     st.markdown("**Attached Files:**")
                     for fi in message["files"]:
                         st.caption(f"📄 {fi['name']} ({fi['size']/(1024*1024):.2f} MB)")
+
+        # Show loading indicator if generating response
+        if st.session_state.generating_response:
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    # Generate the response
+                    user_input_to_process = st.session_state.pending_user_input
+                    files_to_process = st.session_state.pending_user_files
+                    
+                    response = generate_chat_response(user_input_to_process, files_to_process)
+                    
+                    # Add assistant response to messages
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    
+                    # Clear the generating flag and pending data
+                    st.session_state.generating_response = False
+                    st.session_state.pending_user_input = None
+                    st.session_state.pending_user_files = None
+                    
+                    # Rerun to show the actual response
+                    st.rerun()
 
         # Welcome message
         if not st.session_state.messages:
@@ -350,10 +421,40 @@ def render_chat_section():
             max-height: calc(100vh - {_INPUT_BAR_HEIGHT + 140}px) !important;
             min-height: 0 !important;
             overflow-y: auto !important;
+            overflow-x: hidden !important;
         }}
         /* Prevent flex children from shrinking — let them overflow to trigger scroll */
         .st-key-chat_history > * {{
             flex-shrink: 0 !important;
+        }}
+        /* Prevent horizontal overflow in chat messages */
+        .st-key-chat_history [data-testid="stChatMessage"] {{
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }}
+        /* Handle content within chat messages */
+        .st-key-chat_history [data-testid="stChatMessage"] * {{
+            max-width: 100% !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }}
+        /* Handle code blocks - allow internal horizontal scroll */
+        .st-key-chat_history [data-testid="stChatMessage"] pre {{
+            overflow-x: auto !important;
+            white-space: pre !important;
+            word-wrap: normal !important;
+            overflow-wrap: normal !important;
+        }}
+        /* Handle inline code */
+        .st-key-chat_history [data-testid="stChatMessage"] code {{
+            word-break: break-all !important;
+        }}
+        /* Handle long URLs and text */
+        .st-key-chat_history [data-testid="stChatMessage"] p,
+        .st-key-chat_history [data-testid="stChatMessage"] div {{
+            word-break: break-word !important;
         }}
         </style>
     """,
@@ -414,11 +515,7 @@ def render_chat_section():
         file_upload_dialog()
 
     # ── handle send ────────────────────────────────────────────────────
-    # Initialize generating_response flag if not exists
-    if "generating_response" not in st.session_state:
-        st.session_state.generating_response = False
-    
-    # Phase 1: User clicks send - show message immediately and set loading state
+    # User clicks send - show message immediately and set loading state
     if send_clicked and user_input and not st.session_state.generating_response:
         file_info_list = list(st.session_state.pending_files)
 
@@ -426,6 +523,7 @@ def render_chat_section():
         user_message = {"role": "user", "content": user_input, "masked_content": None}
         if file_info_list:
             user_message["files"] = file_info_list
+            user_message["masked_files"] = []
 
         st.session_state.messages.append(user_message)
         
@@ -441,29 +539,6 @@ def render_chat_section():
         st.session_state.chat_input_key += 1
         st.session_state.scroll_to_bottom = True
         st.rerun()
-    
-    # Phase 2: Generate response after user message is displayed
-    if st.session_state.generating_response:
-        # Show loading indicator in chat
-        with chat_container:
-            with st.chat_message("assistant"):
-                with st.spinner("Thinking"):
-                    # Generate the response
-                    user_input_to_process = st.session_state.pending_user_input
-                    files_to_process = st.session_state.pending_user_files
-                    
-                    response = generate_chat_response(user_input_to_process, files_to_process)
-                    
-                    # Add assistant response to messages
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                    
-                    # Clear the generating flag and pending data
-                    st.session_state.generating_response = False
-                    st.session_state.pending_user_input = None
-                    st.session_state.pending_user_files = None
-                    
-                    # Rerun to show the actual response
-                    st.rerun()
 
 
 def _get_connection_status() -> dict:
@@ -497,7 +572,7 @@ def _build_system_prompt() -> str:
 
 # Map each action to the integrations it requires.
 _ACTION_REQUIREMENTS = {
-    "kb_from_slack": ["slack", "github"], # TODO: check if slack -> github PR is mandatory
+    "kb_from_slack": ["slack", "github"],
     "kb_from_text":  ["github"],
     "kb_query":      ["github"],
 }
@@ -515,8 +590,8 @@ def _build_history_messages() -> list:
     recent = st.session_state.get("messages", [])[-_MAX_HISTORY_MESSAGES:]
     for msg in recent:
         if msg["role"] == "user":
-            # Use masked content for user messages (if available)
-            content = msg.get("masked_content") or msg.get("content")
+            # Use masked content for user messages
+            content = msg.get("masked_content")
             history.append({"role": "user", "content": content})
         elif msg["role"] == "assistant":
             # Assistant messages are already safe
@@ -526,16 +601,22 @@ def _build_history_messages() -> list:
 
 def _get_llm_client():
     """
-    Get or create the OpenAI client instance, cached in session_state.
-
-    Uses gen_ai_hub native SDK (not LangChain wrapper).
+    Get or create the ChatOpenAI client instance (LangChain wrapper), cached in session_state.
+    
+    Uses gen_ai_hub LangChain SDK to support structured output.
     """
-    if "llm_client" not in st.session_state:
+    # Always recreate to ensure we have the LangChain wrapper (not native OpenAI)
+    # This ensures .with_structured_output() is available
+    if "llm_client" not in st.session_state or not hasattr(st.session_state.llm_client, 'with_structured_output'):
+        from gen_ai_hub.proxy.langchain.openai import ChatOpenAI
         from gen_ai_hub.proxy.core.proxy_clients import get_proxy_client
-        from gen_ai_hub.proxy.native.openai import OpenAI
 
         proxy_client = get_proxy_client("gen-ai-hub")
-        st.session_state.llm_client = OpenAI(proxy_client=proxy_client)
+        st.session_state.llm_client = ChatOpenAI(
+            proxy_model_name=_LLM_MODEL,
+            proxy_client=proxy_client,
+            temperature=0.3,
+        )
     return st.session_state.llm_client
 
 
@@ -544,7 +625,7 @@ def _get_llm_client():
 
 def _classify_intent(user_input: str, files: list | None = None, history: list | None = None) -> dict[str, Any]:
     """
-    Ask the LLM to classify the user's message into an action.
+    Ask the LLM to classify the user's message into an action using structured output.
 
     Args:
         user_input: The current user message
@@ -554,56 +635,47 @@ def _classify_intent(user_input: str, files: list | None = None, history: list |
     Returns:
         {"action": str, "parameters": dict or str}
     """
-    import json
+    from langchain_core.messages import SystemMessage, HumanMessage
 
     client = _get_llm_client()
 
-    user_text = user_input
-    if files:
-        file_list = ", ".join(f["name"] for f in files)
-        user_text = f"[User attached {len(files)} file(s): {file_list}]\n\n{user_input}"
-
     # Build messages with history for context
-    messages = [{"role": "system", "content": INTENT_CLASSIFICATION_PROMPT}]
+    messages = [SystemMessage(content=INTENT_CLASSIFICATION_PROMPT)]
     
     # Add recent conversation history if available
     if history:
-        messages.extend(history[-_MAX_HISTORY_MESSAGES:])
+        for msg in history[-_MAX_HISTORY_MESSAGES:]:
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                # Use SystemMessage for assistant responses in history to maintain context
+                messages.append(SystemMessage(content=msg["content"]))
     
     # Add current user message
-    messages.append({"role": "user", "content": user_text})
+    messages.append(HumanMessage(content=user_input))
 
-    response = client.chat.completions.create(
-        model_name='gpt-4o-mini',
-        messages=messages,
-        temperature=0.3,
-        max_tokens=512
-    )
-    raw = response.choices[0].message.content.strip()
-
-    # Strip markdown fences if the model wraps the JSON anyway
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-
+    # Use structured output to force JSON schema compliance
+    structured_llm = client.with_structured_output(IntentClassification)
+    
     try:
-        parsed = json.loads(raw)
-        action = parsed.get("action", "chat_only")
+        response = structured_llm.invoke(messages)
         
-        if action not in ("kb_from_slack", "kb_from_text", "kb_query", "chat_only"):
-            action = "chat_only"
+        # Extract action and parameters
+        action = response.action
+        parameters = response.parameters
         
-        if action in ("kb_from_slack", "kb_from_text"):
-            default_params = {}
-        else:
-            default_params = ""
+        # Convert Pydantic models to dicts for kb_from_slack and kb_from_text
+        if isinstance(parameters, (KBFromSlackParameters, KBFromTextParameters)):
+            parameters = parameters.model_dump()
         
-        parameters = parsed.get("parameters", default_params)
         result = {"action": action, "parameters": parameters}
-        logger.debug(f"_classify_intent result: action={action}, parameters={parameters}")
+        logger.info(f"_classify_intent result: action={action}, parameters={parameters}")
         return result
             
-    except (json.JSONDecodeError, AttributeError) as e:
-        logger.debug(f"_classify_intent failed to parse LLM response: {e}, defaulting to chat_only")
+    except Exception as e:
+        logger.error(f"_classify_intent error: {str(e)}", exc_info=True)
+        # Fallback to chat_only on any error
+        logger.info(f"_classify_intent failed, defaulting to chat_only")
         return {"action": "chat_only", "parameters": ""}
 
 
@@ -614,7 +686,7 @@ def _check_prerequisites(action: str) -> str | None:
     """
     required = _ACTION_REQUIREMENTS.get(action, [])
     status = _get_connection_status()
-    logger.debug(f"_check_prerequisites called for action={action}, required={required}, status={status}")
+    logger.info(f"_check_prerequisites called for action={action}, required={required}, status={status}")
     
     missing = []
 
@@ -624,18 +696,18 @@ def _check_prerequisites(action: str) -> str | None:
         missing.append("**GitHub** — connect a repository from the Integrations panel in the left sidebar")
 
     if missing:
-        logger.debug(f"_check_prerequisites: missing integrations={missing}")
+        logger.info(f"_check_prerequisites: missing integrations={missing}")
         lines = "\n".join(f"- {m}" for m in missing)
         return f"To do that I need the following integration(s) configured first:\n\n{lines}\n\nPlease connect them and try again."
     
-    logger.debug("_check_prerequisites: all prerequisites met")
+    logger.info("_check_prerequisites: all prerequisites met")
     return None
 
 
 # ── API dispatch ──────────────────────────────────────────────────────
 
 
-def _execute_action(action: str, parameters, user_input: str, files: list | None) -> dict | None:
+def _execute_action(action: str, parameters, user_input: str, files_text: str | None) -> dict | None:
     """
     Call the appropriate backend API and return the raw result dict,
     or None if the action is chat_only.
@@ -643,12 +715,12 @@ def _execute_action(action: str, parameters, user_input: str, files: list | None
     Args:
         action: The action type (kb_from_slack, kb_from_text, kb_query, chat_only)
         parameters: Dict for kb_from_slack/kb_from_text with structured params; string for kb_query/chat_only (may be empty)
-        user_input: Original user input
-        files: Optional list of uploaded files
+        user_input: Masked user input
+        files_text: Masked concatenated file contents with markers (or None if no files)
     """
     from services.api_client import kb_from_slack, kb_from_text, kb_query
 
-    logger.debug(f"_execute_action called with action={action}, parameters={parameters}, user_input length={len(user_input)}, files={len(files) if files else 0}")
+    logger.info(f"_execute_action called with action={action}, parameters={parameters}, user_input length={len(user_input)}, files_text length={len(files_text) if files_text else 0}")
 
     if action == "kb_from_slack":
         # Extract structured parameters from dict
@@ -661,47 +733,50 @@ def _execute_action(action: str, parameters, user_input: str, files: list | None
             to_datetime = None
             limit = None
         
-        logger.debug(f"_execute_action: calling kb_from_slack with from_datetime={from_datetime}, to_datetime={to_datetime}, limit={limit}")
+        logger.info(f"_execute_action: calling kb_from_slack with from_datetime={from_datetime}, to_datetime={to_datetime}, limit={limit}")
         result = kb_from_slack(
             from_datetime=from_datetime,
             to_datetime=to_datetime,
-            limit=limit if limit is not None else 50  # API default
+            limit=limit if limit is not None else 20  # API default
         )
-        logger.debug(f"_execute_action: kb_from_slack returned result with keys: {list(result.keys()) if result else None}")
+        logger.info(f"_execute_action: kb_from_slack returned result with keys: {list(result.keys()) if result else None}")
         return result
 
     elif action == "kb_from_text":
         if isinstance(parameters, dict):
             title = parameters.get("title")
-            metadata = parameters.get("metadata")
+            metadata_str = parameters.get("metadata")
+            # Parse metadata from JSON string if present
+            if metadata_str:
+                try:
+                    metadata = json.loads(metadata_str)
+                except (json.JSONDecodeError, TypeError):
+                    metadata = None
+            else:
+                metadata = None
         else:
             title = None
             metadata = None
         
-        # Build text from user input + files
-        text = user_input
-        if files:
-            file_texts = []
-            for f in files:
-                try:
-                    file_texts.append(f["content"].decode("utf-8", errors="replace"))
-                except Exception:
-                    file_texts.append(str(f["content"]))
-            text = "\n\n".join([text] + file_texts) if text else "\n\n".join(file_texts)
+        # Combine masked user input with masked file contents
+        if files_text:
+            text = f"{user_input}\n\n{files_text}" if user_input else files_text
+        else:
+            text = user_input
         
-        logger.debug(f"_execute_action: calling kb_from_text with title={title}, metadata={metadata}, text length={len(text)}")
+        logger.info(f"_execute_action: calling kb_from_text with title={title}, metadata={metadata}, text length={len(text)}")
         result = kb_from_text(text=text, title=title, metadata=metadata)
-        logger.debug(f"_execute_action: kb_from_text returned result with keys: {list(result.keys()) if result else None}")
+        logger.info(f"_execute_action: kb_from_text returned result with keys: {list(result.keys()) if result else None}")
         return result
 
     elif action == "kb_query":
         # Use entire user input as query (parameters not used for kb_query)
-        logger.debug(f"_execute_action: calling kb_query with query={user_input[:100]}{'...' if len(user_input) > 100 else ''}")
+        logger.info(f"_execute_action: calling kb_query with query={user_input[:100]}{'...' if len(user_input) > 100 else ''}")
         result = kb_query(query=user_input)
-        logger.debug(f"_execute_action: kb_query returned result with keys: {list(result.keys()) if result else None}")
+        logger.info(f"_execute_action: kb_query returned result with keys: {list(result.keys()) if result else None}")
         return result
 
-    logger.debug(f"_execute_action: action={action} does not require API call, returning None")
+    logger.info(f"_execute_action: action={action} does not require API call, returning None")
     return None
 
 
@@ -709,26 +784,33 @@ def _format_api_response(user_input: str, action: str, api_result: dict) -> str:
     """
     Use the LLM to turn a raw API response into a human-friendly message.
     """
+    from langchain_core.messages import SystemMessage, HumanMessage
     import json
 
     client = _get_llm_client()
 
     api_result_json = json.dumps(api_result, indent=2, default=str)
-    format_prompt = build_api_response_format_prompt(user_input, action, api_result_json)
+    format_prompt = build_api_response_format_prompt(user_input, action, api_result_json) # TODO add masked files
 
     messages = [
-        {"role": "system", "content": format_prompt},
-        {"role": "user", "content": "Transform the API response into a user-friendly message."},
+        SystemMessage(content=format_prompt),
+        HumanMessage(content="Transform the API response into a user-friendly message."),
     ]
 
-    response = client.chat.completions.create(
-        model_name='gpt-4o-mini',
-        messages=messages,
-        temperature=0.3,
-        max_tokens=1024
-    )
-    formatted_response = response.choices[0].message.content
-    logger.debug(f"_format_api_response: generated response preview={formatted_response[:200]}{'...' if len(formatted_response) > 200 else ''}")
+    response = client.invoke(messages)
+    formatted_response = response.content
+    
+    # Remove markdown code block wrapping if present (e.g., ```...```)
+    # The LLM might wrap the response in code blocks based on the prompt examples
+    formatted_response = formatted_response.strip()
+    if formatted_response.startswith("```") and formatted_response.endswith("```"):
+        # Remove the opening ``` and optional language identifier
+        lines = formatted_response.split("\n")
+        if len(lines) > 2:
+            # Remove first line (```language) and last line (```)
+            formatted_response = "\n".join(lines[1:-1]).strip()
+    
+    logger.info(f"_format_api_response: generated response preview={formatted_response[:200]}{'...' if len(formatted_response) > 200 else ''}")
     return formatted_response
 
 
@@ -740,7 +822,7 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
     Generate a chat response.
 
     Flow:
-    1. Mask PII in user input to protect personal information
+    1. Mask PII in user input & files to protect personal information
     2. LLM classifies the user's intent into one of four actions.
     3. If the action needs Slack / GitHub and those aren't connected,
        return a message asking the user to connect them.
@@ -749,17 +831,43 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
     6. For chat_only, fall through to a regular LLM conversation.
     """
     try:
-        # Step 0 — Mask PII in user input
-        logger.debug("generate_chat_response: Step 1 - masking PII in user input")
+        # STEP 1A — Concatenate files with markers BEFORE masking
+        logger.info("generate_chat_response: Step 1 - concatenating files and masking PII")
         from services.api_client import mask_message
         
+        combined_files_text = ""
+        if files:
+            file_sections = []
+            for file_info in files:
+                try:
+                    file_content = file_info["content"].decode("utf-8", errors="replace")
+                    file_sections.append(
+                        f"--- FILE: {file_info['name']} ({file_info['size']} bytes) ---\n"
+                        f"{file_content}\n"
+                        f"--- END FILE: {file_info['name']} ---"
+                    )
+                except Exception as e:
+                    logger.error(f"Error decoding file '{file_info['name']}': {e}")
+                    file_sections.append(f"[Error reading file: {file_info['name']}]")
+            
+            combined_files_text = "\n\n".join(file_sections)
+        
+        # STEP 1B — Mask user input (ONE API CALL)
         mask_result = mask_message(user_input)
         masked_input = mask_result.get("masked_text", user_input)
-        is_masked = mask_result.get("is_masked", False)
+        is_masked_input = mask_result.get("is_masked", False)
         
-        if not is_masked:
-            # Masking failed - abort to prevent PII exposure to LLM
-            error_detail = mask_result.get("error", "Unknown masking error")
+        # STEP 1C — Mask combined files (ONE API CALL)
+        masked_files_text = ""
+        is_masked_files = True
+        if combined_files_text:
+            files_mask_result = mask_message(combined_files_text)
+            masked_files_text = files_mask_result.get("masked_text", combined_files_text)
+            is_masked_files = files_mask_result.get("is_masked", False)
+        
+        # Check if masking succeeded
+        if not is_masked_input or (combined_files_text and not is_masked_files):
+            error_detail = mask_result.get("error", "Unknown masking error") if not is_masked_input else files_mask_result.get("error", "Unknown masking error")
             logger.error(f"PII masking failed: {error_detail}")
             return (
                 "⚠️ **Unable to Process Message**\n\n"
@@ -769,64 +877,72 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
                 "Please try again in a moment, or contact support if the issue persists."
             )
         
-        logger.info(f"User input masked: original_length={len(user_input)}, masked_length={len(masked_input)}")
+        logger.info("User input and files masked successfully")
+        logger.info(f"[ORIGINAL INPUT]\n{user_input}\n\n[MASKED INPUT]\n{masked_input}")
+        if combined_files_text:
+            logger.info(f"[COMBINED FILES LENGTH] {len(combined_files_text)} chars → [MASKED] {len(masked_files_text)} chars")
         
         # Store masked version in the last user message for history context
         if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
             st.session_state.messages[-1]["masked_content"] = masked_input
+            if masked_files_text:
+                st.session_state.messages[-1]["masked_files_text"] = masked_files_text
         
-        # Use masked input for all subsequent operations
+        # Use masked content for all subsequent operations
         processed_input = masked_input
+        processed_files_text = masked_files_text
         
-        # Step 1 — classify intent with conversation history for context
-        logger.debug("generate_chat_response: Step 2 - classifying intent")
+        # STEP 2 — classify intent with conversation history for context
+        logger.info("generate_chat_response: STEP 2 - classifying intent")
         history = _build_history_messages()
-        intent = _classify_intent(processed_input, files, history)
+        intent = _classify_intent(processed_input, files, history)  # Pass original files for file list
         action = intent["action"]
         parameters = intent["parameters"]
 
-        # Step 2 — check prerequisites
+        # STEP 3 — check prerequisites
         if action != "chat_only":
-            logger.debug(f"generate_chat_response: Step 3 - checking prerequisites for action={action}")
+            logger.info(f"generate_chat_response: STEP 3 - checking prerequisites for action={action}")
             prereq_msg = _check_prerequisites(action)
             if prereq_msg:
-                logger.debug(f"generate_chat_response: prerequisites not met, returning error message={prereq_msg}")
+                logger.info(f"generate_chat_response: prerequisites not met, returning error message={prereq_msg}")
                 return prereq_msg
 
-        # Step 3 — execute API action (if any)
-        logger.debug(f"generate_chat_response: Step 4 - executing action={action}")
-        api_result = _execute_action(action, parameters, processed_input, files)
+        # STEP 4 — execute API action (if any)
+        logger.info(f"generate_chat_response: STEP 4 - executing action={action}")
+        api_result = _execute_action(action, parameters, processed_input, processed_files_text)
 
         if api_result is not None:
-            # Step 4 — LLM summarises the API result (use masked input)
-            logger.debug(f"generate_chat_response: Step 5 - formatting API response for action={action}, response={json.dumps(api_result, indent=2, default=str)}")
-            return _format_api_response(processed_input, action, api_result)
+            # STEP 5 — LLM summarises the API result (use masked input)
+            logger.info(f"generate_chat_response: STEP 5 - formatting API response for action={action}, response={json.dumps(api_result, indent=2, default=str)}")
+            return _format_api_response(processed_input, action, api_result) # TODO add files context
 
-        # Step 5 — chat_only: regular conversation (use masked input)
-        logger.debug("generate_chat_response: Step 6 - entering chat_only conversation mode")
+        # STEP 6 — chat_only: regular conversation (use masked input and files)
+        logger.info("generate_chat_response: STEP 6 - entering chat_only conversation mode")
+        from langchain_core.messages import SystemMessage, HumanMessage
+        
         client = _get_llm_client()
         system_prompt = _build_system_prompt()
-        history = _build_history_messages()
-        logger.debug(f"generate_chat_response: using {len(history)} messages from history")
+        logger.info(f"generate_chat_response: using {len(history)} messages from history")
 
+        # Combine masked input with masked file text for chat
         user_text = processed_input
-        if files:
-            file_list = ", ".join(f["name"] for f in files)
-            user_text = f"[User attached {len(files)} file(s): {file_list}]\n\n{processed_input}"
+        if processed_files_text:
+            user_text = f"{processed_input}\n\n{processed_files_text}"
 
-        messages = (
-            [{"role": "system", "content": system_prompt}]
-            + history
-            + [{"role": "user", "content": user_text}]
-        )
+        messages = [SystemMessage(content=system_prompt)]
 
-        response = client.chat.completions.create(
-            model_name='gpt-4o-mini',
-            messages=messages,
-            temperature=0.3,
-            max_tokens=1024
-        )
-        return response.choices[0].message.content
+        # Add history
+        for msg in history:
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                messages.append(SystemMessage(content=msg["content"]))
+
+        # Add current message
+        messages.append(HumanMessage(content=user_text))
+
+        response = client.invoke(messages)
+        return response.content
 
     except Exception as e:
         logger.error(f"generate_chat_response: ERROR - {str(e)}", exc_info=True)
