@@ -39,6 +39,8 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
 6. Create GitHub PR (TODO: not yet implemented)
 
 **Response Model**: `KBProcessingResponse`
+
+Example (CREATE action):
 ```json
 {
   "status": "success",
@@ -49,7 +51,21 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
   "kb_summary": "This document describes how to troubleshoot database connection timeouts by adjusting pool size and connection settings.",
   "ai_confidence": 0.85,
   "ai_reasoning": "This conversation contains...",
-  "pr_url": null,
+  "pr_url": "https://github.com/owner/repo/pull/123"
+}
+```
+
+Example (IGNORE action - duplicate content):
+```json
+{
+  "status": "success",
+  "action": "ignore",
+  "reason": "Content is a near-duplicate of existing document...",
+  "kb_document_title": "Database Connection Fix",
+  "kb_category": "troubleshooting",
+  "existing_document_url": "https://github.com/owner/repo/blob/main/troubleshooting/db-connection.md",
+  "existing_document_title": "Database Connection Troubleshooting",
+  "messages_fetched": 87
 }
 ```
 
@@ -199,8 +215,16 @@ Used by both `/from-slack` and `/from-text` endpoints.
   ai_confidence?: number  // 0.0 - 1.0
   ai_reasoning?: string
 
-  // GitHub PR info
+  // GitHub PR info (for CREATE/UPDATE actions)
   pr_url?: string
+
+  // Existing document info (for IGNORE action when duplicate exists)
+  existing_document_url?: string   // GitHub URL of existing document
+  existing_document_title?: string // Title of existing document
+
+  // Generated KB content (populated in dry-run mode or when PR is not created)
+  kb_markdown_content?: string
+  kb_file_path?: string
 
   // Metadata
   messages_fetched?: number  // For Slack
