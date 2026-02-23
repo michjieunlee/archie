@@ -11,7 +11,7 @@ from config.settings import PAGE_CONFIG
 import logging
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
@@ -118,6 +118,48 @@ def main():
             padding: 0.2rem 0.8rem;
             margin-right: 0.5rem;
             font-size: 0.85rem;
+        }
+
+        /* Dark mode text input styling - only when dark mode is active */
+        @media (prefers-color-scheme: dark) {
+            textarea[aria-label="Message"] {
+                background-color: #0E1117 !important;
+                color: #FFFFFF !important;
+                border: 1px solid #4A4A4A !important;
+            }
+
+            textarea[aria-label="Message"]::placeholder {
+                color: #888888 !important;
+            }
+
+            /* Attach files button styling */
+            button[key="attach_btn"] p,
+            button:has(p:contains("ATTACH FILES")) p {
+                color: #2D2D2D !important;
+            }
+
+            button[key="attach_btn"],
+            button:has(p:contains("ATTACH FILES")) {
+                background-color: #FDB750 !important;
+                border: 1px solid #FDB750 !important;
+            }
+
+            button[key="attach_btn"]:hover,
+            button:has(p:contains("ATTACH FILES")):hover {
+                background-color: #E59E35 !important;
+                border: 1px solid #E59E35 !important;
+            }
+
+            button[key="attach_btn"]:active,
+            button:has(p:contains("ATTACH FILES")):active {
+                background-color: #CC8A2B !important;
+            }
+
+            .file-badge {
+                background: #1e3a5f !important;
+                border: 1px solid #2e5a8f !important;
+                color: #a0c4e8 !important;
+            }
         }
         </style>
     """,
