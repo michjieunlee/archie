@@ -3,12 +3,14 @@ Main Streamlit application for Archie.
 Provides a centered chat interface with integration buttons on the left.
 """
 
+import base64
+import logging
+import os
+
 import streamlit as st
 from components.chat_section import render_chat_section
 from components.integration_panel import render_integration_panel, render_integration_buttons
 from config.settings import PAGE_CONFIG
-
-import logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -182,12 +184,34 @@ def main():
     if "slack_connected" not in st.session_state:
         st.session_state.slack_connected = False
 
-    # App header - centered
+    # App header - centered with logo
+    # Load logo image and convert to base64
+    logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "img", "logo1.png")
+    with open(logo_path, "rb") as f:
+        logo_base64 = base64.b64encode(f.read()).decode()
+    
     st.markdown(
-        """
+        f"""
+        <style>
+        .header-container {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 0.25rem;
+        }}
+        .app-logo {{
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            object-fit: cover;
+        }}
+        </style>
         <div class="app-header">
-            <h1 class="app-title">Archie</h1>
-            <p class="app-subtitle">AI Knowledge Base Assistant</p>
+            <div class="header-container">
+                <img src="data:image/png;base64,{logo_base64}" class="app-logo" alt="Archie Logo">
+                <h1 class="app-title">Archie</h1>
+            </div>
         </div>
     """,
         unsafe_allow_html=True,
