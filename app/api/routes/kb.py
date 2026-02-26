@@ -248,14 +248,13 @@ async def kb_from_text(request: TextKBRequest):
 @router.post("/query", response_model=KBQueryResponse)
 async def kb_query(request: KBQueryRequest):
     """
-    Use case 3: Query knowledge base (Q&A).
+    Use case 3: Question and Answer (QnA) from the knowledge base.
 
     Pipeline:
-    1. Parse and understand the query
-    2. Search KB repository using LLM-based semantic search
-    3. Rank and retrieve relevant documents
-    4. Generate natural language answer
-    5. Return formatted response with sources
+    1. Parse and understand the user's question
+    2. Search KB repository using LLM-based relevance assessment
+    3. Generate natural language answer with inline citations
+    4. Return formatted response with sources section
 
     Example request body:
     ```json
@@ -269,7 +268,7 @@ async def kb_query(request: KBQueryRequest):
     {
         "status": "success",
         "query": "How do I fix API timeout errors?",
-        "answer": "Based on the knowledge base, API timeout errors can be resolved by...",
+        "answer": "Based on the knowledge base, API timeout errors can be resolved by increasing the connection timeout from 30s to 60s in the config file. According to the API Timeout Resolution document, this change should be made in the `config.json` file under the `api.timeout` setting.\n\nSources: [API Timeout Resolution]",
         "sources": [
             {
                 "title": "API Timeout Resolution",
