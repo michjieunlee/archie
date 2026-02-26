@@ -797,9 +797,17 @@ def _execute_action(action: str, parameters, user_input: str, files_text: str | 
         return result
 
     elif action == "kb_query":
+        # Build conversation history for context
+        history = _build_history_messages()
+        # Limit to last 6 messages (3 exchanges) for KB queries
+        kb_history = history[-6:] if history else None
+
         # Use entire user input as query (parameters not used for kb_query)
-        logger.info(f"_execute_action: calling kb_query with query={user_input[:100]}{'...' if len(user_input) > 100 else ''}")
-        result = kb_query(query=user_input)
+        logger.info(
+            f"_execute_action: calling kb_query with query={user_input[:100]}{'...' if len(user_input) > 100 else ''}, "
+            f"history={len(kb_history) if kb_history else 0} messages"
+        )
+        result = kb_query(query=user_input, conversation_history=kb_history)
         logger.info(f"_execute_action: kb_query returned result with keys: {list(result.keys()) if result else None}")
         return result
 
