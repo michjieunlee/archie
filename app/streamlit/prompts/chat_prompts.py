@@ -250,11 +250,11 @@ For kb_query or chat_only:
 - ALWAYS return valid JSON conforming to the schema
 - Prioritize explicit Slack/KB requests over general questions
 - Use conversation history to identify follow-up actions
-- When in doubt between kb_query and chat_only, prefer chat_only
+- When in doubt between kb_query and chat_only, ask the user for clarification
 """
 
 
-def build_api_response_format_prompt(user_input: str, action: str, api_result_json: str, files: list | None = None) -> str:
+def build_api_response_format_prompt(user_input: str, action: str, api_result_json: str) -> str:
     """
     Build the prompt for formatting API responses into user-friendly messages.
 
@@ -262,7 +262,6 @@ def build_api_response_format_prompt(user_input: str, action: str, api_result_js
         user_input: The user's original request
         action: The action that was executed
         api_result_json: JSON string of the API response
-        files: Optional list of uploaded files
 
     Returns:
         Complete formatting prompt string
@@ -278,7 +277,6 @@ Based on the following user request, an action was performed and API response wa
 
 ## Context
 **User's Request**: "{user_input}"
-**Files**: "{files}"
 **Action Executed**: {action}
 **API Response**:
 ```json

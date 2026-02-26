@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 # Height of the sticky input bar (px) – used to calculate chat container height
 _INPUT_BAR_HEIGHT = 200
 
-# Maximum number of messages to keep in history for LLM context (last N messages = N/2 exchanges)
-_MAX_HISTORY_MESSAGES = 10
+# Maximum number of messages to keep in history for LLM context
+_MAX_HISTORY_MESSAGES = 20
 
 # Model to use
 _LLM_MODEL = "gpt-4o-mini"
@@ -592,22 +592,29 @@ _ACTION_REQUIREMENTS = {
 
 def _build_history_messages() -> list:
     """
-    Convert recent session_state messages to OpenAI message format.
+    Convert session_state messages to OpenAI message format.
     
-    Uses masked_content for user messages (to protect PII), 
-    and regular content for assistant messages.
-    Limits to last _MAX_HISTORY_MESSAGES messages for context.
+    Includes:
+    - Last _MAX_HISTORY_MESSAGES user message & files & assistant messages (most recent exchanges)
     """
     history = []
-    recent = st.session_state.get("messages", [])[-_MAX_HISTORY_MESSAGES:]
-    for msg in recent:
+    all_messages = st.session_state.get("messages", [])
+    
+    # Add last N user message & files & assistant messages (recent conversation)
+    recent_messages = all_messages[-_MAX_HISTORY_MESSAGES:]
+    for msg in recent_messages:
         if msg["role"] == "user":
-            # Use masked content for user messages
+            # Use masked content for user messages (without file content - already added above)
             content = msg.get("masked_content")
-            history.append({"role": "user", "content": content})
+            masked_files_text = msg.get("masked_files_text")
+            if content:  # Only add if masked content exists
+                history.append({"role": "user", "content": content})
+            if masked_files_text:
+                history.append({"role": "user", "content": f"[Uploaded file(s)]\n{masked_files_text}"})
         elif msg["role"] == "assistant":
             # Assistant messages are already safe
             history.append({"role": "assistant", "content": msg["content"]})
+    
     return history
 
 
@@ -685,8 +692,16 @@ def _classify_intent(user_input: str, files: list | None = None, history: list |
         return result
             
     except Exception as e:
+        error_str = str(e).lower()
+        
+        # Check for token limit errors
+        if any(keyword in error_str for keyword in ["token", "context_length_exceeded", "maximum context", "too long"]):
+            logger.error(f"_classify_intent token limit error: {str(e)}", exc_info=True)
+            # Return a special error action to be handled by caller
+            return {"action": "error", "parameters": "", "error_type": "token_limit"}
+        
         logger.error(f"_classify_intent error: {str(e)}", exc_info=True)
-        # Fallback to chat_only on any error
+        # Fallback to chat_only on any other error
         logger.info(f"_classify_intent failed, defaulting to chat_only")
         return {"action": "chat_only", "parameters": ""}
 
@@ -792,9 +807,15 @@ def _execute_action(action: str, parameters, user_input: str, files_text: str | 
     return None
 
 
-def _format_api_response(user_input: str, action: str, api_result: dict) -> str:
+def _format_api_response(user_input: str, action: str, api_result: dict, history: list | None = None) -> str:
     """
     Use the LLM to turn a raw API response into a human-friendly message.
+    
+    Args:
+        user_input: The current user message
+        action: The action that was performed
+        api_result: The raw API result dict
+        history: Optional conversation history for context
     """
     from langchain_core.messages import SystemMessage, HumanMessage
     import json
@@ -802,28 +823,66 @@ def _format_api_response(user_input: str, action: str, api_result: dict) -> str:
     client = _get_llm_client()
 
     api_result_json = json.dumps(api_result, indent=2, default=str)
-    format_prompt = build_api_response_format_prompt(user_input, action, api_result_json) # TODO add masked files
+    format_prompt = build_api_response_format_prompt(user_input, action, api_result_json)
 
-    messages = [
-        SystemMessage(content=format_prompt),
-        HumanMessage(content="Transform the API response into a user-friendly message."),
-    ]
+    messages = [SystemMessage(content=format_prompt)]
+    
+    # Add recent conversation history if available for context
+    if history:
+        for msg in history[-_MAX_HISTORY_MESSAGES:]:
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                messages.append(SystemMessage(content=msg["content"]))
+    
+    # Add the formatting instruction
+    messages.append(HumanMessage(content="Transform the API response into a user-friendly message."))
 
-    response = client.invoke(messages)
-    formatted_response = response.content
-    
-    # Remove markdown code block wrapping if present (e.g., ```...```)
-    # The LLM might wrap the response in code blocks based on the prompt examples
-    formatted_response = formatted_response.strip()
-    if formatted_response.startswith("```") and formatted_response.endswith("```"):
-        # Remove the opening ``` and optional language identifier
-        lines = formatted_response.split("\n")
-        if len(lines) > 2:
-            # Remove first line (```language) and last line (```)
-            formatted_response = "\n".join(lines[1:-1]).strip()
-    
-    logger.info(f"_format_api_response: generated response preview={formatted_response[:200]}{'...' if len(formatted_response) > 200 else ''}")
-    return formatted_response
+    try:
+        response = client.invoke(messages)
+        formatted_response = response.content
+        
+        # Remove markdown code block wrapping if present (e.g., ```...```)
+        # The LLM might wrap the response in code blocks based on the prompt examples
+        formatted_response = formatted_response.strip()
+        if formatted_response.startswith("```") and formatted_response.endswith("```"):
+            # Remove the opening ``` and optional language identifier
+            lines = formatted_response.split("\n")
+            if len(lines) > 2:
+                # Remove first line (```language) and last line (```)
+                formatted_response = "\n".join(lines[1:-1]).strip()
+        
+        logger.info(f"_format_api_response: generated response preview={formatted_response[:200]}{'...' if len(formatted_response) > 200 else ''}")
+        return formatted_response
+        
+    except Exception as e:
+        error_str = str(e).lower()
+        
+        # Check for token limit errors
+        if any(keyword in error_str for keyword in ["token", "context_length_exceeded", "maximum context", "too long"]):
+            logger.error(f"Token limit exceeded in _format_api_response: {str(e)}")
+            # Return a simplified message with the raw API result status
+            status = api_result.get("status", "unknown")
+            if status == "success":
+                return (
+                    f"✅ **Operation Completed**\n\n"
+                    f"The {action.replace('_', ' ')} operation completed successfully, but the response was too large to format.\n\n"
+                    f"**Raw status**: {status}"
+                )
+            else:
+                return (
+                    f"⚠️ **Operation Status**\n\n"
+                    f"The {action.replace('_', ' ')} operation status: {status}\n\n"
+                    f"Response details were too large to format. Check logs for more information."
+                )
+        
+        # For other errors, log and return a generic error message
+        logger.error(f"Error formatting API response: {str(e)}", exc_info=True)
+        return (
+            f"⚠️ **Formatting Error**\n\n"
+            f"The operation completed, but there was an error formatting the response.\n\n"
+            f"**Technical details**: {str(e)}"
+        )
 
 
 # ── Main entry point ──────────────────────────────────────────────────
@@ -910,6 +969,19 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
         intent = _classify_intent(processed_input, files, history)  # Pass original files for file list
         action = intent["action"]
         parameters = intent["parameters"]
+        
+        # Check if we hit a token limit error during classification
+        if action == "error" and intent.get("error_type") == "token_limit":
+            logger.warning("Token limit exceeded during intent classification")
+            return (
+                "⚠️ **Context Too Large**\n\n"
+                "The conversation history and uploaded files are too large to process. "
+                "This can happen when many large files have been uploaded.\n\n"
+                "**Suggestions:**\n"
+                "- Try starting a new conversation by refreshing this page\n"
+                "- Upload smaller or fewer files\n"
+                "- Summarize your question more concisely"
+            )
 
         # STEP 3 — check prerequisites
         if action != "chat_only":
@@ -924,9 +996,9 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
         api_result = _execute_action(action, parameters, processed_input, processed_files_text)
 
         if api_result is not None:
-            # STEP 5 — LLM summarises the API result (use masked input)
+            # STEP 5 — LLM summarises the API result (use masked input and history for context)
             logger.info(f"generate_chat_response: STEP 5 - formatting API response for action={action}, response={json.dumps(api_result, indent=2, default=str)}")
-            return _format_api_response(processed_input, action, api_result) # TODO add files context
+            return _format_api_response(processed_input, action, api_result, history)
 
         # STEP 6 — chat_only: regular conversation (use masked input and files)
         logger.info("generate_chat_response: STEP 6 - entering chat_only conversation mode")
@@ -953,9 +1025,41 @@ def generate_chat_response(user_input: str, files: list = None) -> str:
         # Add current message
         messages.append(HumanMessage(content=user_text))
 
-        response = client.invoke(messages)
-        return response.content
+        try:
+            response = client.invoke(messages)
+            return response.content
+        except Exception as llm_error:
+            error_str = str(llm_error).lower()
+            
+            # Check for token limit errors
+            if any(keyword in error_str for keyword in ["token", "context_length_exceeded", "maximum context", "too long"]):
+                logger.error(f"Token limit exceeded in chat_only mode: {str(llm_error)}")
+                return (
+                    "⚠️ **Context Too Large**\n\n"
+                    "The conversation history and uploaded files are too large to process. "
+                    "This can happen when many large files have been uploaded.\n\n"
+                    "**Suggestions:**\n"
+                    "- Try starting a new conversation\n"
+                    "- Upload smaller or fewer files\n"
+                    "- Summarize your question more concisely"
+                )
+            # Re-raise other errors to be caught by outer exception handler
+            raise
 
     except Exception as e:
+        error_str = str(e).lower()
+        
+        # Check for token limit errors
+        if any(keyword in error_str for keyword in ["token", "context_length_exceeded", "maximum context", "too long"]):
+            logger.error(f"Token limit exceeded: {str(e)}")
+            return (
+                "⚠️ **Context Too Large**\n\n"
+                "The conversation history and uploaded files are too large to process. "
+                "This can happen when many large files have been uploaded.\n\n"
+                "**Suggestions:**\n"
+                "- Try starting a new conversation\n"
+                "- Upload smaller or fewer files\n"
+                "- Summarize your question more concisely"
+            )
         logger.error(f"generate_chat_response: ERROR - {str(e)}", exc_info=True)
         return f"Encountered an error generating a response: {str(e)}"
