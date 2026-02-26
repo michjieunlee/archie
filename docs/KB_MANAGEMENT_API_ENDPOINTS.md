@@ -36,7 +36,7 @@ GET /api/kb/from-slack?channel_id=C123ABC456&limit=100
 3. Extract KB using AI (categorization + structured extraction)
 4. Match against existing KB (STUB: always returns CREATE)
 5. Generate KB document using templates
-6. Create GitHub PR (TODO: not yet implemented)
+6. Create GitHub PR
 
 **Response Model**: `KBProcessingResponse`
 
@@ -104,7 +104,7 @@ Example (IGNORE action - duplicate content):
 3. Extract KB using AI (categorization + structured extraction)
 4. Match against existing KB (STUB: always returns CREATE)
 5. Generate KB document using templates
-6. Create GitHub PR (TODO: not yet implemented)
+6. Create GitHub PR
 
 **Response Model**: `KBProcessingResponse`
 ```json
@@ -145,7 +145,7 @@ Example (IGNORE action - duplicate content):
 
 **Pipeline**:
 1. Parse and understand the query
-2. Search KB repository using LLM-based semantic search (TODO: not yet implemented)
+2. Search KB repository using LLM-based semantic search
 3. Rank and retrieve relevant documents
 4. Generate natural language answer using LLM
 5. Return formatted response with sources
@@ -296,10 +296,10 @@ For HTTP errors (e.g., 500), FastAPI also includes:
 
 ```bash
 # Test Slack fetch
-curl "http://localhost:8000/api/kb/from-slack?limit=10"
+curl "http://localhost:8001/api/kb/from-slack?limit=10"
 
 # Test text input
-curl -X POST "http://localhost:8000/api/kb/from-text" \
+curl -X POST "http://localhost:8001/api/kb/from-text" \
   -H "Content-Type: application/json" \
   -d '{
     "text": "We fixed the database timeout by increasing pool size to 20.",
@@ -307,7 +307,7 @@ curl -X POST "http://localhost:8000/api/kb/from-text" \
   }'
 
 # Test query
-curl -X POST "http://localhost:8000/api/kb/query" \
+curl -X POST "http://localhost:8001/api/kb/query" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "How to fix database issues?",
@@ -316,7 +316,7 @@ curl -X POST "http://localhost:8000/api/kb/query" \
 
 ### Using FastAPI Swagger UI
 
-Navigate to: `http://localhost:8000/docs`
+Navigate to: `http://localhost:8001/docs`
 
 ---
 

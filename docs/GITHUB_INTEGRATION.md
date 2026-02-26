@@ -93,9 +93,9 @@ asyncio.run(test())
 uvicorn app.main:app --reload --port 8000
 
 # Test endpoints
-curl -X GET "http://localhost:8000/github/kb/documents"
+curl -X GET "http://localhost:8001/github/kb/documents"
 
-curl -X POST "http://localhost:8000/github/kb/documents" \
+curl -X POST "http://localhost:8001/github/kb/documents" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Test Document",
@@ -106,7 +106,7 @@ curl -X POST "http://localhost:8000/github/kb/documents" \
 
 ### 3. Batch Operations
 ```bash
-curl -X POST "http://localhost:8000/github/kb/batch" \
+curl -X POST "http://localhost:8001/github/kb/batch" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Test Batch",
