@@ -1,10 +1,15 @@
 # Archie - AI-Powered Knowledge Base Assistant
 
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Status](https://img.shields.io/badge/status-beta-yellow)
+
 <p align="center">
   <img src="img/logo1.png" alt="Archie Logo" width="120" height="120" style="border-radius: 12px;">
 </p>
 
 **Archie** is an intelligent agent that automatically extracts decision-making, troubleshooting, and know-how from conversations and transforms them into a structured, living Knowledge Base (KB).
+
+> **Note:** This is an independent hackathon project. Copyright © 2026 Jieun (Michelle) Lee, Juyon Bae, Soohyun Choi.
 
 ## Table of Contents
 
@@ -24,6 +29,9 @@
 - [Project Structure](#project-structure)
 - [Running Tests](#running-tests)
 - [Documentation](#documentation)
+- [Known Limitations](#known-limitations)
+- [License](#license)
+- [Contributing](#contributing)
 
 ---
 
@@ -123,7 +131,7 @@ PORT=8001
 # Slack Configuration
 SLACK_BOT_TOKEN=xoxb-your-bot-token
 
-# GitHub Configuration  
+# GitHub Configuration
 GITHUB_TOKEN=ghp_your-personal-access-token
 GITHUB_REPO_OWNER=your-org
 GITHUB_REPO_NAME=knowledge-base
@@ -324,7 +332,7 @@ Archie uses SAP's Generative AI Hub for AI processing. You need credentials from
    AICORE_AUTH_URL=<from service key: "url" under "uaa">
    AICORE_CLIENT_ID=<from service key: "clientid" under "uaa">
    AICORE_CLIENT_SECRET=<from service key: "clientsecret" under "uaa">
-   
+
    # API Configuration
    AICORE_RESOURCE_GROUP=<your resource group>
    AICORE_BASE_URL=<from service key: "serviceurls.AI_API_URL">
@@ -525,12 +533,18 @@ pytest tests/ -v --cov=app
 
 ---
 
-## License
+## Known Limitations
 
-[Add your license information here]
+- **SAP GenAI SDK Required**: This project requires SAP BTP (Business Technology Platform) access to use the SAP GenAI SDK. Users need valid SAP credentials to run the AI processing features.
+- **Single Slack Channel**: Currently supports monitoring one Slack channel at a time.
+- **GitHub PAT Authentication**: Uses Personal Access Tokens rather than GitHub App authentication.
+- **Single Instance**: Designed for single-team use without multi-user authentication.
+- **Language Support**: LLM processing currently optimized for English language only.
 
 ---
 
-## Contributing
+## License
 
-[Add contributing guidelines here]
+Copyright © 2026 Jieun (Michelle) Lee, Juyon Bae, Soohyun Choi. All rights reserved.
+
+--

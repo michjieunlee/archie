@@ -60,7 +60,7 @@ Only include masked values when they are essential for understanding the context
 ❌ **INCORRECT (unnecessary masking):**
 ```markdown
 For ServiceNow tickets:
-1. Use https://gerrit.your.corp/ as the 'MASKED_PERSON Instance Name' URL
+1. Use https://gerrit.example.com/ as the 'MASKED_PERSON Instance Name' URL
 2. Include user IDs and detailed steps
 3. If any condition does not apply, forward the request to MASKED_PERSON Gerrit maintainers on the same distribution list
 ```
@@ -68,7 +68,7 @@ For ServiceNow tickets:
 ✅ **CORRECT (essential context only):**
 ```markdown
 For ServiceNow tickets:
-1. Use the instance URL https://gerrit.your.corp/
+1. Use the instance URL https://gerrit.example.com/
 2. Include user IDs and detailed steps
 3. If any condition does not apply, forward the request to Gerrit maintainers
 ```
@@ -129,27 +129,27 @@ Always use bullet points (`-`) for links in the Related Links section.
 ❌ **INCORRECT (no bullet points):**
 ```markdown
 ## Related Links
-Jenkins job: https://jenkins.your.corp/view/project/job/project_ci_docker_push/
-Timed-out build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1843/console
-Retriggered build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1845/console
+Jenkins job: https://jenkins.example.com/view/project/job/project_ci_docker_push/
+Timed-out build log: https://jenkins.example.com/view/project/job/project_ci_docker_push/1843/console
+Retriggered build log: https://jenkins.example.com/view/project/job/project_ci_docker_push/1845/console
 ```
 
 ✅ **CORRECT (with bullet points and inline links):**
 ```markdown
 ## Related Links
 
-- Jenkins job: https://jenkins.your.corp/view/project/job/project_ci_docker_push/
-- Timed-out build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1843/console
-- Retriggered build log: https://jenkins.your.corp/view/project/job/project_ci_docker_push/1845/console
+- Jenkins job: https://jenkins.example.com/view/project/job/project_ci_docker_push/
+- Timed-out build log: https://jenkins.example.com/view/project/job/project_ci_docker_push/1843/console
+- Retriggered build log: https://jenkins.example.com/view/project/job/project_ci_docker_push/1845/console
 ```
 
 ✅ **CORRECT (with bullet points and Markdown link syntax):**
 ```markdown
 ## Related Links
 
-- [Jenkins job](https://jenkins.your.corp/view/project/job/project_ci_docker_push/)
-- [Timed-out build log (1843)](https://jenkins.your.corp/view/project/job/project_ci_docker_push/1843/console)
-- [Retriggered build log (1845)](https://jenkins.your.corp/view/project/job/project_ci_docker_push/1845/console)
+- [Jenkins job](https://jenkins.example.com/view/project/job/project_ci_docker_push/)
+- [Timed-out build log (1843)](https://jenkins.example.com/view/project/job/project_ci_docker_push/1843/console)
+- [Retriggered build log (1845)](https://jenkins.example.com/view/project/job/project_ci_docker_push/1845/console)
 ```
 
 **Rule:** Always start each link line with a hyphen (`-`) or asterisk (`*`). Without bullet point markers, GitHub will render multiple lines as a single continuous paragraph.

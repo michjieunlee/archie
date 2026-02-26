@@ -330,13 +330,11 @@ Navigate to: `http://localhost:8000/docs`
 - KB matching against existing documents
 - KB document generation (markdown with templates)
 - LLM-based document summary generation
-- Request/response models
-- Error handling
-
-🚧 **TODO** (marked in code):
 - GitHub PR creation
 - KB search implementation (for Q&A)
 - LLM-based answer generation (for Q&A)
+- Request/response models
+- Error handling
 
 ---
 
@@ -345,4 +343,3 @@ Navigate to: `http://localhost:8000/docs`
 - [Architecture Overview](./ARCHITECTURE.md)
 - [API Integration Details](./API_INTEGRATION.md)
 - [KB Repository Structure](./KB_REPOSITORY_STRUCTURE.md)
-- [Implementation Plans](./IMPLEMENTATION_PLANS.md)
