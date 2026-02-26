@@ -171,7 +171,6 @@ Analyze the user's message and classify it into one of four backend actions. Ret
 **Examples**:
 - "How do I connect GitHub?" → chat_only (about configuring Archie)
 - "What can you do?" → chat_only (about Archie's capabilities)
-- "How do I create a KB article?" → chat_only (about using Archie)
 - "Can you help me set up Slack?" → chat_only (about configuring Archie)
 - "What is currently connected github repo name?" → chat_only (about current status)
 - "Which GitHub repository am I using?" → chat_only (about current status)
