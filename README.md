@@ -501,11 +501,13 @@ pytest tests/ -v --cov=app
 |----------|-------------|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture and data flow |
 | [API_INTEGRATION.md](docs/API_INTEGRATION.md) | API documentation |
+| [KB_MANAGEMENT_API_ENDPOINTS.md](docs/KB_MANAGEMENT_API_ENDPOINTS.md) | API endpoints and usage examples |
 | [GITHUB_INTEGRATION.md](docs/GITHUB_INTEGRATION.md) | GitHub integration details |
 | [SLACK_INTEGRATION.md](docs/SLACK_INTEGRATION.md) | Slack integration details |
 | [KB_REPOSITORY_STRUCTURE.md](docs/KB_REPOSITORY_STRUCTURE.md) | KB repository organization |
 | [KB_WRITING_GUIDELINES.md](docs/KB_WRITING_GUIDELINES.md) | Guidelines for KB documents |
-| [IMPLEMENTATION_PLANS.md](docs/IMPLEMENTATION_PLANS.md) | Development guidance |
+| [KB_MATCHER_IMPLEMENTATION.md](docs/KB_MATCHER_IMPLEMENTATION.md) | KB matching algorithm details |
+| [KB_QNA_IMPLEMENTATION.md](docs/KB_QNA_IMPLEMENTATION.md) | Q&A feature implementation |
 
 ---
 
