@@ -16,6 +16,7 @@
 - [How-To Guides](#how-to-guides)
   - [Setting Up a Knowledge Base Repository](#setting-up-a-knowledge-base-repository)
   - [Creating a GitHub Personal Access Token](#creating-a-github-personal-access-token)
+  - [Generating a Slack Bot Token](#generating-a-slack-bot-token)
   - [Finding Your Slack Channel ID](#finding-your-slack-channel-id)
   - [Configuring SAP GenAI SDK](#configuring-sap-genai-sdk)
 - [Running the Application](#running-the-application)
@@ -62,8 +63,6 @@ Multi-Input Sources → AI Processing (PII Masking) → KB Generation → GitHub
 Archie consists of two main services:
 - **Backend API (FastAPI)**: Handles integrations, AI processing, and KB operations
 - **Frontend UI (Streamlit)**: Provides the chat interface and integration management
-
-For detailed architecture information, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
@@ -192,6 +191,102 @@ A Personal Access Token (PAT) allows Archie to create branches and pull requests
    - Add it to your `.env` file as `GITHUB_TOKEN`
 
 > ⚠️ **Security Note**: Never commit your token to version control. Keep it secure.
+
+---
+
+### Generating a Slack Bot Token
+
+A Slack Bot Token allows Archie to read messages from your Slack channels. Follow these steps to create a Slack app and generate a bot token.
+
+#### 1. Create a New Slack App
+
+1. Go to the **Slack API portal**: [api.slack.com/apps](https://api.slack.com/apps/)
+2. Click **"Create New App"**
+3. Select **"From an app manifest"**
+4. Choose your workspace from the dropdown
+5. Click **"Next"**
+
+#### 2. Configure the App with the Manifest
+
+1. Select **JSON** as the format
+2. Replace the default manifest with the following configuration:
+
+```json
+{
+    "display_information": {
+        "name": "Archie"
+    },
+    "features": {
+        "bot_user": {
+            "display_name": "Archie",
+            "always_online": false
+        }
+    },
+    "oauth_config": {
+        "scopes": {
+            "bot": [
+                "channels:history",
+                "channels:read",
+                "groups:history",
+                "groups:read"
+            ]
+        }
+    },
+    "settings": {
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": false,
+        "token_rotation_enabled": false
+    }
+}
+```
+
+3. Click **"Next"** to review the configuration
+4. Click **"Create"** to finish creating the app
+
+#### 3. Install the App to Your Workspace
+
+1. In the Slack app settings, go to **"Install App"** in the left sidebar
+2. Click **"Install to Workspace"**
+3. Review the permissions and click **"Allow"**
+
+[IMAGE]
+
+#### 4. Copy the Bot Token
+
+1. After installation, you'll see the **"Bot User OAuth Token"** on the same page
+2. The token starts with `xoxb-` (e.g., `xoxb-1234567890-1234567890-abcdefghijklmnopqrstuvwx`)
+3. Click **"Copy"** to copy the token
+4. Add this token to your `.env` file as `SLACK_BOT_TOKEN`
+
+[IMAGE]
+
+> ⚠️ **Security Note**: Keep your bot token secure. Never commit it to version control or share it publicly.
+
+#### 5. Invite the Bot to Channels
+
+Before Archie can read messages from a channel, you must invite the bot:
+
+1. Open the Slack channel you want to extract messages from
+2. Type `/invite @Archie` in the message box
+3. Press Enter to invite the bot
+4. You should see a confirmation message that the bot was added
+
+> **Note**: The bot can only read messages from channels it has been invited to. You'll need to invite it to each channel you want to use with Archie.
+
+#### Verify Permissions
+
+The manifest above grants these essential permissions:
+- **`channels:history`**: Read messages from public channels
+- **`channels:read`**: View basic information about public channels
+- **`groups:history`**: Read messages from private channels (if invited)
+- **`groups:read`**: View basic information about private channels
+
+If you need to modify permissions later:
+1. Go to your app settings at [api.slack.com/apps](https://api.slack.com/apps/)
+2. Select your app
+3. Navigate to **"OAuth & Permissions"**
+4. Update the **"Bot Token Scopes"** as needed
+5. Reinstall the app to apply changes
 
 ---
 
