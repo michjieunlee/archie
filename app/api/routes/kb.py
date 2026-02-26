@@ -9,7 +9,7 @@ Main entrypoint with three use case endpoints:
 
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 import logging
 
@@ -50,6 +50,10 @@ class KBQueryRequest(BaseModel):
     """Request model for KB query endpoint."""
 
     query: str = Field(..., description="User's question about the knowledge base")
+    conversation_history: Optional[List[Dict[str, str]]] = Field(
+        None,
+        description="Recent conversation history. Format: [{'role': 'user'|'assistant', 'content': str}]"
+    )
 
 
 class MaskMessageRequest(BaseModel):
@@ -284,9 +288,15 @@ async def kb_query(request: KBQueryRequest):
     ```
     """
     try:
-        logger.info(f"KB query request: query='{request.query}'")
+        logger.info(
+            f"KB query request: query='{request.query}', "
+            f"history={len(request.conversation_history) if request.conversation_history else 0} messages"
+        )
 
-        result = await orchestrator.query_knowledge_base(query=request.query)
+        result = await orchestrator.query_knowledge_base(
+            query=request.query,
+            conversation_history=request.conversation_history
+        )
 
         return result
 

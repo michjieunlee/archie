@@ -5,7 +5,10 @@ This module contains system prompts and helper functions for the KB query
 generation feature, which answers user questions based on knowledge base content.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+
+# Maximum conversation history messages to include for context
+KB_QUERY_HISTORY_LIMIT = 6  # Last 3 exchanges
 
 
 QNA_SYSTEM_PROMPT = """
@@ -26,7 +29,12 @@ Do not add anything else.
 """
 
 
-def create_qna_prompt(question: str, kb_documents: List[Dict[str, Any]], doc_scores: Dict[str, float] = None) -> str:
+def create_qna_prompt(
+    question: str,
+    kb_documents: List[Dict[str, Any]],
+    doc_scores: Dict[str, float] = None,
+    conversation_history: Optional[List[Dict[str, str]]] = None
+) -> str:
     """
     Create prompt for KB query based on user question and relevant documents.
 
@@ -34,6 +42,7 @@ def create_qna_prompt(question: str, kb_documents: List[Dict[str, Any]], doc_sco
         question: User's question
         kb_documents: List of relevant KB documents with content
         doc_scores: Optional dictionary mapping document paths to relevance scores
+        conversation_history: Optional recent conversation history for context
 
     Returns:
         Formatted prompt for the LLM
@@ -41,7 +50,23 @@ def create_qna_prompt(question: str, kb_documents: List[Dict[str, Any]], doc_sco
     prompt = f"""
 Question: {question}
 
-Available Documents:
+"""
+
+    # Add conversation context if available
+    if conversation_history:
+        limited_history = conversation_history[-KB_QUERY_HISTORY_LIMIT:]
+
+        prompt += """Recent Conversation Context:
+(Use this to understand what the user is referring to in their question)
+
+"""
+        for msg in limited_history:
+            role_label = "User" if msg["role"] == "user" else "Assistant"
+            prompt += f"{role_label}: {msg['content']}\n\n"
+
+        prompt += "---\n\n"
+
+    prompt += """Available Documents:
 """
 
     for i, doc in enumerate(kb_documents):
@@ -56,10 +81,11 @@ Content:
 
     prompt += """
 Your Task:
-1. Search through ALL documents above for information that answers the question
-2. If found: Provide the answer with citation
-3. If NOT found: Say "I don't have information about this in the knowledge base" and STOP
-4. Do NOT provide any suggestions, advice, or information not in these documents
+1. Review the conversation context (if provided) to understand what the user is referring to
+2. Search through ALL documents above for information that answers the question
+3. If found: Provide the answer with citation
+4. If NOT found: Say "I don't have information about this in the knowledge base" and STOP
+5. Do NOT provide any suggestions, advice, or information not in these documents
 
 Answer:
 """

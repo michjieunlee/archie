@@ -140,22 +140,48 @@ Analyze the user's message and classify it into one of four backend actions. Ret
 - If no metadata mentioned: null
 
 ### 3. kb_query
-    **When to use**: User wants to search or retrieve existing knowledge
-    **Example Triggers**:
-    - Questions about existing information: "what do we know about X"
-    - "search for", "find information on", "look up"
-    - "summarize our knowledge on", "what's documented about"
-    - Requests for specific KB article details
-    
+**When to use**: User asks about organizational knowledge (regardless of how they phrase it)
+
+**What to look for - the SUBJECT of the question**:
+- Organizational systems, services, tools, infrastructure
+- URLs, links, resources, documentation, wikis
+- Processes, procedures, workflows, guidelines
+- People, teams, roles, contacts
+- Troubleshooting, technical issues, configurations
+- Any organizational-specific information
+
+**Examples** (notice the phrasing doesn't matter, only the subject):
+- "What is the github onboarding link?" → kb_query (subject: organizational resource)
+- "Can you help me find the API documentation?" → kb_query (subject: organizational docs)
+- "How do I deploy to production?" → kb_query (subject: organizational process)
+- "Who is responsible for the CI/CD pipeline?" → kb_query (subject: organizational info)
+
 **Parameter extraction**: Return empty string ""
 
 ### 4. chat_only
-**When to use**: Conversational or meta requests that don't need backend processing
-**Example Triggers**:
-- Greetings: "hello", "hi", "thanks"
-- Help requests: "what can you do", "how does this work"
-- Clarification questions about features
-- Small talk or acknowledgments
+**When to use**: User asks about Archie itself (how to use it, configure it, what it does) OR asks about current connection status
+
+**What to look for - questions about ARCHIE**:
+- Archie's features and capabilities ("what can Archie do", "what can you do")
+- How to use Archie ("how do I use this", "how does this work")
+- Configuring Archie integrations ("how do I connect GitHub", "set up Slack")
+- Current connection status and configuration ("what is connected", "which repo", "what slack channel")
+- Greetings and acknowledgments ("hello", "thanks")
+
+**Examples**:
+- "How do I connect GitHub?" → chat_only (about configuring Archie)
+- "What can you do?" → chat_only (about Archie's capabilities)
+- "How do I create a KB article?" → chat_only (about using Archie)
+- "Can you help me set up Slack?" → chat_only (about configuring Archie)
+- "What is currently connected github repo name?" → chat_only (about current status)
+- "Which GitHub repository am I using?" → chat_only (about current status)
+- "What Slack channel is connected?" → chat_only (about current status)
+- "Am I connected to GitHub?" → chat_only (about current status)
+- "Show me my current connections" → chat_only (about current status)
+
+**Key distinction**:
+- "Help me find X" where X is organizational knowledge → kb_query
+- "Help me use/configure Archie" OR "What is currently connected/configured" → chat_only
 
 **Parameter extraction**: Return empty string ""
 
@@ -209,6 +235,19 @@ For kb_query or chat_only:
 
 **Input**: "What do we know about the authentication flow?"
 **Output**: {{"action": "kb_query", "parameters": ""}}
+**Reasoning**: Question about organizational knowledge (authentication flow), not about Archie
+
+**Input**: "What is the url of the github onboarding link?"
+**Output**: {{"action": "kb_query", "parameters": ""}}
+**Reasoning**: Seeking organizational resource (onboarding link), classify as kb_query
+
+**Input**: "How do I access the deployment pipeline?"
+**Output**: {{"action": "kb_query", "parameters": ""}}
+**Reasoning**: Question about organizational system (deployment pipeline)
+
+**Input**: "Where can I find the API documentation?"
+**Output**: {{"action": "kb_query", "parameters": ""}}
+**Reasoning**: Looking for organizational documentation
 
 **Input**: [User attaches file] "Please add this API documentation with the file title "Gerrit API documentation"
 **Output**: {{"action": "kb_from_text", "parameters": {{"title": "Gerrit API documentation", "metadata": null}}}}
@@ -234,6 +273,15 @@ For kb_query or chat_only:
 
 **Input**: "How do I connect my GitHub repository?"
 **Output**: {{"action": "chat_only", "parameters": ""}}
+**Reasoning**: Question about using Archie itself (connecting integrations), not organizational knowledge
+
+**Input**: "What can Archie do?"
+**Output**: {{"action": "chat_only", "parameters": ""}}
+**Reasoning**: Meta question about Archie's capabilities
+
+**Input**: "How do I configure the Slack integration?"
+**Output**: {{"action": "chat_only", "parameters": ""}}
+**Reasoning**: Question about configuring Archie, not organizational knowledge
 
 ## Context-Aware Examples
 
@@ -250,7 +298,9 @@ For kb_query or chat_only:
 - ALWAYS return valid JSON conforming to the schema
 - Prioritize explicit Slack/KB requests over general questions
 - Use conversation history to identify follow-up actions
-- When in doubt between kb_query and chat_only, ask the user for clarification
+- **Classification key**: Focus on WHAT the user is asking about (subject matter), not HOW they phrase it
+- Questions about organizational knowledge (systems, docs, processes) → kb_query
+- Questions about Archie itself (features, configuration, usage) → chat_only
 """
 
 
