@@ -8,13 +8,15 @@ Orchestrates the full KB creation pipeline for three main use cases:
 """
 
 import logging
-from typing import Optional, Dict, Any
+import re
+from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime
 from textwrap import dedent
 
 from gen_ai_hub.proxy.langchain.openai import ChatOpenAI
 from gen_ai_hub.proxy.core.proxy_clients import get_proxy_client
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
+from app.ai_core.prompts.query import QNA_SYSTEM_PROMPT, create_qna_prompt
 
 from app.api.routes.slack import fetch_slack_conversation
 from app.ai_core.masking import PIIMasker
@@ -36,6 +38,7 @@ from app.models.api_responses import (
     KBProcessingResponse,
     KBQueryResponse,
     KBActionType,
+    KBSearchSource,
 )
 from app.ai_core.matching.kb_matcher import MatchAction
 from app.config import get_settings
@@ -209,16 +212,167 @@ class KBOrchestrator:
         try:
             logger.info(f"Processing KB query: {query}")
 
-            # TODO: Implement KB search
-            # For now, return placeholder response
-            logger.warning("KB search not yet implemented")
+            # 1. Fetch KB documents from GitHub
+            try:
+                all_kb_docs = await self.github_client.read_kb_repository()
+                if not all_kb_docs:
+                    return KBQueryResponse(
+                        status="success",
+                        query=query,
+                        answer="The knowledge base is empty or could not be accessed.",
+                        sources=[],
+                        total_sources=0
+                    )
+                logger.info(f"Fetched {len(all_kb_docs)} KB documents")
+            except Exception as e:
+                logger.error(f"Failed to fetch KB documents: {e}")
+                return KBQueryResponse(
+                    status="error",
+                    query=query,
+                    reason=f"Failed to access knowledge base: {str(e)}"
+                )
 
+            # 2. Compute document relevance scores
+            scored_docs = self._compute_document_relevance(query, all_kb_docs)
+
+            # Pass more documents to LLM - let AI decide what's relevant
+            MAX_DOCS = 30  # Increased to give LLM more context
+            MIN_RELEVANCE = 0.1  # Lower threshold - let LLM filter
+
+            # Filter documents by relevance score and limit
+            relevant_docs = [doc for doc, score in scored_docs if score >= MIN_RELEVANCE][:MAX_DOCS]
+
+            # If we still have no documents after filtering, just take top documents
+            if not relevant_docs and all_kb_docs:
+                relevant_docs = [doc for doc, score in scored_docs[:MAX_DOCS]]
+
+            logger.info(f"Passing {len(relevant_docs)} documents to LLM from {len(all_kb_docs)} total")
+            logger.info(f"Query: '{query}'")
+
+            # Log top documents for debugging
+            for i, (doc, score) in enumerate(scored_docs[:10], 1):
+                title = doc.get('title', 'Untitled')
+                path = doc.get('path', 'unknown')
+                logger.info(f"Doc {i}: '{title}' [{path}] (score: {score:.2f})")
+
+            # 3. Create prompt and generate answer
+            # Create a dict of doc paths to scores for prompt enhancement
+            doc_scores = {doc.get('path', ''): score for doc, score in scored_docs}
+
+            # Very simple document preprocessing that doesn't do special processing
+            # This just adds the full document text to the prompt, nothing more
+            # Let the LLM handle the extraction rather than trying to pre-process
+            for doc in relevant_docs:
+                # We're intentionally not doing any special preprocessing
+                # because that tends to make assumptions about information types
+                pass
+
+            # Create enhanced prompt with relevance scores
+            prompt = create_qna_prompt(query, relevant_docs, doc_scores)
+            messages = [
+                SystemMessage(content=QNA_SYSTEM_PROMPT),
+                HumanMessage(content=prompt)
+            ]
+
+            # 4. Generate answer with LLM
+            response = await self.llm.ainvoke(messages)
+            answer = response.content.strip()
+
+            # 5. Extract cited sources from answer
+            # Parse the answer to find which sources were actually cited
+            cited_sources = []
+
+            # Try to extract Sources section from the answer
+            sources_pattern = r'Sources:\s*\[(.*?)\]'
+            sources_match = re.search(sources_pattern, answer, re.IGNORECASE | re.DOTALL)
+
+            if sources_match:
+                # Extract sources list
+                sources_text = sources_match.group(1)
+                source_titles = [s.strip() for s in re.split(r'],\s*\[', sources_text)]
+                source_titles = [s.replace(']', '').replace('[', '') for s in source_titles]
+                cited_sources = source_titles
+
+            # If no sources section found, check for inline citations
+            if not cited_sources:
+                inline_pattern = r'According to [""]?([^"",]*?)[""]?,'
+                inline_matches = re.findall(inline_pattern, answer)
+                cited_sources = inline_matches
+
+            # If still no sources found, include all relevant docs
+            if not cited_sources:
+                cited_sources = [doc.get("title", "") for doc in relevant_docs]
+
+            # Format sources for response, filtering to only include cited sources
+            sources = []
+            # Get scores dictionary for quick lookup
+            doc_scores = {doc.get('path', ''): score for doc, score in scored_docs}
+
+            for doc in relevant_docs:
+                doc_title = doc.get("title", "")
+
+                # Skip this document if it wasn't cited and we have citations
+                if cited_sources and doc_title not in cited_sources:
+                    # Try to check with some flexibility (exact match might be too strict)
+                    if not any(doc_title in source or source in doc_title for source in cited_sources):
+                        continue
+
+                # Create GitHub URL for the document
+                github_url = f"https://github.com/{self.github_client.repo.full_name}/blob/{self.github_client.default_branch}/{doc['path']}"
+
+                # Get relevance score for this doc (default to 0.5 if not found)
+                relevance_score = doc_scores.get(doc.get('path', ''), 0.5)
+
+                # Extract a more meaningful excerpt by finding key sentences or specific information
+                content = doc["content"]
+                excerpt = content[:150] + "..." if len(content) > 150 else content
+
+                # Determine if we're looking for specific information types
+                is_url_query = any(term in query.lower() for term in ["url", "link", "website", "site", "github"])
+                is_email_query = "email" in query.lower()
+                is_value_query = any(term in query.lower() for term in ["value", "number", "id", "identifier"])
+
+                # Extract specific information if the query is looking for it
+                if is_url_query:
+                    # Look for URLs in the content
+                    urls = re.findall(r'https?://\S+', content)
+                    if urls:
+                        # Use the sentence containing the URL as excerpt
+                        sentences = re.split(r'(?<=[.!?])\s+', content)
+                        for sentence in sentences:
+                            if any(url in sentence for url in urls):
+                                excerpt = sentence
+                                break
+
+                # If not found by specific pattern, try query terms
+                if len(excerpt) > 150:  # Only if we haven't found a specific excerpt yet
+                    query_terms = query.lower().split()
+                    if len(query_terms) >= 2:  # Only for multi-word queries
+                        sentences = re.split(r'(?<=[.!?])\s+', content)
+                        # Look for sentences with multiple query terms
+                        for sentence in sentences:
+                            sentence_lower = sentence.lower()
+                            if sum(1 for term in query_terms if term in sentence_lower) >= 2:
+                                excerpt = sentence
+                                break
+
+                source = KBSearchSource(
+                    title=doc["title"],
+                    category=doc["category"],
+                    excerpt=excerpt,
+                    relevance_score=relevance_score,
+                    file_path=doc["path"],
+                    github_url=github_url
+                )
+                sources.append(source)
+
+            # 6. Return formatted response
             return KBQueryResponse(
                 status="success",
                 query=query,
-                answer="Knowledge base search is not yet implemented. This feature is coming soon.",
-                sources=[],
-                total_sources=0,
+                answer=answer,
+                sources=sources,
+                total_sources=len(sources)
             )
 
         except Exception as e:
@@ -664,3 +818,77 @@ class KBOrchestrator:
         print("💡 To create a PR, set DRY_RUN=false in your environment")
         print(separator)
         print()
+
+    def _compute_document_relevance(self, query: str, documents: List[Dict[str, Any]]) -> List[Tuple[Dict[str, Any], float]]:
+        """
+        Compute basic relevance scores for documents. Keep it simple - let LLM do detailed filtering.
+
+        Args:
+            query: User's question
+            documents: List of KB documents
+
+        Returns:
+            List of (document, score) tuples sorted by relevance
+        """
+        query_lower = query.lower()
+
+        # Extract keywords (remove common stop words)
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'in', 'to',
+                      'for', 'of', 'with', 'how', 'what', 'when', 'where', 'why', 'do',
+                      'can', 'could', 'would', 'should', 'will', 'shall', 'may', 'might',
+                      'must', 'need', 'have', 'has', 'had', 'been', 'was', 'were', 'am',
+                      'that', 'this', 'these', 'those', 'which', 'who', 'whom', 'whose'}
+        query_words = set(re.findall(r'\b\w+\b', query_lower))
+        query_keywords = query_words - stop_words
+
+        scored_docs = []
+
+        for doc in documents:
+            score = 0.0
+            content = doc.get("content", "").lower()
+            title = doc.get("title", "").lower()
+            category = doc.get("category", "").lower()
+            tags = [tag.lower() for tag in doc.get("tags", [])]
+
+            # Title matches
+            title_words = set(re.findall(r'\b\w+\b', title))
+            title_match_count = len(query_keywords.intersection(title_words))
+            score += title_match_count * 0.5
+
+            # Exact query in title (very high signal)
+            if query_lower in title:
+                score += 1.5
+
+            # Full query phrase in content (high signal)
+            if query_lower in content:
+                score += 1.0
+
+            # Multi-word phrases from query (e.g., "github onboarding")
+            words = [w for w in query_lower.split() if w not in stop_words]
+            if len(words) >= 2:
+                # Check all 2-word combinations
+                for i in range(len(words) - 1):
+                    phrase = f"{words[i]} {words[i+1]}"
+                    if phrase in content:
+                        score += 0.5
+                    if phrase in title:
+                        score += 0.8
+
+            # Individual keyword matches in content
+            for keyword in query_keywords:
+                if keyword in content:
+                    score += 0.15
+
+            # Category match
+            if category in query_keywords:
+                score += 0.3
+
+            # Tag matches
+            for tag in tags:
+                if tag in query_keywords:
+                    score += 0.25
+
+            scored_docs.append((doc, score))
+
+        # Sort by score descending
+        return sorted(scored_docs, key=lambda x: x[1], reverse=True)
