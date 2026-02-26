@@ -229,17 +229,25 @@ def kb_from_text(text: str, title: str | None = None, metadata: dict | None = No
         return {"status": "error", "action": "error", "reason": str(e)}
 
 
-def kb_query(query: str) -> dict:
+def kb_query(query: str, conversation_history: list | None = None) -> dict:
     """
     Query the knowledge base.
+
+    Args:
+        query: User's question
+        conversation_history: Optional recent conversation for context
 
     Calls: POST /api/kb/query
 
     Returns:
         The KBQueryResponse dict from the backend.
     """
+    payload = {"query": query}
+    if conversation_history:
+        payload["conversation_history"] = conversation_history
+
     try:
-        resp = _api_post("/api/kb/query", json={"query": query})
+        resp = _api_post("/api/kb/query", json=payload)
         resp.raise_for_status()
         return resp.json()
     except requests.ConnectionError:

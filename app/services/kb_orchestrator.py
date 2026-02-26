@@ -192,7 +192,11 @@ class KBOrchestrator:
                 reason=str(e),
             )
 
-    async def query_knowledge_base(self, query: str) -> KBQueryResponse:
+    async def query_knowledge_base(
+        self,
+        query: str,
+        conversation_history: Optional[List[Dict[str, str]]] = None
+    ) -> KBQueryResponse:
         """
         Use case 3: Query knowledge base (Q&A).
 
@@ -205,12 +209,15 @@ class KBOrchestrator:
 
         Args:
             query: User's question about the knowledge base
+            conversation_history: Optional recent conversation history for context
 
         Returns:
             KBQueryResponse with search results and answer
         """
         try:
             logger.info(f"Processing KB query: {query}")
+            if conversation_history:
+                logger.info(f"Conversation history provided: {len(conversation_history)} messages")
 
             # 1. Fetch KB documents from GitHub
             try:
@@ -267,8 +274,8 @@ class KBOrchestrator:
                 # because that tends to make assumptions about information types
                 pass
 
-            # Create enhanced prompt with relevance scores
-            prompt = create_qna_prompt(query, relevant_docs, doc_scores)
+            # Create enhanced prompt with relevance scores and conversation history
+            prompt = create_qna_prompt(query, relevant_docs, doc_scores, conversation_history)
             messages = [
                 SystemMessage(content=QNA_SYSTEM_PROMPT),
                 HumanMessage(content=prompt)
