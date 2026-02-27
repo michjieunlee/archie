@@ -253,11 +253,11 @@ A Slack Bot Token allows Archie to read messages from your Slack channels. Follo
 
 #### 3. Install the App to Your Workspace
 
-1. In the Slack app settings, go to **"Install App"** in the left sidebar
+1. In the Slack api settings, go to **"Install App"** in the left sidebar
 2. Click **"Install to Workspace"**
 3. Review the permissions and click **"Allow"**
 
-[IMAGE]
+![Slack App Installation](img/slack_app_installation.png)
 
 #### 4. Copy the Bot Token
 
@@ -265,8 +265,6 @@ A Slack Bot Token allows Archie to read messages from your Slack channels. Follo
 2. The token starts with `xoxb-` (e.g., `xoxb-1234567890-1234567890-abcdefghijklmnopqrstuvwx`)
 3. Click **"Copy"** to copy the token
 4. Add this token to your `.env` file as `SLACK_BOT_TOKEN`
-
-[IMAGE]
 
 > ⚠️ **Security Note**: Keep your bot token secure. Never commit it to version control or share it publicly.
 
