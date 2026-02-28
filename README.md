@@ -397,6 +397,10 @@ cd app/streamlit && streamlit run app.py --server.port 8502
 
 ## Using Archie
 
+<p align="center">
+  <img src="img/archie_main.png" alt="Archie Main Interface" width="800">
+</p>
+
 ### 1. Access the Application
 
 Open your browser and navigate to `http://localhost:8501`
