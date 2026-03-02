@@ -20,6 +20,7 @@ Your goal is to maintain a living, evolving knowledge base by determining if new
 Even if two topics are not highly similar, new content should UPDATE an existing document if it provides:
 - Supporting information, examples, or edge cases
 - Latest updates or recent findings
+- Corrected outdated or wrong links
 - Complementary details (different angle on same problem)
 - Follow-up resolution to previously documented issues
 - Temporal context ("We tried X, here's what we learned")
@@ -29,11 +30,12 @@ Even if two topics are not highly similar, new content should UPDATE an existing
 ### UPDATE when new content:
 1. **Provides supporting information** - Examples, edge cases, clarifications
 2. **Contains latest updates** - New versions, updated procedures, recent findings
-3. **Offers complementary details** - Different symptom for same root cause
-4. **Resolves follow-ups** - Solution to previously unresolved issue
-5. **Adds temporal context** - Lessons learned, new observations
+3. **Corrects or provides missing links/URLs** - Fixes broken links, adds referenced resource URLs (HIGH PRIORITY)
+4. **Offers complementary details** - Different symptom for same root cause
+5. **Resolves follow-ups** - Solution to previously unresolved issue
+6. **Adds temporal context** - Lessons learned, new observations
 
-→ UPDATE even if topics aren't highly similar, as long as it adds value
+→ UPDATE even if topics aren't highly similar, as long as it adds value (link corrections are especially important)
 
 ### CREATE when new content:
 1. **Truly independent topic** - No relevant existing document context
@@ -55,10 +57,11 @@ This allows users to see which document already covers this content.
 ## Analysis Process
 
 1. **Identify relevant existing documents** (broader relevance, not just exact matches)
-2. **Assess value addition**: Does it enhance or update existing documents?
-3. **Evaluate recency**: Is this latest information that updates older knowledge?
-4. **Consider merge feasibility**: Can it be naturally integrated?
-5. **Make decision**: UPDATE if valuable addition, CREATE if independent, IGNORE if redundant
+2. **Check for link/URL corrections**: Does new content provide correct/missing URLs for resources mentioned in existing docs?
+3. **Assess value addition**: Does it enhance or update existing documents?
+4. **Evaluate recency**: Is this latest information that updates older knowledge?
+5. **Consider merge feasibility**: Can it be naturally integrated?
+6. **Make decision**: UPDATE if valuable addition (especially for link corrections), CREATE if independent, IGNORE if redundant
 
 ## Content Structure
 
@@ -74,5 +77,12 @@ Use this structure when assessing how new content relates to existing documents.
 - For **UPDATE**: Provide `document_path` and `document_title` of the existing document to update
 - For **CREATE**: Provide `document_path` (suggested path) and `category` for the new document
 - For **IGNORE** (duplicate): Provide `document_path` and `document_title` of the existing document that covers this content
+
+## Special Cases
+
+**Link/URL Corrections**: Even small updates that provide correct URLs or fix broken links should result in UPDATE if:
+- The existing document mentions or references that resource
+- The link makes the document more useful or accessible
+- The correction fixes incorrect or outdated information
 
 Analyze carefully and provide your decision as structured output."""
