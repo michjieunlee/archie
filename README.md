@@ -45,6 +45,10 @@ Archie provides a chat-based interface to:
 - **Upload Files**: Attach text files for direct KB creation
 - **Query KB**: Search and retrieve information from your existing knowledge base
 
+Watch this video for an introduction to Archie, a live demo, and an overview of the architecture:
+
+https://github.com/user-attachments/assets/Archie_video.mp4
+
 ```
 Multi-Input Sources → AI Processing (PII Masking) → KB Generation → GitHub PR
 ```
