@@ -181,21 +181,43 @@ class GitHubClient:
             return None, content
 
         try:
-            # Find the closing ---
-            parts = content.split("---", 2)
-            if len(parts) < 3:
+            # Use regex to properly match frontmatter boundaries
+            # This handles cases where --- might appear in the YAML content
+            match = re.match(r'^---\s*\n(.*?)\n---\s*\n(.*)$', content, re.DOTALL)
+            
+            if not match:
+                # Try alternative pattern without newline after closing ---
+                match = re.match(r'^---\s*\n(.*?)\n---\s*(.*)$', content, re.DOTALL)
+            
+            if not match:
+                logger.warning("Could not find valid frontmatter boundaries")
                 return None, content
 
-            frontmatter_yaml = parts[1].strip()
-            markdown_content = parts[2].strip()
+            frontmatter_yaml = match.group(1).strip()
+            markdown_content = match.group(2).strip()
 
-            # Parse YAML
-            frontmatter = yaml.safe_load(frontmatter_yaml) if frontmatter_yaml else {}
-
-            return frontmatter, markdown_content
+            # Parse YAML with safe_load
+            if frontmatter_yaml:
+                frontmatter = yaml.safe_load(frontmatter_yaml)
+                return frontmatter, markdown_content
+            else:
+                return {}, markdown_content
 
         except yaml.YAMLError as e:
             logger.warning(f"Failed to parse YAML frontmatter: {e}")
+            # Return the content without frontmatter extraction on YAML error
+            # Extract just the markdown content by removing the frontmatter block
+            try:
+                # Try to at least extract the markdown content
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    markdown_content = parts[2].strip()
+                    return None, markdown_content
+            except Exception:
+                pass
+            return None, content
+        except Exception as e:
+            logger.warning(f"Unexpected error extracting frontmatter: {e}")
             return None, content
 
     def _extract_category_from_path(self, file_path: str) -> Optional[str]:

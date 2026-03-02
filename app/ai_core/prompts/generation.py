@@ -37,6 +37,71 @@ CORRECT - proper list:
 3. Third
 """
 
+# YAML formatting rules for frontmatter generation
+YAML_FORMATTING_RULES = """
+YAML FRONTMATTER RULES (CRITICAL)
+
+When generating YAML frontmatter (the section between --- markers), follow these rules STRICTLY:
+
+1. **String Values with Special Characters MUST be Properly Formatted**
+   - If a value contains colons (:), quotes ("), apostrophes ('), or hashes (#), use literal block scalar
+   - Use the pipe symbol (|) for multi-line or complex strings
+   - Example:
+     title: "Simple title without special chars"
+     ai_reasoning: |
+       This text can have: colons, "quotes", and other special characters
+       without causing YAML parsing errors
+
+2. **Multi-line Strings - ALWAYS Use Literal Block Scalar**
+   - For any multi-line content, use the pipe (|) symbol
+   - This preserves line breaks and doesn't require escaping
+   - Indent content by 2 spaces after the pipe
+   - Example:
+     ai_reasoning: |
+       First line with "quotes"
+       Second line with colons: like this
+       Third line is fine too
+
+3. **Simple Single-line Strings**
+   - For short, simple strings without special characters, use double quotes
+   - Example: title: "Fix deployment errors"
+   
+4. **Tags Must Be Properly Formatted**
+   - Each tag in quotes, comma-separated in array format
+   - Example: tags: ["terraform", "github-actions", "linting"]
+
+5. **Never Use Flow-Style for Complex Strings**
+   - WRONG: ai_reasoning: 'Text with "quotes" causes: errors'
+   - WRONG: ai_reasoning: "Text with nested \"quotes\" and: colons"
+   - RIGHT: Use literal block scalar (|) for anything complex
+
+COMMON YAML MISTAKES TO AVOID
+
+❌ WRONG (causes parsing errors):
+ai_reasoning: 'This explains: run "command" first'
+ai_reasoning: "When jobs are delayed: run \"terraform run\" and proceed"
+
+✓ CORRECT (use literal block scalar):
+ai_reasoning: |
+  This explains: run "command" first
+  
+ai_reasoning: |
+  When jobs are delayed: run "terraform run" and proceed
+
+❌ WRONG (mixing quote styles):
+title: 'Fix "linter" errors'
+
+✓ CORRECT (use simple double quotes for short strings):
+title: "Fix linter errors"
+
+REMEMBER: When in doubt, use literal block scalar (|) for any string that:
+- Contains colons (:)
+- Contains quotes (" or ')
+- Contains hashes (#)
+- Spans multiple lines
+- Is longer than one sentence
+"""
+
 GENERATION_PROMPT = """
 You are a technical writer creating knowledge base documentation.
 
@@ -62,6 +127,8 @@ Key Points:
 4. Add relevant tags for searchability
 5. Keep the tone professional and helpful
 
+""" + YAML_FORMATTING_RULES + """
+
 """ + FORMATTING_RULES + """
 
 ## Markdown Template
@@ -81,6 +148,8 @@ Update the existing KB document based on new information.
 
 ## New Information
 {new_information}
+
+""" + YAML_FORMATTING_RULES + """
 
 ## Update Guidelines
 CRITICAL: Follow these rules when updating KB documents:

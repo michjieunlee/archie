@@ -15,7 +15,7 @@ from gen_ai_hub.proxy.core.proxy_clients import get_proxy_client
 from langchain_core.prompts import ChatPromptTemplate
 
 from app.models.knowledge import KBDocument, KBCategory
-from app.utils import flatten_list, format_kb_document_content
+from app.utils import flatten_list, format_kb_document_content, validate_yaml_frontmatter, fix_yaml_frontmatter
 from app.ai_core.prompts.generation import UPDATE_PROMPT
 from app.config import get_settings
 
@@ -68,6 +68,24 @@ class KBGenerator:
         # Fill the template
         try:
             markdown = template_content.format(**variables)
+            
+            # Validate YAML frontmatter
+            is_valid, error_msg = validate_yaml_frontmatter(markdown)
+            if not is_valid:
+                logger.error(f"Generated markdown has invalid YAML: {error_msg}")
+                logger.warning("Attempting to fix YAML programmatically...")
+                
+                # Programmatically fix the YAML frontmatter
+                markdown = fix_yaml_frontmatter(markdown)
+                
+                # Validate again
+                is_valid, error_msg = validate_yaml_frontmatter(markdown)
+                if not is_valid:
+                    logger.error(f"Fixed markdown still has invalid YAML: {error_msg}")
+                    raise ValueError(f"Failed to generate valid YAML after fixing: {error_msg}")
+                else:
+                    logger.info("Successfully fixed markdown YAML frontmatter")
+            
             return markdown
         except KeyError as e:
             logger.error(f"Missing template variable: {e}")
@@ -132,11 +150,17 @@ class KBGenerator:
         normalized_tags = flatten_list(extraction.tags)
         tags_formatted = ", ".join([f'"{tag}"' for tag in normalized_tags])
 
-        # Use yaml.dump() to properly serialize ai_reasoning with correct escaping
-        # This handles quotes, special characters, and multiline strings correctly
-        ai_reasoning_yaml = yaml.dump(
-            extraction.ai_reasoning, default_flow_style=True, allow_unicode=True
-        ).strip()
+        # Use literal block scalar (|) for ai_reasoning to handle multiline and quotes
+        # This is the most reliable format for complex strings with quotes
+        ai_reasoning_lines = extraction.ai_reasoning.split('\n')
+        if len(ai_reasoning_lines) > 1 or '"' in extraction.ai_reasoning:
+            # Use literal block scalar for multiline or strings with quotes
+            ai_reasoning_yaml = '|\n  ' + '\n  '.join(ai_reasoning_lines)
+        else:
+            # For simple single-line strings, use yaml.dump
+            ai_reasoning_yaml = yaml.dump(
+                extraction.ai_reasoning, default_flow_style=True, allow_unicode=True
+            ).strip()
 
         # Common variables
         variables = {
@@ -291,11 +315,17 @@ class KBGenerator:
             frontmatter,
         )
 
-        # Update ai_reasoning - use yaml.dump() for proper YAML serialization
-        # This handles quotes, special characters, and multiline strings correctly
-        ai_reasoning_yaml = yaml.dump(
-            extraction.ai_reasoning, default_flow_style=True, allow_unicode=True
-        ).strip()
+        # Update ai_reasoning - use literal block scalar for reliability
+        ai_reasoning_lines = extraction.ai_reasoning.split('\n')
+        if len(ai_reasoning_lines) > 1 or '"' in extraction.ai_reasoning:
+            # Use literal block scalar for multiline or strings with quotes
+            ai_reasoning_yaml = '|\n  ' + '\n  '.join(ai_reasoning_lines)
+        else:
+            # For simple single-line strings, use yaml.dump
+            ai_reasoning_yaml = yaml.dump(
+                extraction.ai_reasoning, default_flow_style=True, allow_unicode=True
+            ).strip()
+        
         frontmatter = re.sub(
             r'ai_reasoning:\s*["\'].*?["\'](?:\s|$)',
             f"ai_reasoning: {ai_reasoning_yaml}\n",
@@ -368,6 +398,12 @@ class KBGenerator:
             updated_content = self._update_frontmatter_metadata(
                 updated_content, new_document
             )
+            
+            # Validate the updated content
+            is_valid, error_msg = validate_yaml_frontmatter(updated_content)
+            if not is_valid:
+                logger.error(f"Updated markdown has invalid YAML: {error_msg}")
+                raise ValueError(f"AI-generated update produced invalid YAML: {error_msg}")
 
             logger.info(
                 f"Successfully updated KB document using AI (length: {len(updated_content)} chars)"

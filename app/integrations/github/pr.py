@@ -15,6 +15,7 @@ from datetime import datetime
 from github import GithubException
 from app.integrations.github.client import GitHubClient
 from app.integrations.github.models import PRMetadata
+from app.utils.helpers import validate_yaml_frontmatter
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ class PRManager:
         1. Generate unique branch name from title
         2. Create branch from main
         3. Ensure KB folder structure exists
+        3.5. Validate YAML frontmatter
         4. Add/update markdown file
         5. Create PR with metadata
 
@@ -110,6 +112,15 @@ class PRManager:
 
                 # Step 3: Ensure KB folder structure exists
                 await self.client.ensure_kb_structure(branch_name)
+                
+                # Step 3.5: Validate YAML before committing
+                is_valid, error_msg = validate_yaml_frontmatter(content)
+                if not is_valid:
+                    error_message = f"Cannot create PR: markdown content has invalid YAML frontmatter. {error_msg}"
+                    logger.error(error_message)
+                    raise ValueError(error_message)
+                
+                logger.info("YAML frontmatter validation passed")
 
                 # Step 4: Create/update the file
                 commit_message = f"Add document: {title}"
