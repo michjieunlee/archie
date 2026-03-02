@@ -456,15 +456,11 @@ class KBOrchestrator:
         # Fetch existing KB documents from GitHub repository
         try:
             all_kb_docs = await self.github_client.read_kb_repository()
-            # Filter by category for more focused matching
-            existing_kb_docs = [
-                doc
-                for doc in all_kb_docs
-                if doc.get("category") == kb_document.category.value
-            ]
+            # Pass ALL documents to matcher - let it find the best match across categories
+            # This handles cases where category classification may be incorrect
+            existing_kb_docs = all_kb_docs
             logger.info(
-                f"Fetched {len(all_kb_docs)} total KB documents from GitHub, "
-                f"{len(existing_kb_docs)} in category '{kb_document.category.value}'"
+                f"Fetched {len(all_kb_docs)} total KB documents from GitHub"
             )
         except Exception as e:
             logger.warning(
@@ -472,6 +468,7 @@ class KBOrchestrator:
             )
             existing_kb_docs = []
 
+        logger.info(f"Passing {len(existing_kb_docs)} documents to matcher")
         match_result = await self.matcher.match(kb_document, existing_kb_docs)
         logger.info(
             f"Match result: {match_result.action.value} (confidence: {match_result.confidence_score})"

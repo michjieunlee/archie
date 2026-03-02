@@ -63,6 +63,7 @@ EXTRACTION_SYSTEM_PROMPT = (
     - Extract ONLY what is explicitly stated
     - If information is missing, use "Not discussed in conversation"
     - Preserve exact commands, URLs, and technical details as shared
+    - **CRITICAL: Preserve ALL relevant links and URLs** - Extract every relevant link mentioned in the conversation with full URLs (documentation, wikis, tickets, tools, repos, etc.)
     - For process_steps: ONLY include steps actually mentioned in the conversation
     
     CRITICAL EXAMPLE - When Methods Are Explicitly Ruled Out:
@@ -96,7 +97,7 @@ EXTRACTION_SYSTEM_PROMPT = (
     - **root_cause**: The identified root cause
     - **solution_steps**: Step-by-step solution with commands/code
     - **prevention_measures**: How to prevent this issue in the future
-    - **related_links**: Related issues or documentation
+    - **related_links**: Related issues or documentation (MUST include ALL RELEVANT URLs mentioned in conversation)
     - **ai_confidence**: Your confidence score (0.0-1.0)
     - **ai_reasoning**: Why this is KB-worthy and your confidence explanation
 
@@ -110,7 +111,7 @@ EXTRACTION_SYSTEM_PROMPT = (
     - **process_steps**: Detailed step-by-step instructions
     - **validation_steps**: How to verify the process completed successfully
     - **common_issues**: Common problems and how to troubleshoot them
-    - **related_processes**: Links to related processes
+    - **related_processes**: Links to related processes (MUST include ALL RELEVANT URLs mentioned in conversation)
     - **ai_confidence**: Your confidence score (0.0-1.0)
     - **ai_reasoning**: Why this is KB-worthy and your confidence explanation
 
@@ -136,8 +137,8 @@ EXTRACTION_SYSTEM_PROMPT = (
     - **difficulty**: Difficulty level (beginner, intermediate, or advanced)
     - **question_context**: What was being asked or needed
     - **resource_type**: Type of resource (Documentation, Service URL, Contact, Tool, Wiki)
-    - **primary_resource**: Main link or resource provided
-    - **additional_resources**: Other related links or resources
+    - **primary_resource**: Main link or resource provided (use full URL)
+    - **additional_resources**: Other related links or resources (MUST include ALL RELEVANT URLs mentioned)
     - **resource_description**: Description of what these resources provide
     - **usage_context**: When and why you would use this resource
     - **access_requirements**: Prerequisites or requirements to access
@@ -153,7 +154,7 @@ EXTRACTION_SYSTEM_PROMPT = (
     - **summary**: High-level summary of the conversation
     - **key_topics**: Main topics discussed
     - **key_points**: Important points or takeaways
-    - **mentioned_resources**: Any links, tools, or resources mentioned
+    - **mentioned_resources**: Any links, tools, or resources mentioned (MUST include ALL RELEVANT URLs with full paths)
     - **participants_context**: Context about participants or the discussion
     - **ai_confidence**: Your confidence score (0.0-1.0)
     - **ai_reasoning**: Why this is KB-worthy and your confidence explanation
@@ -215,6 +216,12 @@ EXTRACTION_USER_PROMPT_TEMPLATE = dedent(
     - If the conversation discusses it: Extract ONLY what was said
     - If the conversation does NOT discuss it: Use "Not discussed in conversation"
     - DO NOT fill in "obvious" or "logical" steps that weren't mentioned
+    
+    **Link and URL Extraction Rules (CRITICAL):**
+    - Extract EVERY link/URL mentioned in the conversation with complete URLs
+    - Use full URLs (e.g., https://wiki.example.com/page/subpage) not shortened versions
+    - Include links in appropriate fields: related_links, primary_resource, additional_resources, mentioned_resources, related_processes
+    - Preserve link context (briefly note what each link points to)
     
     **EXCEPTION - AI-Assessed Fields (difficulty, ai_confidence, ai_reasoning):**
     - These fields MUST ALWAYS be populated with your assessment
