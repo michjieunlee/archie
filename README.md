@@ -47,7 +47,7 @@ Archie provides a chat-based interface to:
 
 Watch this video for an introduction to Archie, a live demo, and an overview of the architecture:
 
-<video src="Archie_video.mp4" controls width="800"></video>
+https://github.com/michjieunlee/archie/assets/Archie_video.mp4
 
 ```
 Multi-Input Sources → AI Processing (PII Masking) → KB Generation → GitHub PR
