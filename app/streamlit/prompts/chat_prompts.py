@@ -111,7 +111,7 @@ Analyze the user's message and classify it into one of four backend actions. Ret
 - ANY mention of Slack + time/date → kb_from_slack with appropriate date parameters
 
 ### 2. kb_from_text
-    **When to use**: User provides content directly to create KB articles
+    **When to use**: User provides content directly to create OR update KB articles
     **Example Triggers**:
     - Pasting text content with intent to save
     - Uploading files (detected by file attachment presence)
@@ -121,8 +121,9 @@ Analyze the user's message and classify it into one of four backend actions. Ret
     - "summarize this and create kb", "summarize and make kb"
     - "make/create (a) pr", "create a pull request", "generate pr"
     - "document this", "add documentation for"
+    - **UPDATE REQUESTS**: "update the link for X document", "change the URL in X", "modify X document", "update X with new link"
     
-**PRIORITY RULE**: Any request containing "KB document", "KB article", "PR", "pull request" combined with action verbs (make, create, generate, add) should be classified as kb_from_text, even if phrased conversationally (e.g., "can you...", "would you...").
+**PRIORITY RULE**: Any request containing "KB document", "KB article", "PR", "pull request" combined with action verbs (make, create, generate, add, update, change, modify) should be classified as kb_from_text, even if phrased conversationally (e.g., "can you...", "would you...").
 
 **Parameter extraction**: Extract structured parameters:
 - `title`: Optional string for the KB article title or null
@@ -269,6 +270,18 @@ For kb_query or chat_only:
 
 **Input**: "create a pr with this information"
 **Output**: {{"action": "kb_from_text", "parameters": {{"title": null, "metadata": null}}}}
+
+**Input**: "Can you update the link for 'Decrease integration coverage threshold' document to https://example.com/new-link"
+**Output**: {{"action": "kb_from_text", "parameters": {{"title": "Decrease integration coverage threshold", "metadata": null}}}}
+**Reasoning**: Update request with document title and new information - classify as kb_from_text
+
+**Input**: "Update the deployment process document with this new procedure"
+**Output**: {{"action": "kb_from_text", "parameters": {{"title": "deployment process", "metadata": null}}}}
+**Reasoning**: Document update request - classify as kb_from_text
+
+**Input**: "Change the URL in the API documentation to https://new-api-docs.com"
+**Output**: {{"action": "kb_from_text", "parameters": {{"title": "API documentation", "metadata": null}}}}
+**Reasoning**: Update request targeting specific document - classify as kb_from_text
 
 **Input**: "How do I connect my GitHub repository?"
 **Output**: {{"action": "chat_only", "parameters": ""}}
