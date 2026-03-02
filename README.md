@@ -47,7 +47,7 @@ Archie provides a chat-based interface to:
 
 Watch this video for an introduction to Archie, a live demo, and an overview of the architecture:
 
-https://github.com/michjieunlee/archie/assets/Archie_video.mp4
+https://github.com/user-attachments/assets/18f77239-c6cf-4df6-a4e8-13fbc79f718d
 
 ```
 Multi-Input Sources → AI Processing (PII Masking) → KB Generation → GitHub PR
@@ -545,6 +545,7 @@ pytest tests/ -v --cov=app
 
 - **SAP GenAI SDK Required**: This project requires SAP BTP (Business Technology Platform) access to use the SAP GenAI SDK. Users need valid SAP credentials to run the AI processing features.
 - **Single Slack Channel**: Currently supports monitoring one Slack channel at a time.
+- **Single KB Generation**: Archie currently generates one KB article per processing session. If multiple KB-worthy contents are present in the input (e.g., multiple distinct topics in a Slack conversation within a time period), only one KB article will be generated from the identified candidates.
 - **GitHub PAT Authentication**: Uses Personal Access Tokens rather than GitHub App authentication.
 - **Single Instance**: Designed for single-team use without multi-user authentication.
 - **Language Support**: LLM processing currently optimized for English language only.
